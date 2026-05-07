@@ -7,6 +7,7 @@ var selectedProductImage = {};
 
 document.addEventListener("DOMContentLoaded", async function() {
   await loadAllData();
+  renderProducts();
   renderLocations();
   renderAuctions();
   showPrices('retail');

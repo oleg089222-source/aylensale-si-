@@ -21,17 +21,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5}
 .tab{color:#aaa;padding:12px 20px;cursor:pointer;border-bottom:3px solid transparent}
 .tab.active{color:#fff;border-bottom-color:#e94560}
 .content{padding:20px;max-width:1400px;margin:0 auto}
-.save-bar{background:#00cc66;color:#fff;padding:15px 20px;text-align:center;position:sticky;top:0;z-index:50;display:none}
-.save-bar.show{display:block}
-.save-bar button{background:#fff;color:#00cc66;border:none;padding:10px 30px;border-radius:5px;cursor:pointer;font-weight:bold;margin:0 10px}
 table{width:100%;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;border-collapse:collapse}
 th{background:#1a1a2e;color:#fff;padding:12px;text-align:left}
 td{padding:10px 12px;border-bottom:1px solid #eee}
 .btn{padding:6px 12px;border:none;border-radius:4px;cursor:pointer;font-size:12px;color:#fff;margin:2px}
 .btn-edit{background:#3498db}.btn-del{background:#e94560}.btn-save{background:#00cc66}
 .form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
-.form-row input,.form-row select{flex:1;min-width:120px;padding:8px;border:1px solid #ddd;border-radius:4px}
-.img-preview{width:60px;height:40px;object-fit:cover;border-radius:4px}
+.form-row input{flex:1;min-width:120px;padding:8px;border:1px solid #ddd;border-radius:4px}
 @media(max-width:800px){.hdr{flex-direction:column;align-items:flex-start}.tabs{flex-wrap:wrap}.form-row{flex-direction:column}} 
 </style>
 </head>
@@ -45,11 +41,6 @@ td{padding:10px 12px;border-bottom:1px solid #eee}
 </div>
 </div>
 <div class="admin-panel" id="adminPanel">
-<div class="save-bar" id="saveBar">
-<i class="fas fa-exclamation-circle"></i> You have unsaved changes!
-<button onclick="saveAll()"><i class="fas fa-save"></i> Save All Changes</button>
-<button onclick="location.reload()"><i class="fas fa-times"></i> Discard</button>
-</div>
 <div class="hdr">
 <h1><i class="fas fa-cog"></i> AYLENSALE Admin</h1>
 <a href="index.html"><i class="fas fa-home"></i> Back to Site</a>
@@ -64,12 +55,6 @@ td{padding:10px 12px;border-bottom:1px solid #eee}
 <script src="js/data.js"></script>
 <script>
 var curTab='products';
-var hasChanges=false;
-
-function markChanged(){
-  hasChanges=true;
-  document.getElementById('saveBar').classList.add('show');
-}
 
 function doLogin(){
   var u=document.getElementById('loginUser').value;
@@ -77,10 +62,15 @@ function doLogin(){
   if(u==='admin'&&p==='admin2024'){
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('adminPanel').style.display='block';
+    loadAdminData();
     render();
   } else {
     alert('Wrong login or password!');
   }
+}
+
+async function loadAdminData(){
+  await loadAllData();
 }
 
 function showTab(tab,el){
@@ -98,31 +88,25 @@ function render(){
   else if(curTab==='locations')renderLocations(c);
 }
 
-function saveAll(){
-  DB.save('products', products);
-  DB.save('auctions', auctions);
-  DB.save('auctionBids', auctionBids);
-  DB.save('locations', locations);
-  hasChanges=false;
-  document.getElementById('saveBar').classList.remove('show');
-  alert('All changes saved!');
-}
-
 function renderProducts(c){
   var h='<h2>Products ('+products.length+')</h2>';
   h+='<table><tr><th>Name</th><th>Retail</th><th>Wholesale</th><th>Stock</th><th>Actions</th></tr>';
-  products.forEach(function(p){
-    var retail=parseFloat(p.retail||p.price||0)||0;
-    var wholesale=parseFloat(p.wholesale||0)||0;
-    h+='<tr><td>'+p.name+'</td><td>£'+retail.toFixed(2)+'</td><td>£'+wholesale.toFixed(2)+'</td><td>'+parseInt(p.stock||0)+'</td>';
-    h+='<td><button class="btn btn-del" onclick="delProduct('+p.id+')"><i class="fas fa-trash"></i> Delete</button></td></tr>';
-  });
+  if(products.length===0){
+    h+='<tr><td colspan="5">No products</td></tr>';
+  } else {
+    products.forEach(function(p){
+      var retail=parseFloat(p.retail||p.price||0)||0;
+      var wholesale=parseFloat(p.wholesale||0)||0;
+      h+='<tr><td>'+p.name+'</td><td>£'+retail.toFixed(2)+'</td><td>£'+wholesale.toFixed(2)+'</td><td>'+parseInt(p.stock||0)+'</td>';
+      h+='<td><button class="btn btn-del" onclick="delProduct('+p.id+')"><i class="fas fa-trash"></i></button></td></tr>';
+    });
+  }
   h+='</table>';
   c.innerHTML=h;
 }
 
 function delProduct(id){
-  if(!confirm('Delete this product?')) return;
+  if(!confirm('Delete?')) return;
   deleteProductById(id);
   render();
 }
@@ -130,62 +114,42 @@ function delProduct(id){
 function renderAuctions(c){
   var h='<h2>Auctions ('+auctions.length+')</h2>';
   h+='<table><tr><th>Name</th><th>Current Price</th><th>Bids</th><th>Actions</th></tr>';
-  auctions.forEach(function(a){
-    h+='<tr><td>'+a.name+'</td><td>£'+a.currentPrice.toFixed(2)+'</td><td>'+a.bidsCount+'</td>';
-    h+='<td><button class="btn btn-del" onclick="delAuction('+a.id+')"><i class="fas fa-trash"></i> Delete</button></td></tr>';
-  });
+  if(auctions.length===0){
+    h+='<tr><td colspan="4">No auctions</td></tr>';
+  } else {
+    auctions.forEach(function(a){
+      h+='<tr><td>'+a.name+'</td><td>£'+a.currentPrice.toFixed(2)+'</td><td>'+a.bidsCount+'</td>';
+      h+='<td><button class="btn btn-del" onclick="delAuction('+a.id+')"><i class="fas fa-trash"></i></button></td></tr>';
+    });
+  }
   h+='</table>';
   c.innerHTML=h;
 }
 
 function delAuction(id){
-  if(!confirm('Delete this auction?')) return;
+  if(!confirm('Delete?')) return;
   auctions=auctions.filter(function(a){return a.id!==id;});
   if(auctionBids[id]) delete auctionBids[id];
-  markChanged();
+  DB.save('auctions', auctions);
+  DB.save('auctionBids', auctionBids);
   render();
 }
 
 function renderLocations(c){
-  var h='<h2>Pickup Locations</h2>';
+  var h='<h2>Pickup Locations ('+locations.length+')</h2>';
   h+='<table><tr><th>Name</th><th>Address</th><th>Day</th><th>Time</th><th>Actions</th></tr>';
   locations.forEach(function(loc){
     h+='<tr><td>'+loc.name+'</td><td>'+loc.address+'</td><td>'+loc.day+'</td><td>'+loc.time+'</td>';
     h+='<td><button class="btn btn-del" onclick="delLoc('+loc.id+')"><i class="fas fa-trash"></i></button></td></tr>';
   });
-  h+='</table><h3>Add Location</h3><div class="form-row">';
-  h+='<input id="lName" placeholder="Name"><input id="lAddress" placeholder="Address">';
-  h+='<input id="lDay" placeholder="saturday or sunday"><input id="lTime" placeholder="8:00-14:00">';
-  h+='<button class="btn btn-save" onclick="addLoc()"><i class="fas fa-plus"></i> Add</button>';
-  h+='</div>';
+  h+='</table>';
   c.innerHTML=h;
 }
 
 function delLoc(id){
   if(!confirm('Delete?')) return;
   locations=locations.filter(function(loc){return loc.id!==id;});
-  markChanged();
-  render();
-}
-
-function addLoc(){
-  var newId=1;
-  locations.forEach(function(loc){ if(loc.id>=newId) newId=loc.id+1; });
-  locations.push({
-    id:newId,
-    name:document.getElementById('lName').value.trim(),
-    address:document.getElementById('lAddress').value.trim(),
-    day:document.getElementById('lDay').value.trim(),
-    time:document.getElementById('lTime').value.trim(),
-    lat:0,
-    lng:0,
-    active:false
-  });
-  document.getElementById('lName').value='';
-  document.getElementById('lAddress').value='';
-  document.getElementById('lDay').value='';
-  document.getElementById('lTime').value='';
-  markChanged();
+  DB.save('locations', locations);
   render();
 }
 </script>
