@@ -1,0 +1,26 @@
+Retrieving project…
+The `name` property in vercel.json is deprecated (https://vercel.link/name-prop)
+Deploying olegyuryevich-5608s-projects/car-sales-uk
+Uploading [--------------------] (0.0B/40.4KB)
+Uploading [=======-------------] (15.2KB/40.4KB)
+Uploading [==========----------] (21.1KB/40.4KB)
+Uploading [==================--] (37.1KB/40.4KB)
+Uploading [====================] (40.4KB/40.4KB)
+Inspect: https://vercel.com/olegyuryevich-5608s-projects/car-sales-uk/FJhwbNujMigz8umJPs65kJFVLSeN [2s]
+Production: https://car-sales-27sjs94d4-olegyuryevich-5608s-projects.vercel.app [2s]
+https://car-sales-27sjs94d4-olegyuryevich-5608s-projects.vercel.appBuilding...
+Building...
+Building: Running build in Washington, D.C., USA (East) – iad1
+Building: Build machine configuration: 2 cores, 8 GB
+Building: Retrieving list of deployment files...
+Building: Previous build caches not available.
+Building: Downloading 9 deployment files...
+Building: Running "vercel build"
+Building: Vercel CLI 51.6.1
+Building: WARNING! Due to `builds` existing in your configuration file, the Build and Development Settings defined in your Project Settings will not apply. Learn More: https://vercel.link/unused-build-settings
+Building: Build Completed in /vercel/output [23ms]
+Building: Deploying outputs...
+[2K[1A[2K[GProduction: https://car-sales-27sjs94d4-olegyuryevich-5608s-projects.vercel.app [9s]
+Completing...
+Aliased: https://car-sales-uk.vercel.app [9s]
+Due to `builds` existing in your configuration file, the Build and Development Settings defined in your Project Settings will not apply. Learn More: https://vercel.link/unused-build-settings
