@@ -5,7 +5,6 @@ var notifyRequests = [];
 var auctions = [];
 var auctionBids = {};
 
-// Default seed data
 var DEFAULT_PRODUCTS = [
   {id: 1, name: 'iPhone 15 Pro', desc: 'Latest Apple flagship', images: ['https://via.placeholder.com/300x300?text=iPhone1', 'https://via.placeholder.com/300x300?text=iPhone2'], price: 999, retail: 999, wholesale: 799, stock: 5, category: 'electronics'},
   {id: 2, name: 'Samsung 4K TV', desc: 'Smart 55" 4K television', images: ['https://via.placeholder.com/300x300?text=Samsung1', 'https://via.placeholder.com/300x300?text=Samsung2'], price: 599, retail: 599, wholesale: 450, stock: 3, category: 'electronics'},
@@ -20,11 +19,7 @@ var DEFAULT_LOCATIONS = [
   {id: 5, name: 'Epsom Car Boot', address: 'Hook Road Arena, Epsom KT19 8QG', day: 'saturday', time: '6:30-12:00', lat: 51.3367, lng: -0.2667, active: false}
 ];
 
-var DEFAULT_CARDS = {
-  'AYLE001': {name: 'John Doe', discount: 10},
-  'AYLE002': {name: 'Jane Smith', discount: 15},
-  'AYLE003': {name: 'Test Card', discount: 20}
-};
+var DEFAULT_CARDS = {'AYLE001': {name: 'John Doe', discount: 10}, 'AYLE002': {name: 'Jane Smith', discount: 15}, 'AYLE003': {name: 'Test Card', discount: 20}};
 
 var DEFAULT_AUCTIONS = [
   {id: 101, name: 'Vintage Rolex Watch', desc: 'Authentic vintage Rolex Submariner', images: ['https://via.placeholder.com/300x300?text=Rolex1', 'https://via.placeholder.com/300x300?text=Rolex2'], startingPrice: 500, currentPrice: 1250, endTime: new Date(Date.now() + 72*3600000).toISOString(), category: 'watches', bidsCount: 12},
@@ -33,89 +28,35 @@ var DEFAULT_AUCTIONS = [
 ];
 
 var DB = {
-  save: function(key, data) {
-    localStorage.setItem('aylen_' + key, JSON.stringify(data));
-  },
-  load: function(key) {
-    var data = localStorage.getItem('aylen_' + key);
-    return data ? JSON.parse(data) : null;
-  }
+  save: function(key, data) { localStorage.setItem('aylen_' + key, JSON.stringify(data)); },
+  load: function(key) { var data = localStorage.getItem('aylen_' + key); return data ? JSON.parse(data) : null; }
 };
 
 function initializeData() {
-  // Initialize products
-  if (!DB.load('products')) {
-    DB.save('products', DEFAULT_PRODUCTS);
-  }
-  
-  // Initialize locations
-  if (!DB.load('locations')) {
-    DB.save('locations', DEFAULT_LOCATIONS);
-  }
-  
-  // Initialize cards
-  if (!DB.load('cardHolders')) {
-    DB.save('cardHolders', DEFAULT_CARDS);
-  }
-  
-  // Initialize auctions
-  if (!DB.load('auctions')) {
-    DB.save('auctions', DEFAULT_AUCTIONS);
-  }
-  
-  // Initialize auction bids
-  if (!DB.load('auctionBids')) {
-    DB.save('auctionBids', {});
-  }
+  if (!DB.load('products')) DB.save('products', DEFAULT_PRODUCTS);
+  if (!DB.load('locations')) DB.save('locations', DEFAULT_LOCATIONS);
+  if (!DB.load('cardHolders')) DB.save('cardHolders', DEFAULT_CARDS);
+  if (!DB.load('auctions')) DB.save('auctions', DEFAULT_AUCTIONS);
+  if (!DB.load('auctionBids')) DB.save('auctionBids', {});
 }
 
 async function loadAllData() {
-  console.log('DEBUG: loadAllData() called');
-  // Initialize data on first load
   initializeData();
-  
-  // Load all data
   products = DB.load('products') || DEFAULT_PRODUCTS;
-  console.log('DEBUG: products loaded, count=', products.length, 'names:', products.map(p => p.name));
   locations = DB.load('locations') || DEFAULT_LOCATIONS;
   cardHolders = DB.load('cardHolders') || DEFAULT_CARDS;
   notifyRequests = DB.load('notifyRequests') || [];
   auctions = DB.load('auctions') || DEFAULT_AUCTIONS;
   auctionBids = DB.load('auctionBids') || {};
-  
-  // Ensure data is never empty
-  if (!products || products.length === 0) {
-    products = DEFAULT_PRODUCTS;
-    DB.save('products', products);
-  }
-  if (!locations || locations.length === 0) {
-    locations = DEFAULT_LOCATIONS;
-    DB.save('locations', locations);
-  }
-  if (!auctions || auctions.length === 0) {
-    auctions = DEFAULT_AUCTIONS;
-    DB.save('auctions', auctions);
-  }
+  if (!products || products.length === 0) { products = DEFAULT_PRODUCTS; DB.save('products', products); }
+  if (!locations || locations.length === 0) { locations = DEFAULT_LOCATIONS; DB.save('locations', locations); }
+  if (!auctions || auctions.length === 0) { auctions = DEFAULT_AUCTIONS; DB.save('auctions', auctions); }
 }
 
 function addProductWithPhotos(name, desc, price, category, imageUrls, stock, wholesale) {
   var newId = 1;
   products.forEach(function(p) { if (p.id >= newId) newId = p.id + 1; });
-  
-  var product = {
-    id: newId,
-    name: name,
-    desc: desc,
-    description: desc,
-    price: price,
-    retail: price,
-    wholesale: wholesale,
-    category: category,
-    images: imageUrls,
-    stock: stock,
-    imageUrl: imageUrls[0] || null
-  };
-  
+  var product = {id: newId, name: name, desc: desc, description: desc, price: price, retail: price, wholesale: wholesale, category: category, images: imageUrls, stock: stock, imageUrl: imageUrls[0] || null};
   products.push(product);
   DB.save('products', products);
   return product;
@@ -136,23 +77,12 @@ function placeBid(auctionId, bidAmount, bidderName) {
   var auction = auctions.find(function(a) { return a.id === auctionId; });
   if (!auction) return false;
   if (bidAmount <= auction.currentPrice) return false;
-  
   if (!auctionBids[auctionId]) auctionBids[auctionId] = [];
-  
-  var bid = {
-    id: auctionId + '_' + Date.now(),
-    auctionId: auctionId,
-    amount: bidAmount,
-    bidder: bidderName || 'Anonymous',
-    timestamp: new Date().toISOString()
-  };
-  
+  var bid = {id: auctionId + '_' + Date.now(), auctionId: auctionId, amount: bidAmount, bidder: bidderName || 'Anonymous', timestamp: new Date().toISOString()};
   auctionBids[auctionId].push(bid);
   auction.currentPrice = bidAmount;
   auction.bidsCount = (auction.bidsCount || 0) + 1;
-  
   DB.save('auctionBids', auctionBids);
   DB.save('auctions', auctions);
-  
   return true;
 }
