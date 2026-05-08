@@ -88,8 +88,50 @@ function render(){
   else if(curTab==='locations')renderLocations(c);
 }
 
+var editingProductId=null;
+
 function renderProducts(c){
   var h='<h2>Products ('+products.length+')</h2>';
+  
+  if(editingProductId){
+    var p=products.find(function(item){return item.id===editingProductId;});
+    if(p){
+      h+='<div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #2196F3">';
+      h+='<h3 style="margin-top:0">Edit Product: '+p.name+'</h3>';
+      h+='<div class="form-row"><input id="eName" value="'+(p.name||'')+'" placeholder="Product Name"></div>';
+      h+='<div class="form-row"><input id="eDesc" value="'+(p.desc||'')+'" placeholder="Description"></div>';
+      h+='<div class="form-row">';
+      h+='<input id="eRetail" value="'+(parseFloat(p.retail||p.price||0))+'" type="number" step="0.01" placeholder="Retail £">';
+      h+='<input id="eWholesale" value="'+(parseFloat(p.wholesale||0))+'" type="number" step="0.01" placeholder="Wholesale £">';
+      h+='<input id="eStock" value="'+(parseInt(p.stock||0))+'" type="number" placeholder="Stock">';
+      h+='</div>';
+      if(p.images&&p.images.length>0){
+        h+='<div style="margin-bottom:10px"><strong>Photos ('+p.images.length+'):</strong><div style="display:flex;gap:5px;flex-wrap:wrap">';
+        p.images.forEach(function(img,idx){
+          h+='<div style="position:relative"><img src="'+img+'" style="width:60px;height:60px;object-fit:cover;border-radius:4px"><button class="btn btn-del" style="position:absolute;top:0;right:0;padding:2px 6px" onclick="removePhoto('+idx+')">×</button></div>';
+        });
+        h+='</div></div>';
+      }
+      h+='<div class="form-row">';
+      h+='<button class="btn btn-save" onclick="saveEditProduct()"><i class="fas fa-save"></i> Save Product</button>';
+      h+='<button class="btn btn-del" onclick="cancelEdit()"><i class="fas fa-times"></i> Cancel</button>';
+      h+='</div></div>';
+    }
+  }
+  
+  h+='<h3>Add New Product</h3>';
+  h+='<div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:20px">';
+  h+='<div class="form-row"><input id="pName" placeholder="Product Name"></div>';
+  h+='<div class="form-row"><input id="pDesc" placeholder="Description"></div>';
+  h+='<div class="form-row">';
+  h+='<input id="pRetail" type="number" step="0.01" placeholder="Retail £">';
+  h+='<input id="pWholesale" type="number" step="0.01" placeholder="Wholesale £">';
+  h+='<input id="pStock" type="number" placeholder="Stock">';
+  h+='</div>';
+  h+='<button class="btn btn-save" onclick="addProduct()"><i class="fas fa-plus"></i> Add Product</button>';
+  h+='</div>';
+  
+  h+='<h3>Products Table</h3>';
   h+='<table><tr><th>Name</th><th>Retail</th><th>Wholesale</th><th>Stock</th><th>Actions</th></tr>';
   if(products.length===0){
     h+='<tr><td colspan="5">No products</td></tr>';
@@ -98,16 +140,92 @@ function renderProducts(c){
       var retail=parseFloat(p.retail||p.price||0)||0;
       var wholesale=parseFloat(p.wholesale||0)||0;
       h+='<tr><td>'+p.name+'</td><td>£'+retail.toFixed(2)+'</td><td>£'+wholesale.toFixed(2)+'</td><td>'+parseInt(p.stock||0)+'</td>';
-      h+='<td><button class="btn btn-del" onclick="delProduct('+p.id+')"><i class="fas fa-trash"></i></button></td></tr>';
+      h+='<td><button class="btn btn-edit" onclick="editProduct('+p.id+')"><i class="fas fa-edit"></i> Edit</button>';
+      h+='<button class="btn btn-del" onclick="delProduct('+p.id+')"><i class="fas fa-trash"></i></button></td></tr>';
     });
   }
   h+='</table>';
   c.innerHTML=h;
 }
 
+function addProduct(){
+  var name=document.getElementById('pName').value.trim();
+  var desc=document.getElementById('pDesc').value.trim();
+  var retail=parseFloat(document.getElementById('pRetail').value)||0;
+  var wholesale=parseFloat(document.getElementById('pWholesale').value)||0;
+  var stock=parseInt(document.getElementById('pStock').value)||0;
+  
+  if(!name){alert('Enter product name');return;}
+  
+  var newId=1;
+  products.forEach(function(p){if(p.id>=newId)newId=p.id+1;});
+  
+  var product={
+    id:newId,
+    name:name,
+    desc:desc,
+    price:retail,
+    retail:retail,
+    wholesale:wholesale,
+    stock:stock,
+    category:'general',
+    images:[]
+  };
+  
+  products.push(product);
+  DB.save('products',products);
+  
+  document.getElementById('pName').value='';
+  document.getElementById('pDesc').value='';
+  document.getElementById('pRetail').value='';
+  document.getElementById('pWholesale').value='';
+  document.getElementById('pStock').value='';
+  
+  render();
+  alert('Product added!');
+}
+
+function editProduct(id){
+  editingProductId=id;
+  render();
+}
+
+function cancelEdit(){
+  editingProductId=null;
+  render();
+}
+
+function saveEditProduct(){
+  var p=products.find(function(item){return item.id===editingProductId;});
+  if(!p)return;
+  
+  p.name=document.getElementById('eName').value.trim();
+  p.desc=document.getElementById('eDesc').value.trim();
+  p.retail=parseFloat(document.getElementById('eRetail').value)||0;
+  p.wholesale=parseFloat(document.getElementById('eWholesale').value)||0;
+  p.stock=parseInt(document.getElementById('eStock').value)||0;
+  p.price=p.retail;
+  
+  DB.save('products',products);
+  editingProductId=null;
+  render();
+  alert('Product saved!');
+}
+
+function removePhoto(idx){
+  var p=products.find(function(item){return item.id===editingProductId;});
+  if(!p||!p.images)return;
+  if(confirm('Remove photo?')){
+    p.images.splice(idx,1);
+    DB.save('products',products);
+    render();
+  }
+}
+
 function delProduct(id){
-  if(!confirm('Delete?')) return;
-  deleteProductById(id);
+  if(!confirm('Delete product?')) return;
+  products=products.filter(function(p){return p.id!==id;});
+  DB.save('products',products);
   render();
 }
 
