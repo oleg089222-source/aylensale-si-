@@ -99,6 +99,7 @@ tr:hover{background:#1a2a3a}
 </div>
 <div class="tabs">
 <div class="tab active" onclick="showTab('products',this)"><i class="fas fa-box"></i> Products</div>
+<div class="tab" onclick="showTab('auctions',this)"><i class="fas fa-gavel"></i> Auctions</div>
 <div class="tab" onclick="showTab('locations',this)"><i class="fas fa-map-marker-alt"></i> Locations</div>
 <div class="tab" onclick="showTab('cards',this)"><i class="fas fa-credit-card"></i> Discount Cards</div>
 </div>
@@ -187,6 +188,7 @@ function showTab(tab,el){
 function render(){
   var c=document.getElementById('content');
   if(curTab==='products')renderProducts(c);
+  else if(curTab==='auctions')renderAuctions(c);
   else if(curTab==='locations')renderLocations(c);
   else if(curTab==='cards')renderCards(c);
 }
@@ -489,6 +491,76 @@ function addCard(){
   document.getElementById('cDiscount').value='';
   showToast('Card added successfully!','success');
   render();
+}
+
+// ========== AUCTIONS FUNCTIONS ==========
+function renderAuctions(c){
+  var h='<h2><i class="fas fa-gavel"></i> Auctions ('+auctions.length+')</h2>';
+  h+='<table><tr><th>Photo</th><th>Name</th><th>Category</th><th>Starting</th><th>Current</th><th>Duration</th><th>Actions</th></tr>';
+  auctions.forEach(function(a){
+    var img=(a.images&&a.images.length>0)?a.images[0]:'https://via.placeholder.com/60x60/333/666?text=No+Photo';
+    var hours=Math.round((new Date(a.endTime).getTime()-Date.now())/(3600*1000));
+    h+='<tr><td><img class="img-preview" src="'+img+'" onerror="this.src=\''+FALLBACK_IMAGE+'\'" alt="Auction"></td><td><strong>'+a.name+'</strong><br><small style="color:#888">ID: '+a.id+'</small></td><td>'+a.category+'</td><td>£'+parseFloat(a.startingPrice||0).toFixed(2)+'</td><td>£'+parseFloat(a.currentPrice||0).toFixed(2)+'</td><td>'+hours+'h</td><td><button class="btn btn-edit" onclick="editAuction('+a.id+')"><i class="fas fa-edit"></i> Edit</button><button class="btn btn-del" onclick="deleteAuctionConfirm('+a.id+')"><i class="fas fa-trash"></i> Delete</button></td></tr>';
+  });
+  h+='</table><h3><i class="fas fa-plus-circle"></i> Add New Auction</h3><div class="form-row"><input id="aName" placeholder="Auction Name"><input id="aCategory" placeholder="Category (e.g. watches)"></div><div class="form-row"><textarea id="aDesc" placeholder="Description" style="flex:1;min-width:100%;"></textarea></div><div class="form-row"><input id="aStartPrice" placeholder="Starting Price £" type="number" step="0.01"><input id="aDuration" placeholder="Duration (hours)" type="number" value="24"></div><div class="form-row"><input id="aImages" type="file" accept="image/*" multiple><button id="addAuctionBtn" class="btn btn-add" onclick="addAuction()"><i class="fas fa-plus"></i> Add Auction</button></div>';
+  c.innerHTML=h;
+}
+
+async function addAuction(){
+  var name=document.getElementById('aName').value.trim();
+  var category=document.getElementById('aCategory').value.trim()||'general';
+  var desc=document.getElementById('aDesc').value.trim();
+  var startPrice=parseFloat(document.getElementById('aStartPrice').value)||0;
+  var duration=parseInt(document.getElementById('aDuration').value)||24;
+  var files=document.getElementById('aImages').files;
+  if(!name||startPrice<=0){showToast('Please enter name and starting price!','error');return;}
+  var btn=document.getElementById('addAuctionBtn');
+  var oldText=btn.innerHTML;
+  btn.classList.add('loading');
+  try{
+    var imageUrls=[];
+    if(files.length>0){
+      if(files.length>10){showToast('Maximum 10 photos per auction!','error');btn.classList.remove('loading');return;}
+      for(var i=0;i<files.length;i++){
+        var result=await uploadImageToCloudinary(files[i]);
+        if(!result.success){showToast('Error uploading photo '+(i+1)+': '+result.error,'error');btn.classList.remove('loading');return;}
+        imageUrls.push(result.url);
+      }
+    }
+    addAuctionWithPhotos(name,desc,startPrice,category,imageUrls,duration);
+    document.getElementById('aName').value='';
+    document.getElementById('aCategory').value='';
+    document.getElementById('aDesc').value='';
+    document.getElementById('aStartPrice').value='';
+    document.getElementById('aDuration').value='24';
+    document.getElementById('aImages').value='';
+    showToast('Auction added successfully!','success');
+    render();
+  }catch(e){console.error(e);showToast('Error: '+e.message,'error');}
+  finally{btn.classList.remove('loading');btn.innerHTML=oldText;}
+}
+
+function editAuction(id){
+  var a=auctions.find(function(item){return item.id===id;});
+  if(!a)return;
+  document.getElementById('aName').value=a.name;
+  document.getElementById('aCategory').value=a.category||'general';
+  document.getElementById('aDesc').value=a.desc||'';
+  document.getElementById('aStartPrice').value=a.startingPrice||0;
+  var hours=Math.round((new Date(a.endTime).getTime()-Date.now())/(3600*1000));
+  document.getElementById('aDuration').value=Math.max(1,hours);
+}
+
+function deleteAuctionConfirm(id){
+  var a=auctions.find(function(item){return item.id===id;});
+  if(!a)return;
+  showConfirm('Delete auction "'+a.name+'"?',function(confirmed){
+    if(confirmed){
+      deleteAuctionById(id);
+      showToast('Auction deleted','success');
+      render();
+    }
+  });
 }
 
 window.onload=function(){loadAllData();};
