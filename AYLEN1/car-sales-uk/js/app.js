@@ -57,9 +57,18 @@ function renderLocations() {
     c.className = 'location-card' + (loc.active ? ' active' : '');
     var h = '<div class="loc-name">' + (loc.active ? '<i class="fas fa-check-circle" style="color:#00cc66"></i> ' : '<i class="fas fa-map-pin" style="color:#ccc"></i> ') + loc.name + '</div>';
     h += '<div class="loc-address"><i class="fas fa-location-dot"></i> ' + loc.address + '</div>';
-    h += '<div class="loc-day"><i class="fas fa-calendar"></i> ' + loc.day.charAt(0).toUpperCase() + loc.day.slice(1) + ' | ' + loc.time + '</div>';
+    h += '<div class="loc-day"><i class="fas fa-calendar"></i> ' + (loc.days || loc.day || 'Mon-Fri') + ' | ' + (loc.time || '') + '</div>';
     h += '<div class="loc-status ' + (loc.active ? 'here' : 'not') + '">' + (loc.active ? '<i class="fas fa-star"></i> We are here this week!' : '<i class="fas fa-minus-circle"></i> Not this week') + '</div>';
-    h += '<a class="map-link" href="https://www.google.com/maps?q=' + loc.lat + ',' + loc.lng + '" target="_blank"><i class="fas fa-map"></i> View on Map</a>';
+    h += '<a class="map-link" href="' + (loc.mapLink || '#') + '" target="_blank"><i class="fas fa-map"></i> View on Map</a>';
+    
+    // Admin controls
+    if (typeof isAdminMode !== 'undefined' && isAdminMode) {
+      h += '<div style="display:flex;gap:5px;margin-top:8px">';
+      h += '<button onclick="editLocation(\'' + loc.id + '\')" style="flex:1;padding:6px;background:#f39c12;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Edit</button>';
+      h += '<button onclick="if(confirm(\'Delete this location?\')) { deleteLocationConfirm(\'' + loc.id + '\'); }" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
+      h += '</div>';
+    }
+    
     c.innerHTML = h;
     row.appendChild(c);
   }
@@ -146,6 +155,15 @@ function renderProducts() {
       h += '</div>';
     }
     h += '</div>';
+    
+    // Admin controls
+    if (typeof isAdminMode !== 'undefined' && isAdminMode) {
+      h += '<div style="display:flex;gap:5px;margin-top:8px">';
+      h += '<button onclick="editProduct(' + p.id + ')" style="flex:1;padding:6px;background:#3498db;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Edit</button>';
+      h += '<button onclick="if(confirm(\'Delete this product?\')) { deleteProductById(' + p.id + '); renderProducts(); }" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
+      h += '</div>';
+    }
+    
     card.innerHTML = h;
     grid.appendChild(card);
   }
@@ -304,37 +322,51 @@ function closeCheckout() { document.getElementById('checkoutModal').classList.re
 function sendOrder(e) {
   e.preventDefault();
   if (cart.length === 0) { notify('Cart is empty!', 'error'); return; }
+  
   var name = document.getElementById('custName').value;
   var phone = document.getElementById('custPhone').value;
   var pickup = document.getElementById('custPickup').value;
   var comment = document.getElementById('custComment').value;
-  var text = 'NEW ORDER - AYLENSALE\n\nCustomer: ' + name + '\nPhone: ' + phone + '\nPickup: ' + (pickup || 'Not selected') + '\n';
-  if (comment) text += 'Comment: ' + comment + '\n';
-  if (currentUser) text += 'Card: ' + currentUser.card + ' (' + currentUser.name + ') -' + currentUser.discount + '%\n';
-  text += '\nItems:\n';
-  for (var i = 0; i < cart.length; i++) {
-    text += '- ' + cart[i].name + ' x' + cart[i].qty + ' = £' + (cart[i].price * cart[i].qty).toFixed(2) + '\n';
-  }
-  text += '\nTOTAL: £' + getTotal();
-  var url = 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage';
+  var total = getTotal();
+  
+  var orderData = {
+    name: name,
+    phone: phone,
+    pickup: pickup,
+    comment: comment,
+    items: cart,
+    total: total,
+    card: currentUser ? currentUser.card : null,
+    discount: currentUser ? currentUser.discount : null
+  };
+  
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', url, true);
+  xhr.open('POST', '/api/send-order', true);
   xhr.setRequestHeader('Content-Type', 'application/json');
+  
   xhr.onload = function() {
-    var data = JSON.parse(xhr.responseText);
-    if (data.ok) {
-      notify('Order sent successfully!', 'success');
-      cart = [];
-      localStorage.setItem('aylencart', JSON.stringify(cart));
-      updateCartCount();
-      closeCheckout();
-      document.getElementById('orderForm').reset();
-    } else {
-      notify('Error: ' + data.description, 'error');
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (data.success) {
+        notify('Order sent successfully!', 'success');
+        cart = [];
+        localStorage.setItem('aylencart', JSON.stringify(cart));
+        updateCartCount();
+        closeCheckout();
+        document.getElementById('orderForm').reset();
+      } else {
+        notify('Error: ' + (data.error || 'Unknown error'), 'error');
+      }
+    } catch (e) {
+      notify('Server error: ' + e.message, 'error');
     }
   };
-  xhr.onerror = function() { notify('Network error', 'error'); };
-  xhr.send(JSON.stringify({chat_id: TELEGRAM_CHAT_ID, text: text}));
+  
+  xhr.onerror = function() { 
+    notify('Network error - check connection and try again', 'error'); 
+  };
+  
+  xhr.send(JSON.stringify(orderData));
 }
 
 function notify(msg, type) {
@@ -409,6 +441,14 @@ function renderAuctions() {
     if (bids.length > 0) {
       h += '<div class="bid-history">';
       h += '<strong>Latest Bid:</strong> £' + bids[bids.length - 1].amount.toFixed(2) + ' by ' + bids[bids.length - 1].bidder;
+      h += '</div>';
+    }
+    
+    // Admin controls
+    if (typeof isAdminMode !== 'undefined' && isAdminMode) {
+      h += '<div style="display:flex;gap:5px;margin-top:8px">';
+      h += '<button onclick="editAuction(' + a.id + ')" style="flex:1;padding:6px;background:#3498db;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Edit</button>';
+      h += '<button onclick="if(confirm(\'Delete this auction?\')) { deleteAuctionById(' + a.id + '); renderAuctions(); }" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
       h += '</div>';
     }
     
