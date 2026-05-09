@@ -1,7 +1,15 @@
 {
-  "buildCommand": "echo 'Static files - no build required'",
-  "outputDirectory": "./AYLEN1/car-sales-uk",
-  "public": true,
-  "framework": null
+  "version": 2,
+  "builds": [
+    {
+      "src": "AYLEN1/car-sales-uk/index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "AYLEN1/car-sales-uk/$1"
+    }
+  ]
 }
-
