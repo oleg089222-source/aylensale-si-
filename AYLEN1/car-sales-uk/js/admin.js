@@ -63,9 +63,9 @@ function verifyAdminLogin() {
     adminLoggedIn = true;
     closeAdminLoginModal();
     toggleAdminMode();
-    showToast('Admin mode enabled', 'success');
+    notify('Admin mode enabled', 'success');
   } else {
-    showToast('Invalid credentials', 'error');
+    notify('Invalid credentials', 'error');
   }
 }
 
@@ -80,9 +80,12 @@ function toggleAdminMode() {
   }
   
   // Re-render to show/hide admin controls
-  renderProducts();
-  renderAuctions();
-  renderLocations();
+  // Use setTimeout to ensure renderProducts is defined (app.js is fully loaded)
+  setTimeout(function() {
+    if (typeof renderProducts === 'function') renderProducts();
+    if (typeof renderAuctions === 'function') renderAuctions();
+    if (typeof renderLocations === 'function') renderLocations();
+  }, 0);
 }
 
 function addAdminModeUI() {
@@ -160,13 +163,13 @@ function addProduct() {
   var imageUrls = document.getElementById('prodImages').value.trim().split(',').map(u => u.trim()).filter(u => u);
   
   if (!name || !category) {
-    showToast('Name and category required', 'error');
+    notify('Name and category required', 'error');
     return;
   }
   
   addProductWithPhotos(name, desc, retailPrice, category, imageUrls, stock, wholesalePrice);
   
-  showToast('Product added successfully', 'success');
+  notify('Product added successfully', 'success');
   closeProductModal();
   renderProducts();
 }
@@ -219,7 +222,7 @@ function saveProductEdit(id) {
   var imageUrls = document.getElementById('prodImages').value.trim().split(',').map(u => u.trim()).filter(u => u);
   
   if (!name || !category) {
-    showToast('Name and category required', 'error');
+    notify('Name and category required', 'error');
     return;
   }
   
@@ -233,7 +236,7 @@ function saveProductEdit(id) {
     images: imageUrls
   });
   
-  showToast('Product saved', 'success');
+  notify('Product saved', 'success');
   closeProductModal();
   renderProducts();
 }
@@ -241,7 +244,7 @@ function saveProductEdit(id) {
 function deleteProductConfirm(id) {
   if (confirm('Are you sure? This cannot be undone.')) {
     deleteProductById(id);
-    showToast('Product deleted', 'success');
+    notify('Product deleted', 'success');
     closeProductModal();
     renderProducts();
   }
@@ -295,13 +298,13 @@ function addAuction() {
   var imageUrls = document.getElementById('auctImages').value.trim().split(',').map(u => u.trim()).filter(u => u);
   
   if (!name || !category) {
-    showToast('Name and category required', 'error');
+    notify('Name and category required', 'error');
     return;
   }
   
   addAuctionWithPhotos(name, desc, startPrice, category, imageUrls, duration);
   
-  showToast('Auction added', 'success');
+  notify('Auction added', 'success');
   closeAuctionModal();
   renderAuctions();
 }
@@ -348,7 +351,7 @@ function saveAuctionEdit(id) {
   var imageUrls = document.getElementById('auctImages').value.trim().split(',').map(u => u.trim()).filter(u => u);
   
   if (!name || !category) {
-    showToast('Name and category required', 'error');
+    notify('Name and category required', 'error');
     return;
   }
   
@@ -360,7 +363,7 @@ function saveAuctionEdit(id) {
     images: imageUrls
   });
   
-  showToast('Auction saved', 'success');
+  notify('Auction saved', 'success');
   closeAuctionModal();
   renderAuctions();
 }
@@ -368,7 +371,7 @@ function saveAuctionEdit(id) {
 function deleteAuctionConfirm(id) {
   if (confirm('Delete this auction? All bids will be lost.')) {
     deleteAuctionById(id);
-    showToast('Auction deleted', 'success');
+    notify('Auction deleted', 'success');
     closeAuctionModal();
     renderAuctions();
   }
@@ -420,7 +423,7 @@ function addLocation() {
   var days = document.getElementById('locDays').value.trim();
   
   if (!name || !address) {
-    showToast('Name and address required', 'error');
+    notify('Name and address required', 'error');
     return;
   }
   
@@ -439,7 +442,7 @@ function addLocation() {
   
   DB.save('locations', locations);
   
-  showToast('Location added', 'success');
+  notify('Location added', 'success');
   closeLocationModal();
   renderLocations();
 }
@@ -488,7 +491,7 @@ function saveLocationEdit(id) {
   var days = document.getElementById('locDays').value.trim();
   
   if (!name || !address) {
-    showToast('Name and address required', 'error');
+    notify('Name and address required', 'error');
     return;
   }
   
@@ -507,7 +510,7 @@ function saveLocationEdit(id) {
     DB.save('locations', locations);
   }
   
-  showToast('Location saved', 'success');
+  notify('Location saved', 'success');
   closeLocationModal();
   renderLocations();
 }
@@ -517,7 +520,7 @@ function deleteLocationConfirm(id) {
     var locations = DB.load('locations') || [];
     locations = locations.filter(l => l.id !== id);
     DB.save('locations', locations);
-    showToast('Location deleted', 'success');
+    notify('Location deleted', 'success');
     closeLocationModal();
     renderLocations();
   }

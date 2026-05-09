@@ -62,10 +62,10 @@ function renderLocations() {
     h += '<a class="map-link" href="' + (loc.mapLink || '#') + '" target="_blank"><i class="fas fa-map"></i> View on Map</a>';
     
     // Admin controls
-    if (typeof isAdminMode !== 'undefined' && isAdminMode) {
+    if (typeof window.isAdminMode !== 'undefined' && window.isAdminMode) {
       h += '<div style="display:flex;gap:5px;margin-top:8px">';
       h += '<button onclick="editLocation(\'' + loc.id + '\')" style="flex:1;padding:6px;background:#f39c12;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Edit</button>';
-      h += '<button onclick="if(confirm(\'Delete this location?\')) { deleteLocationConfirm(\'' + loc.id + '\'); }" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
+      h += '<button onclick="deleteLocationConfirm(\'' + loc.id + '\')" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
       h += '</div>';
     }
     
@@ -157,10 +157,10 @@ function renderProducts() {
     h += '</div>';
     
     // Admin controls
-    if (typeof isAdminMode !== 'undefined' && isAdminMode) {
+    if (typeof window.isAdminMode !== 'undefined' && window.isAdminMode) {
       h += '<div style="display:flex;gap:5px;margin-top:8px">';
       h += '<button onclick="editProduct(' + p.id + ')" style="flex:1;padding:6px;background:#3498db;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Edit</button>';
-      h += '<button onclick="if(confirm(\'Delete this product?\')) { deleteProductById(' + p.id + '); renderProducts(); }" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
+      h += '<button onclick="deleteProductConfirm(' + p.id + ')" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
       h += '</div>';
     }
     
@@ -445,10 +445,10 @@ function renderAuctions() {
     }
     
     // Admin controls
-    if (typeof isAdminMode !== 'undefined' && isAdminMode) {
+    if (typeof window.isAdminMode !== 'undefined' && window.isAdminMode) {
       h += '<div style="display:flex;gap:5px;margin-top:8px">';
       h += '<button onclick="editAuction(' + a.id + ')" style="flex:1;padding:6px;background:#3498db;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Edit</button>';
-      h += '<button onclick="if(confirm(\'Delete this auction?\')) { deleteAuctionById(' + a.id + '); renderAuctions(); }" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
+      h += '<button onclick="deleteAuctionConfirm(' + a.id + ')" style="flex:1;padding:6px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold">Delete</button>';
       h += '</div>';
     }
     
