@@ -1,0 +1,7 @@
+{
+  "buildCommand": "echo 'Static files - no build required'",
+  "outputDirectory": "./AYLEN1/car-sales-uk",
+  "public": true,
+  "framework": null
+}
+
