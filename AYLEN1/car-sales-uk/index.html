@@ -71,7 +71,7 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
 <div id="locationsRow" style="display:flex;gap:15px;overflow-x:auto;padding:10px 0"></div>
 </section>
 
-<div class="modal" id="cartModal"><div class="modal-content"><span class="close" onclick="closeCart()">&times;</span><h2><i class="fas fa-shopping-cart"></i> Your Cart</h2><div id="cartItems"></div><div class="cart-total">Total: <span id="cartTotal">£0.00</span></div><button class="btn-order" onclick="openCheckout()"><i class="fas fa-check"></i> Place Order</button></div></div>
+<div class="modal" id="cartModal"><div class="modal-content"><span class="close" onclick="closeCart()">&times;</span><h2><i class="fas fa-shopping-cart"></i> Your Cart</h2><div id="cartItems"></div><div class="cart-total">Total: <span id="cartTotal">£0.00</span></div><button class="btn-order" onclick="openCheckout()"><i class="fas fa-check"></i> Order</button></div></div>
 
 <div class="modal" id="checkoutModal"><div class="modal-content"><span class="close" onclick="closeCheckout()">&times;</span><h2><i class="fas fa-clipboard-list"></i> Order</h2><form id="orderForm" onsubmit="sendOrder(event)"><input type="text" id="custName" placeholder="Your Name" required><input type="tel" id="custPhone" placeholder="Phone" required><select id="custPickup"><option value="">-- Select Pickup Point --</option></select><textarea id="custComment" placeholder="Comment" rows="2"></textarea><button type="submit" class="btn-order"><i class="fas fa-paper-plane"></i> Send Order</button></form></div></div>
 
