@@ -131,6 +131,17 @@ const createReferralCode = (phone: string, id: number) => {
   return `${prefix}-${id.toString().slice(-4)}`;
 };
 
+function isDiscountEligible(amount: number) {
+  return amount >= DISCOUNT_THRESHOLD;
+}
+
+function getDiscountMessage(amount: number) {
+  if (isDiscountEligible(amount)) {
+    return `Заказы от £${DISCOUNT_THRESHOLD} получают ${DISCOUNT_PERCENT}% скидку.`;
+  }
+  return `Добавьте товаров на сумму £${DISCOUNT_THRESHOLD} или больше, чтобы получить ${DISCOUNT_PERCENT}% скидку.`;
+}
+
 export default function Home() {
   const [weather, setWeather] = useState<Record<string, WeatherData | null>>({});
   const [sales, setSales] = useState<SaleItem[]>([]);
@@ -256,7 +267,8 @@ export default function Home() {
         shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.5/images/marker-shadow.png",
       });
 
-      mapInstance.current = L.map(mapRef.current, {
+      const container = mapRef.current as HTMLElement;
+      mapInstance.current = L.map(container, {
         center: [52.48, -0.5],
         zoom: 7,
         zoomControl: false,
@@ -637,12 +649,13 @@ export default function Home() {
                   ))}
                 </select>
                 <button
-                type="button"
-                className="inline-flex rounded-full bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
-                onClick={() => setAdminOpen((prev) => !prev)}
-              >
-                {adminOpen ? "Скрыть admin" : "Admin"}
-              </button>
+                  type="button"
+                  className="inline-flex rounded-full bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
+                  onClick={() => setAdminOpen((prev) => !prev)}
+                >
+                  {adminOpen ? "Скрыть admin" : "Admin"}
+                </button>
+              </div>
             </div>
             <div className="mt-8 grid gap-4">
               {filteredSales.map((sale) => (
@@ -871,7 +884,6 @@ export default function Home() {
               ) : (
                 <p className="mt-4 text-sm text-slate-500">Здесь будут появляться системные сообщения.</p>
               )}
-            </div>
             </div>
           </div>
 
