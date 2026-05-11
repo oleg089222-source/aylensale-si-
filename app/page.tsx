@@ -699,16 +699,51 @@ export default function Home() {
                   </div>
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-slate-400">{sale.note}</p>
-                    {sale.google ? (
+                    <div className="flex gap-2">
+                      {sale.google ? (
+                        <a
+                          className="text-sky-300 transition hover:text-sky-200"
+                          href={sale.google}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          📍 Maps
+                        </a>
+                      ) : null}
                       <a
-                        className="text-sky-300 transition hover:text-sky-200"
-                        href={sale.google}
+                        className="rounded-3xl bg-green-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-400"
+                        href={`https://wa.me/?text=${encodeURIComponent(`Интересует товар: ${sale.title}\n${sale.address}\nСумма: £${sale.orderAmount}`)}`}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Открыть в Google Maps
+                        💬 WhatsApp
                       </a>
-                    ) : null}
+                      {loggedIn ? (
+                        <>
+                          <button
+                            type="button"
+                            className="rounded-3xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-400"
+                            onClick={() => {
+                              setForm({ ...sale, referrerCode: sale.referrerCode ?? "" });
+                              setAdminOpen(true);
+                            }}
+                          >
+                            ✏️ Изменить
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-3xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400"
+                            onClick={() => {
+                              setSales(sales.filter(s => s.id !== sale.id));
+                              localStorage.setItem("aylensale-sales", JSON.stringify(sales.filter(s => s.id !== sale.id)));
+                              addServerMessage(`Товар "${sale.title}" удален`);
+                            }}
+                          >
+                            🗑️ Удалить
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ))}
