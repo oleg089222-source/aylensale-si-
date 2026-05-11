@@ -1,15 +1,12 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "AYLEN1/car-sales-uk/index.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "AYLEN1/car-sales-uk/$1"
-    }
-  ]
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_TELEGRAM_BOT_TOKEN": "@telegram_bot_token",
+    "NEXT_PUBLIC_TELEGRAM_CHAT_ID": "@telegram_chat_id",
+    "NEXT_PUBLIC_WHATSAPP_NUMBER": "@whatsapp_number"
+  }
 }

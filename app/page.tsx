@@ -212,19 +212,30 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Load from environment variables first
+    const envSettings: NotificationSettings = {
+      telegramToken: process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || "",
+      telegramChatId: process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || "",
+      whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "",
+    };
+
+    // Override with localStorage if exists
     const stored = localStorage.getItem("aylensale-settings");
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as NotificationSettings;
         setSettings({
-          telegramToken: parsed.telegramToken ?? "",
-          telegramChatId: parsed.telegramChatId ?? "",
-          whatsappNumber: parsed.whatsappNumber ?? "",
+          telegramToken: parsed.telegramToken ?? envSettings.telegramToken,
+          telegramChatId: parsed.telegramChatId ?? envSettings.telegramChatId,
+          whatsappNumber: parsed.whatsappNumber ?? envSettings.whatsappNumber,
         });
+        return;
       } catch {
         // ignore
       }
     }
+
+    setSettings(envSettings);
   }, []);
 
   useEffect(() => {
