@@ -80,6 +80,10 @@ function renderProducts() {
   grid.innerHTML = '';
   for (var i = 0; i < products.length; i++) {
     var p = products[i];
+    
+    // Skip inactive products (unless in admin mode)
+    if (!window.isAdminMode && p.active === false) continue;
+    
     var activeIndex = (selectedProductImage[p.id] !== undefined ? selectedProductImage[p.id] : 0);
     if (!p.images) p.images = [];
     if (activeIndex < 0 || activeIndex >= p.images.length) activeIndex = 0;
@@ -88,9 +92,34 @@ function renderProducts() {
     var img = (p.images && p.images.length > 0) ? p.images[activeIndex] : (p.imageUrl || 'https://via.placeholder.com/300x200/1a1a2e/e94560?text=AYLEN');
     var desc = p.description || p.desc || '';
     var isSaved = savedItems.indexOf(p.id) !== -1;
+    
     var h = '<div class="product-image-container">';
     h += '<img src="' + img + '" alt="' + p.name + '">';
+    
+    // Badge container for save and product label
+    h += '<div style="position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start">';
+    
+    // Product badge/label (if admin or if product has badge)
+    if (p.badge) {
+      var badgeColor = '#e94560';
+      if (p.badge === 'NEW') badgeColor = '#00cc66';
+      else if (p.badge === 'SALE') badgeColor = '#ff9800';
+      else if (p.badge === 'HOT') badgeColor = '#ff6b6b';
+      h += '<span style="background:' + badgeColor + ';color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;font-weight:bold">' + p.badge + '</span>';
+    } else {
+      h += '<span></span>';
+    }
+    
+    // Save button and admin status
+    h += '<div style="display:flex;gap:8px;align-items:center">';
+    if (window.isAdminMode && p.active === false) {
+      h += '<span style="background:#999;color:#fff;padding:4px 6px;border-radius:3px;font-size:10px">HIDDEN</span>';
+    }
     h += '<div class="product-badge' + (isSaved ? ' saved' : '') + '" onclick="toggleSaveProduct(' + p.id + ')" title="Save">' + (isSaved ? '★' : '☆') + '</div>';
+    h += '</div>';
+    
+    h += '</div>';
+    
     if (p.images && p.images.length > 1) {
       h += '<button class="product-arrow left" onclick="prevImage(' + p.id + ')"><i class="fas fa-chevron-left"></i></button>';
       h += '<button class="product-arrow right" onclick="nextImage(' + p.id + ')"><i class="fas fa-chevron-right"></i></button>';
@@ -99,17 +128,31 @@ function renderProducts() {
     h += '<div class="product-info"><h3>' + p.name + '</h3>';
     h += '<p class="desc">' + desc + '</p>';
     
-    // Price logic
+    // Price logic with discount support
     var retailPrice = parseFloat(p.price || p.retail || 0);
     var wholesalePrice = parseFloat(p.wholesale || 0);
-    var displayPrice = (priceMode === 'wholesale') ? wholesalePrice : retailPrice;
+    var hasDiscount = p.discount && p.discount > 0;
+    var salePrice = hasDiscount ? parseFloat(p.salePrice || retailPrice) : retailPrice;
+    var displayPrice = (priceMode === 'wholesale') ? wholesalePrice : salePrice;
     
     if (currentUser && currentUser.discount > 0) {
       var dp = (displayPrice * (1 - currentUser.discount / 100)).toFixed(2);
-      h += '<div class="product-prices"><span class="price-original">£' + displayPrice.toFixed(2) + '</span> <span class="price-discount">£' + dp + '</span></div>';
+      h += '<div class="product-prices">';
+      if (hasDiscount) {
+        h += '<span class="price-original">£' + retailPrice.toFixed(2) + '</span> ';
+        h += '<span style="color:#00cc66;font-weight:bold">£' + salePrice.toFixed(2) + '</span> ';
+        h += '<span class="price-discount">→ £' + dp + '</span>';
+      } else {
+        h += '<span class="price-original">£' + displayPrice.toFixed(2) + '</span> <span class="price-discount">£' + dp + '</span>';
+      }
+      h += '</div>';
     } else {
       h += '<div class="product-prices">';
-      if (priceMode === 'wholesale' && wholesalePrice > 0) {
+      if (hasDiscount) {
+        h += '<span class="price-original" style="text-decoration:line-through">£' + retailPrice.toFixed(2) + '</span> ';
+        h += '<span style="color:#00cc66;font-weight:bold;font-size:16px">£' + salePrice.toFixed(2) + '</span>';
+        h += '<span style="color:#ff9800;font-size:12px;margin-left:6px;font-weight:bold">-' + p.discount + '%</span>';
+      } else if (priceMode === 'wholesale' && wholesalePrice > 0) {
         h += '<span class="price-main">£' + wholesalePrice.toFixed(2) + '</span>';
         if (retailPrice > 0) h += '<span class="price-secondary">Retail: £' + retailPrice.toFixed(2) + '</span>';
       } else {
@@ -120,6 +163,11 @@ function renderProducts() {
     }
     
     h += '<div class="stock-info">Stock: ' + (parseInt(p.stock) || 0) + '</div>';
+    
+    // SKU display in admin mode
+    if (window.isAdminMode && p.sku) {
+      h += '<div style="font-size:11px;color:#999;margin-top:4px">SKU: ' + p.sku + '</div>';
+    }
     
     // Action buttons
     h += '<div class="action-buttons">';

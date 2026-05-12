@@ -19,9 +19,9 @@ var FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/sv
 
 // Default data (ONLY DEFINED HERE)
 var DEFAULT_PRODUCTS = [
-  {id: 1, name: 'iPhone 15 Pro', desc: 'Latest Apple flagship', category: 'electronics', price: 999, retail: 999, wholesale: 799, stock: 5, images: [], createdAt: new Date().toISOString()},
-  {id: 2, name: 'Samsung 4K TV', desc: 'Smart 55" 4K television', category: 'electronics', price: 599, retail: 599, wholesale: 450, stock: 3, images: [], createdAt: new Date().toISOString()},
-  {id: 3, name: 'MacBook Pro', desc: 'M4 Pro powerful laptop', category: 'electronics', price: 1999, retail: 1999, wholesale: 1599, stock: 2, images: [], createdAt: new Date().toISOString()}
+  {id: 1, name: 'iPhone 15 Pro', desc: 'Latest Apple flagship', category: 'electronics', price: 999, retail: 999, wholesale: 799, stock: 5, images: [], createdAt: new Date().toISOString(), badge: 'NEW', active: true, discount: 0, salePrice: 999, sku: 'AYLE-PHONE-001'},
+  {id: 2, name: 'Samsung 4K TV', desc: 'Smart 55" 4K television', category: 'electronics', price: 599, retail: 599, wholesale: 450, stock: 3, images: [], createdAt: new Date().toISOString(), badge: 'SALE', active: true, discount: 15, salePrice: 509, sku: 'AYLE-TV-002'},
+  {id: 3, name: 'MacBook Pro', desc: 'M4 Pro powerful laptop', category: 'electronics', price: 1999, retail: 1999, wholesale: 1599, stock: 2, images: [], createdAt: new Date().toISOString(), badge: 'HOT', active: true, discount: 0, salePrice: 1999, sku: 'AYLE-LAPTOP-003'}
 ];
 
 var DEFAULT_LOCATIONS = [
@@ -72,39 +72,109 @@ function initializeSystemIfNeeded() {
 // Load data into memory
 async function loadAllData() {
   try {
-    initializeSystemIfNeeded();
-    products = DB.load('products') || [];
-    auctions = DB.load('auctions') || [];
-    locations = DB.load('locations') || [];
-    cardHolders = DB.load('cardHolders') || {};
+    // Try to load from Firestore first
+    if (window.FBDB) {
+      console.log('Loading data from Firestore...');
+      products = await window.FBDB.loadProducts();
+      auctions = await window.FBDB.loadAuctions();
+      locations = await window.FBDB.loadLocations();
+    } else {
+      console.log('Firestore not available, loading from localStorage...');
+    }
+
+    // Fallback to localStorage if Firestore returned empty
+    if (!products || products.length === 0) {
+      products = DB.load('products') || DEFAULT_PRODUCTS;
+    }
+    if (!auctions || auctions.length === 0) {
+      auctions = DB.load('auctions') || DEFAULT_AUCTIONS;
+    }
+    if (!locations || locations.length === 0) {
+      locations = DB.load('locations') || DEFAULT_LOCATIONS;
+    }
+
+    // Load other data from localStorage
+    cardHolders = DB.load('cardHolders') || DEFAULT_CARDS;
     auctionBids = DB.load('auctionBids') || {};
     notifyRequests = DB.load('notifyRequests') || [];
-    if (!products || products.length === 0) { products = DEFAULT_PRODUCTS; DB.save('products', products); }
-    if (!auctions || auctions.length === 0) { auctions = DEFAULT_AUCTIONS; DB.save('auctions', auctions); }
-    if (!locations || locations.length === 0) { locations = DEFAULT_LOCATIONS; DB.save('locations', locations); }
-    if (!cardHolders || Object.keys(cardHolders).length === 0) { cardHolders = DEFAULT_CARDS; DB.save('cardHolders', cardHolders); }
+
+    console.log('✓ Loaded', products.length, 'products,', auctions.length, 'auctions,', locations.length, 'locations');
     return true;
-  } catch (e) { console.error('Error loading data', e); return false; }
+  } catch (e) { 
+    console.error('Error loading data', e); 
+    // Final fallback
+    products = DEFAULT_PRODUCTS;
+    auctions = DEFAULT_AUCTIONS;
+    locations = DEFAULT_LOCATIONS;
+    cardHolders = DEFAULT_CARDS;
+    return false; 
+  }
 }
 
 // Product functions
 function addProductWithPhotos(name, desc, price, category, imageUrls, stock, wholesale) {
   var newId = 1;
   products.forEach(function(p) { if (p.id >= newId) newId = p.id + 1; });
-  var product = {id: newId, name: name, desc: desc, category: category, price: price, retail: price, wholesale: wholesale || price, stock: stock || 0, images: imageUrls || [], createdAt: new Date().toISOString()};
+  var product = {
+    id: newId, 
+    name: name, 
+    desc: desc, 
+    category: category, 
+    price: price, 
+    retail: price, 
+    wholesale: wholesale || price, 
+    stock: stock || 0, 
+    images: imageUrls || [], 
+    createdAt: new Date().toISOString(),
+    badge: '',  // New field
+    active: true,  // New field
+    discount: 0,  // New field
+    salePrice: price,  // New field
+    sku: 'AYLE-' + String(newId).padStart(5, '0')  // New field - auto-generated
+  };
   products.push(product);
+  
+  // Save to localStorage for instant feedback
   DB.save('products', products);
+  
+  // Save to Firestore for persistence
+  if (window.FBDB) {
+    window.FBDB.saveProduct(product).catch(function(e) {
+      console.error('Error saving product to Firestore:', e);
+      notify('Product saved locally, but server sync failed. Check your Firebase config.', 'error');
+    });
+  }
+  
   return product;
 }
 
 function deleteProductById(id) {
   products = products.filter(function(p) { return p.id !== id; });
   DB.save('products', products);
+  
+  // Delete from Firestore
+  if (window.FBDB) {
+    window.FBDB.deleteProduct(id).catch(function(e) {
+      console.error('Error deleting product from Firestore:', e);
+    });
+  }
 }
 
 function updateProductById(id, updates) {
   var product = products.find(function(p) { return p.id === id; });
-  if (product) { Object.assign(product, updates); DB.save('products', products); return product; }
+  if (product) { 
+    Object.assign(product, updates);
+    DB.save('products', products);
+    
+    // Update in Firestore
+    if (window.FBDB) {
+      window.FBDB.saveProduct(product).catch(function(e) {
+        console.error('Error updating product in Firestore:', e);
+      });
+    }
+    
+    return product; 
+  }
   return null;
 }
 
@@ -116,6 +186,14 @@ function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, du
   var auction = {id: newId, name: name, desc: desc, category: category, startingPrice: startingPrice, currentPrice: startingPrice, endTime: endTime.toISOString(), images: imageUrls || [], bidsCount: 0, createdAt: new Date().toISOString()};
   auctions.push(auction);
   DB.save('auctions', auctions);
+  
+  // Save to Firestore
+  if (window.FBDB) {
+    window.FBDB.saveAuction(auction).catch(function(e) {
+      console.error('Error saving auction to Firestore:', e);
+    });
+  }
+  
   return auction;
 }
 
@@ -124,11 +202,30 @@ function deleteAuctionById(id) {
   if (auctionBids[id]) delete auctionBids[id];
   DB.save('auctions', auctions);
   DB.save('auctionBids', auctionBids);
+  
+  // Delete from Firestore
+  if (window.FBDB) {
+    window.FBDB.deleteAuction(id).catch(function(e) {
+      console.error('Error deleting auction from Firestore:', e);
+    });
+  }
 }
 
 function updateAuctionById(id, updates) {
   var auction = auctions.find(function(a) { return a.id === id; });
-  if (auction) { Object.assign(auction, updates); DB.save('auctions', auctions); return auction; }
+  if (auction) { 
+    Object.assign(auction, updates);
+    DB.save('auctions', auctions);
+    
+    // Update in Firestore
+    if (window.FBDB) {
+      window.FBDB.saveAuction(auction).catch(function(e) {
+        console.error('Error updating auction in Firestore:', e);
+      });
+    }
+    
+    return auction; 
+  }
   return null;
 }
 
@@ -139,17 +236,44 @@ function addLocation(name, address, day, time, lat, lng, active) {
   var location = {id: newId, name: name, address: address, day: day, time: time, lat: lat || 0, lng: lng || 0, active: active || false};
   locations.push(location);
   DB.save('locations', locations);
+  
+  // Save to Firestore
+  if (window.FBDB) {
+    window.FBDB.saveLocation(location).catch(function(e) {
+      console.error('Error saving location to Firestore:', e);
+    });
+  }
+  
   return location;
 }
 
 function deleteLocationById(id) {
   locations = locations.filter(function(l) { return l.id !== id; });
   DB.save('locations', locations);
+  
+  // Delete from Firestore
+  if (window.FBDB) {
+    window.FBDB.deleteLocation(id).catch(function(e) {
+      console.error('Error deleting location from Firestore:', e);
+    });
+  }
 }
 
 function updateLocationById(id, updates) {
   var location = locations.find(function(l) { return l.id === id; });
-  if (location) { Object.assign(location, updates); DB.save('locations', locations); return location; }
+  if (location) { 
+    Object.assign(location, updates);
+    DB.save('locations', locations);
+    
+    // Update in Firestore
+    if (window.FBDB) {
+      window.FBDB.saveLocation(location).catch(function(e) {
+        console.error('Error updating location in Firestore:', e);
+      });
+    }
+    
+    return location; 
+  }
   return null;
 }
 

@@ -8,22 +8,116 @@ var isAdminMode = false;
 var adminLoggedIn = false;
 var uploadingFiles = {};
 
+// ============ HELPER FUNCTIONS ============
+
+/**
+ * Generate unique SKU/Card number
+ */
+function generateSKU(productName, productId) {
+  // Format: AYLE-XXXX-NNN where XXXX is category prefix and NNN is product ID
+  var prefix = 'AYLE';
+  var namePrefix = (productName || '').substring(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  var idPart = String(productId || Date.now()).padStart(4, '0').substring(-3);
+  return prefix + '-' + namePrefix + '-' + idPart;
+}
+
+/**
+ * Calculate sale price from discount percentage
+ */
+function calculateSalePrice(retailPrice, discountPercent) {
+  if (!retailPrice || retailPrice <= 0) return 0;
+  if (!discountPercent || discountPercent <= 0) return parseFloat(retailPrice);
+  var discountAmount = parseFloat(retailPrice) * (discountPercent / 100);
+  return parseFloat((parseFloat(retailPrice) - discountAmount).toFixed(2));
+}
+
 // Initialize admin event listeners when document loads
 document.addEventListener('DOMContentLoaded', function() {
   setupAdminAccessibility();
 });
 
 function setupAdminAccessibility() {
-  // Secret keyboard shortcut: Ctrl+Shift+A to open admin login
+  // Keyboard shortcuts for admin login
   document.addEventListener('keydown', function(e) {
+    // Ctrl+Shift+A (Windows/Linux)
     if (e.ctrlKey && e.shiftKey && e.code === 'KeyA') {
       e.preventDefault();
       showAdminLoginModal();
+      return;
+    }
+    
+    // Cmd+Shift+A (Mac) - metaKey is the Command key
+    if (e.metaKey && e.shiftKey && e.code === 'KeyA') {
+      e.preventDefault();
+      showAdminLoginModal();
+      return;
+    }
+    
+    // Alt+Shift+A (alternative)
+    if (e.altKey && e.shiftKey && e.code === 'KeyA') {
+      e.preventDefault();
+      showAdminLoginModal();
+      return;
     }
   });
   
+  // Add visible admin button to header
+  addAdminAccessButton();
+  
   // Mobile admin button - triple tap on logo
   addMobileAdminButton();
+}
+
+/**
+ * Add visible admin button to header
+ */
+function addAdminAccessButton() {
+  var headerRight = document.querySelector('.header-right');
+  if (!headerRight) return;
+  
+  var adminAccessDiv = document.createElement('div');
+  adminAccessDiv.id = 'adminAccessDiv';
+  adminAccessDiv.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+  `;
+  
+  // Admin button (hidden by default, visible when hovered/focused)
+  var adminBtn = document.createElement('button');
+  adminBtn.id = 'headerAdminBtn';
+  adminBtn.innerHTML = '🔑';
+  adminBtn.title = 'Admin Access (Cmd+Shift+A on Mac, Ctrl+Shift+A on Windows)';
+  adminBtn.style.cssText = `
+    background: rgba(233, 69, 96, 0.2);
+    border: 1px solid #e94560;
+    color: #e94560;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+    opacity: 0.6;
+  `;
+  
+  adminBtn.onmouseover = function() {
+    this.style.opacity = '1';
+    this.style.background = 'rgba(233, 69, 96, 0.5)';
+  };
+  
+  adminBtn.onmouseout = function() {
+    this.style.opacity = '0.6';
+    this.style.background = 'rgba(233, 69, 96, 0.2)';
+  };
+  
+  adminBtn.onclick = function(e) {
+    e.stopPropagation();
+    showAdminLoginModal();
+  };
+  
+  adminAccessDiv.appendChild(adminBtn);
+  headerRight.appendChild(adminAccessDiv);
 }
 
 function addMobileAdminButton() {
@@ -324,9 +418,11 @@ async function addProductWithUpload(modalId) {
   var stock = parseInt(document.getElementById('prodStock').value) || 0;
   
   if (!name || !category || retailPrice <= 0) {
-    notify('Fill all required fields!', 'error');
+    notify('❌ Fill all required fields!', 'error');
     return;
   }
+  
+  notify('⏳ Saving product...', 'info');
   
   var imageUrls = [];
   
@@ -337,9 +433,9 @@ async function addProductWithUpload(modalId) {
       var result = await uploadImageToCloudinary(files[i]);
       if (result.success) {
         imageUrls.push(result.url);
-        notify('Uploading photo ' + (i + 1) + '/' + files.length, 'info');
+        notify('📸 Uploading photo ' + (i + 1) + '/' + files.length + '...', 'info');
       } else {
-        notify('Error uploading photo ' + (i + 1) + ': ' + result.error, 'error');
+        notify('❌ Error uploading photo ' + (i + 1) + ': ' + result.error, 'error');
         return;
       }
     }
@@ -348,18 +444,30 @@ async function addProductWithUpload(modalId) {
   // Add product with photos
   var product = addProductWithPhotos(name, desc, retailPrice, category, imageUrls, stock, wholesalePrice);
   if (product) {
-    notify('Product added successfully!', 'success');
+    notify('✅ Product added successfully! Saving to database...', 'success');
     uploadingFiles['product'] = [];
-    document.getElementById(modalId).remove();
-    renderProducts();
+    
+    // Wait a moment for Firestore to sync
+    setTimeout(function() {
+      document.getElementById(modalId).remove();
+      renderProducts();
+      notify('✅ Product saved to database!', 'success');
+    }, 1000);
   } else {
-    notify('Failed to save product', 'error');
+    notify('❌ Failed to save product', 'error');
   }
 }
 
 function editProduct(id) {
   var product = products.find(function(p) { return p.id === id; });
   if (!product) return;
+  
+  // Ensure all fields exist
+  if (!product.badge) product.badge = '';
+  if (product.active === undefined) product.active = true;
+  if (!product.discount) product.discount = 0;
+  if (!product.salePrice) product.salePrice = product.price || 0;
+  if (!product.sku) product.sku = generateSKU(product.name, product.id);
   
   var modalId = 'productEditModal_' + Date.now();
   var photoHTML = '<span style="color:#666;width:100%;text-align:center;line-height:80px">No photos yet</span>';
@@ -375,56 +483,129 @@ function editProduct(id) {
   
   var html = `
     <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:600px;max-height:85vh;overflow-y:auto">
+      <div class="modal-content" style="width:650px;max-height:90vh;overflow-y:auto">
         <span class="close" onclick="document.getElementById('${modalId}').remove()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#e94560;margin-bottom:20px"><i class="fas fa-edit"></i> Edit Product</h2>
+        <h2 style="color:#e94560;margin-bottom:20px"><i class="fas fa-edit"></i> Edit Product - Complete Details</h2>
         
-        <label style="color:#e0e0e0;font-weight:bold">Product Name *</label>
-        <input type="text" id="eprodName" value="${product.name}" style="width:100%;padding:10px;margin:5px 0 15px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        
-        <label style="color:#e0e0e0;font-weight:bold">Description</label>
-        <textarea id="eprodDesc" style="width:100%;padding:10px;margin:5px 0 15px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;height:60px;resize:vertical">${product.desc || ''}</textarea>
-        
-        <div style="display:flex;gap:15px">
-          <div style="flex:1">
-            <label style="color:#e0e0e0;font-weight:bold">Retail Price £ *</label>
-            <input type="number" id="eprodRetailPrice" value="${product.price || 0}" step="0.01" min="0" style="width:100%;padding:10px;margin:5px 0 15px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-          </div>
-          <div style="flex:1">
-            <label style="color:#e0e0e0;font-weight:bold">Wholesale Price £</label>
-            <input type="number" id="eprodWholesalePrice" value="${product.wholesale || 0}" step="0.01" min="0" style="width:100%;padding:10px;margin:5px 0 15px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-          </div>
-        </div>
-        
-        <div style="display:flex;gap:15px">
-          <div style="flex:1">
-            <label style="color:#e0e0e0;font-weight:bold">Category *</label>
-            <select id="eprodCategory" style="width:100%;padding:10px;margin:5px 0 15px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-              <option value="electronics" ${product.category === 'electronics' ? 'selected' : ''}>Electronics</option>
-              <option value="homeware" ${product.category === 'homeware' ? 'selected' : ''}>Homeware</option>
-              <option value="clothing" ${product.category === 'clothing' ? 'selected' : ''}>Clothing</option>
-              <option value="accessories" ${product.category === 'accessories' ? 'selected' : ''}>Accessories</option>
-              <option value="general" ${product.category === 'general' ? 'selected' : ''}>General</option>
-            </select>
-          </div>
-          <div style="flex:1">
-            <label style="color:#e0e0e0;font-weight:bold">Stock Qty</label>
-            <input type="number" id="eprodStock" value="${product.stock || 0}" min="0" style="width:100%;padding:10px;margin:5px 0 15px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+        <!-- BASIC INFO SECTION -->
+        <div style="background:#0f1419;padding:12px;border-radius:5px;margin-bottom:15px;border:1px solid #222">
+          <h3 style="color:#e94560;margin:0 0 12px 0;font-size:14px">📝 BASIC INFORMATION</h3>
+          
+          <label style="color:#e0e0e0;font-weight:bold">Product Name *</label>
+          <input type="text" id="eprodName" value="${product.name}" style="width:100%;padding:10px;margin:5px 0 12px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+          
+          <label style="color:#e0e0e0;font-weight:bold">Description</label>
+          <textarea id="eprodDesc" style="width:100%;padding:10px;margin:5px 0 12px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;height:70px;resize:vertical">${product.desc || ''}</textarea>
+          
+          <div style="display:flex;gap:15px">
+            <div style="flex:1">
+              <label style="color:#e0e0e0;font-weight:bold">Category *</label>
+              <select id="eprodCategory" style="width:100%;padding:10px;margin:5px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+                <option value="electronics" ${product.category === 'electronics' ? 'selected' : ''}>Electronics</option>
+                <option value="homeware" ${product.category === 'homeware' ? 'selected' : ''}>Homeware</option>
+                <option value="clothing" ${product.category === 'clothing' ? 'selected' : ''}>Clothing</option>
+                <option value="accessories" ${product.category === 'accessories' ? 'selected' : ''}>Accessories</option>
+                <option value="general" ${product.category === 'general' ? 'selected' : ''}>General</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label style="color:#e0e0e0;font-weight:bold">Badge/Label</label>
+              <input type="text" id="eprodBadge" value="${product.badge}" placeholder="e.g., NEW, SALE, HOT" style="width:100%;padding:10px;margin:5px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+            </div>
           </div>
         </div>
         
-        <label style="color:#e0e0e0;font-weight:bold"><i class="fas fa-images"></i> Current Photos (${(product.images || []).length}/10)</label>
-        <div id="eprodPhotoPreview" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;min-height:80px;border:1px solid #333;border-radius:5px;padding:10px;background:#0f1419">
-          ${photoHTML}
+        <!-- PRICING SECTION -->
+        <div style="background:#0f1419;padding:12px;border-radius:5px;margin-bottom:15px;border:1px solid #222">
+          <h3 style="color:#e94560;margin:0 0 12px 0;font-size:14px">💰 PRICING & DISCOUNT</h3>
+          
+          <div style="display:flex;gap:15px">
+            <div style="flex:1">
+              <label style="color:#e0e0e0;font-weight:bold">Retail Price £ *</label>
+              <input type="number" id="eprodRetailPrice" value="${product.price || 0}" step="0.01" min="0" onchange="updateSalePrice()" oninput="updateSalePrice()" style="width:100%;padding:10px;margin:5px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+            </div>
+            <div style="flex:1">
+              <label style="color:#e0e0e0;font-weight:bold">Wholesale Price £</label>
+              <input type="number" id="eprodWholesalePrice" value="${product.wholesale || 0}" step="0.01" min="0" style="width:100%;padding:10px;margin:5px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+            </div>
+          </div>
+          
+          <div style="border-top:1px solid #333;margin:12px 0;padding-top:12px">
+            <label style="color:#e0e0e0;font-weight:bold">⏷ Discount Generator</label>
+            <div style="display:flex;gap:10px;margin-top:8px">
+              <div style="flex:1">
+                <label style="color:#999;font-size:12px">Discount %</label>
+                <input type="number" id="eprodDiscount" value="${product.discount || 0}" min="0" max="100" step="1" onchange="updateSalePrice()" oninput="updateSalePrice()" style="width:100%;padding:10px;margin:3px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+              </div>
+              <div style="flex:1">
+                <label style="color:#999;font-size:12px">Sale Price £</label>
+                <input type="number" id="eprodSalePrice" value="${product.salePrice || 0}" step="0.01" min="0" readonly style="width:100%;padding:10px;margin:3px 0 0;border:1px solid #333;background:#0a0e17;color:#00cc66;border-radius:5px;font-weight:bold;cursor:not-allowed">
+              </div>
+              <div style="flex:1;display:flex;align-items:flex-end">
+                <button onclick="applySalePrice()" style="width:100%;padding:10px;background:#00cc66;color:#1a1f2e;border:none;border-radius:5px;cursor:pointer;font-weight:bold;margin-bottom:0">Apply</button>
+              </div>
+            </div>
+            <div style="margin-top:8px;padding:8px;background:#0a0e17;border-radius:4px;border-left:3px solid #00cc66">
+              <span style="color:#999;font-size:12px">Discount of <span id="discountDisplay" style="color:#00cc66;font-weight:bold">0%</span> = Save £<span id="savingsDisplay" style="color:#00cc66;font-weight:bold">0.00</span></span>
+            </div>
+          </div>
         </div>
         
-        <label style="color:#e0e0e0;font-weight:bold">Add More Photos</label>
-        <input type="file" id="eprodPhotoInput" accept="image/*" multiple style="width:100%;padding:10px;margin:5px 0 10px;border:1px dashed #e94560;background:#1a1f2e;color:#e0e0e0;border-radius:5px;cursor:pointer" ${(product.images && product.images.length >= 10) ? 'disabled' : ''}>
+        <!-- INVENTORY & VISIBILITY -->
+        <div style="background:#0f1419;padding:12px;border-radius:5px;margin-bottom:15px;border:1px solid #222">
+          <h3 style="color:#e94560;margin:0 0 12px 0;font-size:14px">📦 INVENTORY & VISIBILITY</h3>
+          
+          <div style="display:flex;gap:15px">
+            <div style="flex:1">
+              <label style="color:#e0e0e0;font-weight:bold">Stock Quantity</label>
+              <input type="number" id="eprodStock" value="${product.stock || 0}" min="0" style="width:100%;padding:10px;margin:5px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+            </div>
+            <div style="flex:1">
+              <label style="color:#e0e0e0;font-weight:bold">🔹 Visibility Status</label>
+              <select id="eprodActive" style="width:100%;padding:10px;margin:5px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+                <option value="true" ${product.active === true || product.active === 'true' ? 'selected' : ''}>✅ Active (Visible)</option>
+                <option value="false" ${product.active === false || product.active === 'false' ? 'selected' : ''}>❌ Inactive (Hidden)</option>
+              </select>
+            </div>
+          </div>
+        </div>
         
-        <div style="display:flex;gap:10px">
-          <button onclick="saveEditProduct('${id}','${modalId}')" style="flex:1;padding:12px;background:#00cc66;color:#1a1f2e;border:none;border-radius:5px;cursor:pointer;font-weight:bold"><i class="fas fa-save"></i> Save</button>
-          <button onclick="deleteProductConfirm('${id}')" style="flex:1;padding:12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer"><i class="fas fa-trash"></i> Delete</button>
-          <button onclick="document.getElementById('${modalId}').remove()" style="flex:1;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer">Cancel</button>
+        <!-- SKU / CARD NUMBER -->
+        <div style="background:#0f1419;padding:12px;border-radius:5px;margin-bottom:15px;border:1px solid #222">
+          <h3 style="color:#e94560;margin:0 0 12px 0;font-size:14px">🏷️ SKU / PRODUCT NUMBER</h3>
+          
+          <div style="display:flex;gap:10px">
+            <div style="flex:1">
+              <label style="color:#e0e0e0;font-weight:bold">Card Number / SKU</label>
+              <input type="text" id="eprodSKU" value="${product.sku}" placeholder="AYLE-XXXXX-NNN" style="width:100%;padding:10px;margin:5px 0 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;font-family:monospace">
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button onclick="generateNewSKU('${product.name}')" style="padding:10px 15px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold">🔄 Generate</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:#999">Format: AYLE-PREFIX-XXX (Unique identifier for inventory tracking)</div>
+        </div>
+        
+        <!-- IMAGES SECTION -->
+        <div style="background:#0f1419;padding:12px;border-radius:5px;margin-bottom:15px;border:1px solid #222">
+          <h3 style="color:#e94560;margin:0 0 12px 0;font-size:14px"><i class="fas fa-images"></i> PRODUCT IMAGES (${(product.images || []).length}/10)</h3>
+          
+          <div id="eprodPhotoPreview" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;min-height:80px;border:1px solid #333;border-radius:5px;padding:10px;background:#0a0e17">
+            ${photoHTML}
+          </div>
+          
+          <label style="color:#e0e0e0;font-weight:bold">Add More Photos</label>
+          <input type="file" id="eprodPhotoInput" accept="image/*" multiple style="width:100%;padding:10px;margin:5px 0 0;border:1px dashed #e94560;background:#1a1f2e;color:#e0e0e0;border-radius:5px;cursor:pointer" ${(product.images && product.images.length >= 10) ? 'disabled' : ''}>
+        </div>
+        
+        <!-- ACTION BUTTONS -->
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="saveEditProduct('${id}','${modalId}')" style="flex:1;padding:12px;background:#00cc66;color:#1a1f2e;border:none;border-radius:5px;cursor:pointer;font-weight:bold;font-size:14px"><i class="fas fa-save"></i> 💾 Save All Changes</button>
+          <button onclick="document.getElementById('${modalId}').remove()" style="flex:1;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold">Cancel</button>
+        </div>
+        
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <button onclick="deleteProductConfirm('${id}')" style="flex:1;padding:12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer"><i class="fas fa-trash"></i> Delete Product</button>
         </div>
       </div>
     </div>
@@ -439,6 +620,48 @@ function editProduct(id) {
       handleEditProductPhotoUpload(e, id, modalId);
     });
   }
+  
+  // Initialize sale price display
+  updateSalePrice();
+}
+
+/**
+ * Update sale price based on discount percentage
+ */
+function updateSalePrice() {
+  var retailPrice = parseFloat(document.getElementById('eprodRetailPrice').value) || 0;
+  var discount = parseFloat(document.getElementById('eprodDiscount').value) || 0;
+  var salePrice = calculateSalePrice(retailPrice, discount);
+  var savings = (retailPrice - salePrice).toFixed(2);
+  
+  document.getElementById('eprodSalePrice').value = salePrice.toFixed(2);
+  document.getElementById('discountDisplay').textContent = discount.toFixed(0) + '%';
+  document.getElementById('savingsDisplay').textContent = savings;
+}
+
+/**
+ * Apply calculated sale price to discount field or show message
+ */
+function applySalePrice() {
+  var salePrice = parseFloat(document.getElementById('eprodSalePrice').value) || 0;
+  var retailPrice = parseFloat(document.getElementById('eprodRetailPrice').value) || 0;
+  
+  if (salePrice >= retailPrice) {
+    notify('❌ Sale price must be less than retail price!', 'error');
+    return;
+  }
+  
+  notify('✅ Sale price applied! Click Save to confirm.', 'success');
+}
+
+/**
+ * Generate new SKU for product
+ */
+function generateNewSKU(productName) {
+  var timestamp = Date.now();
+  var newSKU = generateSKU(productName, timestamp);
+  document.getElementById('eprodSKU').value = newSKU;
+  notify('✅ Generated: ' + newSKU, 'info');
 }
 
 function handleEditProductPhotoUpload(e, productId, modalId) {
@@ -463,15 +686,27 @@ function handleEditProductPhotoUpload(e, productId, modalId) {
 }
 
 async function saveEditProduct(productId, modalId) {
+  notify('⏳ Saving product...', 'info');
+  
   var name = document.getElementById('eprodName').value.trim();
   var desc = document.getElementById('eprodDesc').value.trim();
   var retailPrice = parseFloat(document.getElementById('eprodRetailPrice').value) || 0;
   var wholesalePrice = parseFloat(document.getElementById('eprodWholesalePrice').value) || 0;
   var category = document.getElementById('eprodCategory').value;
   var stock = parseInt(document.getElementById('eprodStock').value) || 0;
+  var badge = document.getElementById('eprodBadge').value.trim();
+  var active = document.getElementById('eprodActive').value === 'true';
+  var discount = parseFloat(document.getElementById('eprodDiscount').value) || 0;
+  var salePrice = parseFloat(document.getElementById('eprodSalePrice').value) || retailPrice;
+  var sku = document.getElementById('eprodSKU').value.trim();
   
   if (!name || !category || retailPrice <= 0) {
-    notify('Fill all required fields!', 'error');
+    notify('❌ Fill all required fields!', 'error');
+    return;
+  }
+  
+  if (!sku) {
+    notify('❌ SKU/Card number is required!', 'error');
     return;
   }
   
@@ -488,15 +723,15 @@ async function saveEditProduct(productId, modalId) {
       var result = await uploadImageToCloudinary(fileInput.files[i]);
       if (result.success) {
         imageUrls.push(result.url);
-        notify('Uploading photo ' + (i + 1) + '/' + fileInput.files.length, 'info');
+        notify('📸 Uploading photo ' + (i + 1) + '/' + fileInput.files.length + '...', 'info');
       } else {
-        notify('Error uploading photo ' + (i + 1), 'error');
+        notify('❌ Error uploading photo ' + (i + 1), 'error');
         return;
       }
     }
   }
   
-  // Update product
+  // Update product with all fields
   updateProductById(productId, {
     name: name,
     desc: desc,
@@ -505,12 +740,19 @@ async function saveEditProduct(productId, modalId) {
     wholesale: wholesalePrice,
     category: category,
     stock: stock,
-    images: imageUrls
+    images: imageUrls,
+    badge: badge,
+    active: active,
+    discount: discount,
+    salePrice: salePrice,
+    sku: sku
   });
   
-  notify('Product saved successfully!', 'success');
-  document.getElementById(modalId).remove();
-  renderProducts();
+  notify('✅ Product saved successfully to database!', 'success');
+  setTimeout(function() {
+    document.getElementById(modalId).remove();
+    renderProducts();
+  }, 1000);
 }
 
 function removeProductPhoto(productId, photoIndex, modalId) {
@@ -520,9 +762,17 @@ function removeProductPhoto(productId, photoIndex, modalId) {
   if (confirm('Remove this photo?')) {
     product.images.splice(photoIndex, 1);
     DB.save('products', products);
+    
+    // Also update Firestore
+    if (window.FBDB) {
+      window.FBDB.saveProduct(product).catch(function(e) {
+        console.error('Error updating product in Firestore:', e);
+      });
+    }
+    
     document.getElementById(modalId).remove();
     editProduct(productId);
-    notify('Photo removed', 'info');
+    notify('✅ Photo removed', 'info');
   }
 }
 
