@@ -21,6 +21,60 @@ function setupAdminAccessibility() {
       showAdminLoginModal();
     }
   });
+  
+  // Mobile admin button - triple tap on logo
+  addMobileAdminButton();
+}
+
+function addMobileAdminButton() {
+  // Create hidden admin button in bottom-right corner
+  var adminBtn = document.createElement('button');
+  adminBtn.id = 'mobileAdminBtn';
+  adminBtn.innerHTML = '⚙️';
+  adminBtn.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(233, 69, 96, 0.3);
+    border: 2px solid #e94560;
+    color: #e94560;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 9999;
+    opacity: 0.5;
+    transition: all 0.3s;
+    display: none;
+  `;
+  
+  adminBtn.onmouseover = function() { this.style.opacity = '1'; this.style.background = 'rgba(233, 69, 96, 0.8)'; };
+  adminBtn.onmouseout = function() { this.style.opacity = '0.5'; this.style.background = 'rgba(233, 69, 96, 0.3)'; };
+  adminBtn.onclick = function(e) { 
+    e.stopPropagation();
+    showAdminLoginModal(); 
+  };
+  
+  document.body.appendChild(adminBtn);
+  
+  // Show admin button on triple-tap or long press on logo
+  var tapCount = 0;
+  var tapTimeout;
+  var logoArea = document.querySelector('header') || document.body;
+  
+  logoArea.addEventListener('click', function() {
+    tapCount++;
+    clearTimeout(tapTimeout);
+    
+    if (tapCount === 1) {
+      tapTimeout = setTimeout(function() { tapCount = 0; }, 500);
+    } else if (tapCount === 3) {
+      tapCount = 0;
+      document.getElementById('mobileAdminBtn').style.display = 'block';
+      showAdminLoginModal();
+    }
+  });
 }
 
 function showAdminLoginModal() {
@@ -59,15 +113,39 @@ function verifyAdminLogin() {
   var user = document.getElementById('adminUser').value;
   var pass = document.getElementById('adminPass').value;
   
-  // Check against config (ADMIN_LOGIN and ADMIN_PASS from config.js)
-  if (user === ADMIN_LOGIN && pass === ADMIN_PASS) {
-    adminLoggedIn = true;
-    closeAdminLoginModal();
-    toggleAdminMode();
-    notify('Admin mode enabled', 'success');
-  } else {
-    notify('Invalid credentials', 'error');
+  // For security, only check username locally
+  // Password is validated on the server
+  if (user !== 'admin') {
+    notify('Invalid username', 'error');
+    return;
   }
+  
+  // Send password to server for validation
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/admin-auth', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (data.authenticated) {
+        adminLoggedIn = true;
+        closeAdminLoginModal();
+        toggleAdminMode();
+        notify('Admin mode enabled', 'success');
+      } else {
+        notify(data.error || 'Invalid credentials', 'error');
+      }
+    } catch (e) {
+      notify('Authentication error: ' + e.message, 'error');
+    }
+  };
+  
+  xhr.onerror = function() {
+    notify('Network error - check connection', 'error');
+  };
+  
+  xhr.send(JSON.stringify({ password: pass }));
 }
 
 function toggleAdminMode() {

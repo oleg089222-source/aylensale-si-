@@ -35,6 +35,7 @@ type SaleItem = {
   referrerCode?: string; // Код пригласившего
   lat: number;
   lon: number;
+  photos: string[]; // Base64 images
 };
 
 type NotificationSettings = {
@@ -84,6 +85,7 @@ const SAMPLE_SALES: SaleItem[] = [
     referrerCode: "",
     lat: 52.4917,
     lon: -0.7077,
+    photos: [],
   },
   {
     id: 1680000001000,
@@ -101,6 +103,7 @@ const SAMPLE_SALES: SaleItem[] = [
     referrerCode: "",
     lat: 51.4799,
     lon: -0.1550,
+    photos: [],
   },
 ];
 
@@ -131,6 +134,18 @@ const createReferralCode = (phone: string, id: number) => {
   return `${prefix}-${id.toString().slice(-4)}`;
 };
 
+const convertFileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 function isDiscountEligible(amount: number) {
   return amount >= DISCOUNT_THRESHOLD;
 }
@@ -146,10 +161,12 @@ export default function Home() {
   const [weather, setWeather] = useState<Record<string, WeatherData | null>>({});
   const [sales, setSales] = useState<SaleItem[]>([]);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminTab, setAdminTab] = useState<"products" | "settings">("products");
   const [loggedIn, setLoggedIn] = useState(false);
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string>("");
   const [form, setForm] = useState({
+    id: 0,
     title: "",
     address: "",
     postcode: "",
@@ -161,7 +178,9 @@ export default function Home() {
     orderAmount: 0,
     customerPhone: "",
     referrerCode: "",
+    photos: [] as string[],
   });
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [categoryFilter, setCategoryFilter] = useState(CATEGORY_ALL);
   const [serverMessages, setServerMessages] = useState<string[]>([]);
@@ -320,6 +339,37 @@ export default function Home() {
     }));
   };
 
+  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.currentTarget.files;
+    if (!files) return;
+
+    try {
+      const newPhotos: string[] = [...form.photos];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.type.startsWith("image/")) {
+          const base64 = await convertFileToBase64(file);
+          newPhotos.push(base64);
+        }
+      }
+      setForm((prev) => ({
+        ...prev,
+        photos: newPhotos,
+      }));
+      setStatus(`Загружено ${files.length} фотографий.`);
+      event.currentTarget.value = "";
+    } catch (error) {
+      setStatus("Ошибка загрузки фото: " + String(error));
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSettingsChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     const nextSettings = { ...settings, [name]: value };
@@ -402,6 +452,7 @@ export default function Home() {
       referrerCode: "",
       lat: 0,
       lon: 0,
+      photos: [],
     };
 
     if (settings.telegramToken && settings.telegramChatId) {
@@ -425,10 +476,11 @@ export default function Home() {
     }
 
     setStatus("Сохраняем адрес и ищем координаты...");
-    const newId = Date.now();
+    const isEditing = editingId !== null;
+    const id = isEditing ? editingId : Date.now();
     const customerPhone = form.customerPhone.trim();
     const tempSale: SaleItem = {
-      id: newId,
+      id,
       title: form.title.trim(),
       address: form.address.trim(),
       postcode: form.postcode.trim(),
@@ -439,13 +491,16 @@ export default function Home() {
       category: form.category,
       orderAmount: Number(form.orderAmount) || 0,
       customerPhone,
-      referralCode: createReferralCode(customerPhone, newId),
+      referralCode: isEditing 
+        ? (sales.find(s => s.id === id)?.referralCode || createReferralCode(customerPhone, id))
+        : createReferralCode(customerPhone, id),
       referrerCode: form.referrerCode.trim(),
       lat: 52.48,
       lon: -0.5,
+      photos: form.photos,
     };
 
-    if (settings.whatsappNumber) {
+    if (!isEditing && settings.whatsappNumber) {
       const waLink = getWhatsAppLink(tempSale);
       if (waLink) {
         window.open(waLink, "_blank");
@@ -469,7 +524,7 @@ export default function Home() {
     }
 
     const nextSale: SaleItem = {
-      id: newId,
+      id,
       title: form.title.trim(),
       address: form.address.trim(),
       postcode: form.postcode.trim(),
@@ -480,16 +535,30 @@ export default function Home() {
       category: form.category,
       orderAmount: Number(form.orderAmount) || 0,
       customerPhone,
-      referralCode: createReferralCode(customerPhone, newId),
+      referralCode: isEditing 
+        ? (sales.find(s => s.id === id)?.referralCode || createReferralCode(customerPhone, id))
+        : createReferralCode(customerPhone, id),
       referrerCode: form.referrerCode.trim(),
       lat,
       lon,
+      photos: form.photos,
     };
 
-    const next = [nextSale, ...sales];
+    let next: SaleItem[];
+    if (isEditing) {
+      next = sales.map(s => s.id === id ? nextSale : s);
+      setStatus("Товар обновлён.");
+      addServerMessage(`Товар "${nextSale.title}" обновлён`);
+    } else {
+      next = [nextSale, ...sales];
+      setStatus("Адрес сохранён в localStorage.");
+      addServerMessage(`Новый товар "${nextSale.title}" добавлен`);
+    }
+    
     setSales(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setForm({
+      id: 0,
       title: "",
       address: "",
       postcode: "",
@@ -501,14 +570,15 @@ export default function Home() {
       orderAmount: 0,
       customerPhone: "",
       referrerCode: "",
+      photos: [],
     });
-    setStatus("Адрес сохранён в localStorage.");
+    setEditingId(null);
 
-    if (settings.telegramToken && settings.telegramChatId) {
+    if (!isEditing && settings.telegramToken && settings.telegramChatId) {
       await sendTelegramNotification(nextSale);
     }
 
-    if (settings.whatsappNumber) {
+    if (!isEditing && settings.whatsappNumber) {
       const link = getWhatsAppLink(nextSale);
       if (link) {
         window.open(link, "_blank");
@@ -683,6 +753,11 @@ export default function Home() {
                             Скидка {DISCOUNT_PERCENT}%
                           </span>
                         ) : null}
+                        {sale.photos?.length > 0 && (
+                          <span className="rounded-full bg-purple-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-purple-200">
+                            📸 {sale.photos.length}
+                          </span>
+                        )}
                       </div>
                       <p className="text-slate-400">{sale.address}</p>
                       <p className="text-slate-400">{sale.postcode}</p>
@@ -691,6 +766,24 @@ export default function Home() {
                       {sale.customerPhone ? (
                         <p className="text-slate-400">Телефон клиента: {sale.customerPhone}</p>
                       ) : null}
+                      {sale.photos && sale.photos.length > 0 && (
+                        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {sale.photos.slice(0, 4).map((photo, idx) => (
+                            <img
+                              key={idx}
+                              src={photo}
+                              alt={`Фото ${idx + 1}`}
+                              className="h-20 w-20 rounded-lg object-cover cursor-pointer hover:opacity-80 transition"
+                              onClick={() => window.open(photo)}
+                            />
+                          ))}
+                          {sale.photos.length > 4 && (
+                            <div className="h-20 w-20 rounded-lg bg-slate-900/70 flex items-center justify-center text-sm text-slate-400">
+                              +{sale.photos.length - 4}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="text-right text-slate-400">
                       <p>{sale.day}</p>
@@ -724,8 +817,24 @@ export default function Home() {
                             type="button"
                             className="rounded-3xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-400"
                             onClick={() => {
-                              setForm({ ...sale, referrerCode: sale.referrerCode ?? "" });
+                              setForm({ 
+                                id: sale.id,
+                                title: sale.title,
+                                address: sale.address,
+                                postcode: sale.postcode,
+                                day: sale.day,
+                                time: sale.time,
+                                note: sale.note,
+                                google: sale.google,
+                                category: sale.category,
+                                orderAmount: sale.orderAmount,
+                                customerPhone: sale.customerPhone,
+                                referrerCode: sale.referrerCode ?? "",
+                                photos: sale.photos ?? [],
+                              });
+                              setEditingId(sale.id);
                               setAdminOpen(true);
+                              setAdminTab("products");
                             }}
                           >
                             ✏️ Изменить
@@ -734,9 +843,12 @@ export default function Home() {
                             type="button"
                             className="rounded-3xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400"
                             onClick={() => {
-                              setSales(sales.filter(s => s.id !== sale.id));
-                              localStorage.setItem("aylensale-sales", JSON.stringify(sales.filter(s => s.id !== sale.id)));
-                              addServerMessage(`Товар "${sale.title}" удален`);
+                              if (confirm(`Удалить "${sale.title}"?`)) {
+                                const updated = sales.filter(s => s.id !== sale.id);
+                                setSales(updated);
+                                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                                addServerMessage(`Товар "${sale.title}" удален`);
+                              }
                             }}
                           >
                             🗑️ Удалить
@@ -772,151 +884,272 @@ export default function Home() {
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSave} className="mt-6 space-y-4">
-                <div className="grid gap-4">
-                  <input
-                    name="title"
-                    value={form.title}
-                    onChange={handleInput}
-                    placeholder="Название распродажи"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <input
-                    name="address"
-                    value={form.address}
-                    onChange={handleInput}
-                    placeholder="Адрес"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <input
-                      name="postcode"
-                      value={form.postcode}
-                      onChange={handleInput}
-                      placeholder="Postcode"
-                      className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                    />
-                    <input
-                      name="day"
-                      value={form.day}
-                      onChange={handleInput}
-                      placeholder="День"
-                      className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                    />
-                  </div>
-                  <input
-                    name="time"
-                    value={form.time}
-                    onChange={handleInput}
-                    placeholder="Время"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <textarea
-                    name="note"
-                    value={form.note}
-                    onChange={handleInput}
-                    placeholder="Заметка"
-                    rows={3}
-                    className="textarea w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <select
-                    name="category"
-                    value={form.category}
-                    onChange={handleInput}
-                    className="input w-full rounded-3xl bg-slate-900 px-4 py-3 text-slate-100 outline-none"
-                  >
-                    {PRODUCT_CATEGORIES.map((category) => (
-                      <option key={category} value={category} className="bg-slate-950 text-white">
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    name="orderAmount"
-                    type="number"
-                    value={form.orderAmount}
-                    onChange={handleInput}
-                    placeholder="Сумма заказа £"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                    min="0"
-                  />
-                  <input
-                    name="customerPhone"
-                    value={form.customerPhone}
-                    onChange={handleInput}
-                    placeholder="Телефон клиента"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <input
-                    name="referrerCode"
-                    value={form.referrerCode}
-                    onChange={handleInput}
-                    placeholder="Реферальный код пригласившего (опционально)"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <p className="text-xs text-slate-500">
-                    Код генерируется автоматически по номеру и будет виден на карточке для приглашения новых клиентов.
-                  </p>
-                  <input
-                    name="google"
-                    value={form.google}
-                    onChange={handleInput}
-                    placeholder="Google Maps link"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <input
-                    name="telegramToken"
-                    value={settings.telegramToken}
-                    onChange={handleSettingsChange}
-                    placeholder="Telegram bot token"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <input
-                    name="telegramChatId"
-                    value={settings.telegramChatId}
-                    onChange={handleSettingsChange}
-                    placeholder="Telegram chat id"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <input
-                    name="whatsappNumber"
-                    value={settings.whatsappNumber}
-                    onChange={handleSettingsChange}
-                    placeholder="WhatsApp номер (только цифры)"
-                    className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
-                  />
-                  <p className="text-sm text-slate-400">Если заполнено, при сохранении откроется WhatsApp со сообщением.</p>
+              <>
+                <div className="mt-6 flex gap-3 border-b border-slate-700">
                   <button
                     type="button"
-                    className="inline-flex w-full justify-center rounded-3xl border border-slate-700 bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-                    onClick={handleSendTestNotification}
+                    className={`px-4 py-3 text-sm font-semibold transition ${
+                      adminTab === "products"
+                        ? "border-b-2 border-sky-500 text-sky-300"
+                        : "text-slate-400 hover:text-slate-300"
+                    }`}
+                    onClick={() => setAdminTab("products")}
                   >
-                    Отправить тестовое уведомление
+                    📦 Товары
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-4 py-3 text-sm font-semibold transition ${
+                      adminTab === "settings"
+                        ? "border-b-2 border-sky-500 text-sky-300"
+                        : "text-slate-400 hover:text-slate-300"
+                    }`}
+                    onClick={() => setAdminTab("settings")}
+                  >
+                    ⚙️ Настройки
                   </button>
                 </div>
-                <button
-                  type="submit"
-                  className="inline-flex w-full justify-center rounded-3xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
-                >
-                  Сохранить
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex w-full justify-center rounded-3xl bg-slate-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-600"
-                  onClick={handleClearStorage}
-                >
-                  Очистить localStorage
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex w-full justify-center rounded-3xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-400"
-                  onClick={handleResetBotInfo}
-                >
-                  Сбросить настройки бота
-                </button>
-              </form>
+
+                {adminTab === "products" && (
+                  <form onSubmit={handleSave} className="mt-6 space-y-4">
+                    {editingId && (
+                      <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-3 text-sm text-orange-300">
+                        ✏️ Режим редактирования. Нажмите "Сохранить" чтобы применить изменения или "Отменить".
+                      </div>
+                    )}
+                    <div className="grid gap-4">
+                      <input
+                        name="title"
+                        value={form.title}
+                        onChange={handleInput}
+                        placeholder="Название распродажи"
+                        className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <input
+                        name="address"
+                        value={form.address}
+                        onChange={handleInput}
+                        placeholder="Адрес"
+                        className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <input
+                          name="postcode"
+                          value={form.postcode}
+                          onChange={handleInput}
+                          placeholder="Postcode"
+                          className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                        />
+                        <input
+                          name="day"
+                          value={form.day}
+                          onChange={handleInput}
+                          placeholder="День"
+                          className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                        />
+                      </div>
+                      <input
+                        name="time"
+                        value={form.time}
+                        onChange={handleInput}
+                        placeholder="Время"
+                        className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <textarea
+                        name="note"
+                        value={form.note}
+                        onChange={handleInput}
+                        placeholder="Заметка"
+                        rows={3}
+                        className="textarea w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <select
+                        name="category"
+                        value={form.category}
+                        onChange={handleInput}
+                        className="input w-full rounded-3xl bg-slate-900 px-4 py-3 text-slate-100 outline-none"
+                      >
+                        {PRODUCT_CATEGORIES.map((category) => (
+                          <option key={category} value={category} className="bg-slate-950 text-white">
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        name="orderAmount"
+                        type="number"
+                        value={form.orderAmount}
+                        onChange={handleInput}
+                        placeholder="Сумма заказа £"
+                        className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                        min="0"
+                      />
+                      <input
+                        name="customerPhone"
+                        value={form.customerPhone}
+                        onChange={handleInput}
+                        placeholder="Телефон клиента"
+                        className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <input
+                        name="referrerCode"
+                        value={form.referrerCode}
+                        onChange={handleInput}
+                        placeholder="Реферальный код пригласившего (опционально)"
+                        className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Код генерируется автоматически по номеру и будет виден на карточке для приглашения новых клиентов.
+                      </p>
+                      <input
+                        name="google"
+                        value={form.google}
+                        onChange={handleInput}
+                        placeholder="Google Maps link"
+                        className="input w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+                      <p className="text-sm font-semibold text-slate-200">📸 Фотографии товара</p>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="mt-3 block w-full text-sm text-slate-400 file:rounded-3xl file:border-0 file:bg-sky-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-sky-400"
+                      />
+                      <p className="mt-2 text-xs text-slate-400">
+                        Выберите несколько фотографий - они сохранятся в localStorage
+                      </p>
+                      {form.photos.length > 0 && (
+                        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {form.photos.map((photo, index) => (
+                            <div key={index} className="group relative overflow-hidden rounded-2xl">
+                              <img
+                                src={photo}
+                                alt={`Фото ${index + 1}`}
+                                className="h-24 w-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removePhoto(index)}
+                                className="absolute inset-0 flex items-center justify-center bg-black/70 opacity-0 transition group-hover:opacity-100"
+                              >
+                                <span className="text-xl text-white">✕</span>
+                              </button>
+                              <p className="absolute bottom-1 left-1 text-xs text-white bg-black/50 px-2 py-1 rounded">
+                                {index + 1}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        className="flex-1 rounded-3xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
+                      >
+                        {editingId ? "💾 Обновить" : "✨ Добавить"}
+                      </button>
+                      {editingId && (
+                        <button
+                          type="button"
+                          className="flex-1 rounded-3xl bg-slate-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-600"
+                          onClick={() => {
+                            setEditingId(null);
+                            setForm({
+                              id: 0,
+                              title: "",
+                              address: "",
+                              postcode: "",
+                              day: "",
+                              time: "",
+                              note: "",
+                              google: "",
+                              category: PRODUCT_CATEGORIES[0],
+                              orderAmount: 0,
+                              customerPhone: "",
+                              referrerCode: "",
+                              photos: [],
+                            });
+                          }}
+                        >
+                          ✕ Отменить
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                )}
+
+                {adminTab === "settings" && (
+                  <div className="mt-6 space-y-4">
+                    <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+                      <p className="text-sm font-semibold text-slate-200">🤖 Telegram Bot</p>
+                      <input
+                        name="telegramToken"
+                        value={settings.telegramToken}
+                        onChange={handleSettingsChange}
+                        placeholder="Telegram bot token"
+                        className="input mt-3 w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <input
+                        name="telegramChatId"
+                        value={settings.telegramChatId}
+                        onChange={handleSettingsChange}
+                        placeholder="Telegram chat id"
+                        className="input mt-2 w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <p className="mt-2 text-xs text-slate-400">
+                        Получите от @BotFather и @aylensale_bot
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+                      <p className="text-sm font-semibold text-slate-200">💬 WhatsApp</p>
+                      <input
+                        name="whatsappNumber"
+                        value={settings.whatsappNumber}
+                        onChange={handleSettingsChange}
+                        placeholder="WhatsApp номер (только цифры, с кодом страны)"
+                        className="input mt-3 w-full rounded-3xl px-4 py-3 text-slate-100 outline-none"
+                      />
+                      <p className="mt-2 text-xs text-slate-400">
+                        Пример: 447700900000 (UK число начинается с 44)
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-3xl border border-slate-700 bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+                      onClick={handleSendTestNotification}
+                    >
+                      📨 Отправить тестовое уведомление
+                    </button>
+
+                    <div className="grid gap-3 pt-4">
+                      <button
+                        type="button"
+                        className="inline-flex justify-center rounded-3xl bg-slate-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-600"
+                        onClick={handleClearStorage}
+                      >
+                        🔄 Очистить localStorage
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex justify-center rounded-3xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-400"
+                        onClick={handleResetBotInfo}
+                      >
+                        ⚠️ Сбросить настройки бота
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {status ? <p className="mt-4 text-sm text-slate-300">{status}</p> : null}
+              </>
             )}
-            {status ? <p className="mt-4 text-sm text-slate-300">{status}</p> : null}
             <div className="mt-6 rounded-[1.75rem] border border-slate-700/80 bg-slate-950/80 p-4">
               <p className="text-sm uppercase tracking-[0.28em] text-slate-400">Сообщения от сервера</p>
               {serverMessages.length > 0 ? (

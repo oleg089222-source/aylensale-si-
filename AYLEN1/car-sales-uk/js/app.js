@@ -321,12 +321,33 @@ function closeCheckout() { document.getElementById('checkoutModal').classList.re
 
 function sendOrder(e) {
   e.preventDefault();
-  if (cart.length === 0) { notify('Cart is empty!', 'error'); return; }
   
+  // Check if cart is empty
+  if (cart.length === 0) { 
+    notify('Cart is empty!', 'error'); 
+    return; 
+  }
+  
+  // Get form values
   var name = document.getElementById('custName').value;
   var phone = document.getElementById('custPhone').value;
   var pickup = document.getElementById('custPickup').value;
   var comment = document.getElementById('custComment').value;
+  
+  // Validate form inputs
+  var validation = SECURITY.validateOrderForm(name, phone, pickup, comment);
+  if (!validation.valid) {
+    notify('Validation error: ' + validation.error, 'error');
+    return;
+  }
+  
+  // Check rate limit
+  var rateLimit = SECURITY.checkOrderRateLimit();
+  if (!rateLimit.allowed) {
+    notify(rateLimit.reason, 'error');
+    return;
+  }
+  
   var total = getTotal();
   
   var orderData = {
