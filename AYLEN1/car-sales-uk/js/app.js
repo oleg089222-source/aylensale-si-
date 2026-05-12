@@ -89,12 +89,20 @@ function renderProducts() {
     if (activeIndex < 0 || activeIndex >= p.images.length) activeIndex = 0;
     var card = document.createElement('div');
     card.className = 'product-card';
-    var img = (p.images && p.images.length > 0) ? p.images[activeIndex] : (p.imageUrl || 'https://via.placeholder.com/300x200/1a1a2e/e94560?text=AYLEN');
+    
+    // Get image URL with fallback
+    var img = (p.images && p.images.length > 0 && p.images[activeIndex]) ? p.images[activeIndex] : null;
+    // Use fallback if image is missing
+    if (!img || img.trim() === '') {
+      img = 'https://via.placeholder.com/300x200/1a1a2e/e94560?text=AYLENSALE';
+    }
+    
     var desc = p.description || p.desc || '';
     var isSaved = savedItems.indexOf(p.id) !== -1;
     
     var h = '<div class="product-image-container">';
-    h += '<img src="' + img + '" alt="' + p.name + '">';
+    // Add onerror handler to show fallback if image breaks
+    h += '<img src="' + img + '" alt="' + p.name + '" onerror="this.src=\'https://via.placeholder.com/300x200/1a1a2e/e94560?text=AYLENSALE\';this.onerror=null;" />';
     
     // Badge container for save and product label
     h += '<div style="position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start">';
@@ -194,7 +202,8 @@ function renderProducts() {
       var visibleThumbs = Math.min(p.images.length, maxThumbs);
       for (var j = 0; j < visibleThumbs; j++) {
         var activeClass = (j === activeIndex) ? ' active' : '';
-        h += '<img src="' + p.images[j] + '" class="product-thumb' + activeClass + '" onclick="selectProductImage(' + p.id + ',' + j + ')" alt="Photo ' + (j + 1) + '">';
+        var thumbSrc = (p.images[j] && p.images[j].trim() !== '') ? p.images[j] : 'https://via.placeholder.com/80/1a1a2e/e94560?text=Image';
+        h += '<img src="' + thumbSrc + '" class="product-thumb' + activeClass + '" onclick="selectProductImage(' + p.id + ',' + j + ')" onerror="this.src=\'https://via.placeholder.com/80/1a1a2e/e94560?text=Image\';this.onerror=null;" alt="Photo ' + (j + 1) + '">';
       }
       if (p.images.length > maxThumbs) {
         var moreCount = p.images.length - maxThumbs;
