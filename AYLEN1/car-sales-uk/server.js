@@ -19,47 +19,6 @@ if (fs.existsSync(envPath)) {
 
 const PORT = 3000;
 
-// In-memory database for products/auctions/locations
-let serverData = {
-  products: [],
-  auctions: [],
-  locations: []
-};
-
-// Data file path for persistence
-const dataFilePath = path.join(__dirname, 'data', 'app-data.json');
-const dataDir = path.join(__dirname, 'data');
-
-// Ensure data directory exists
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-// Load data from file on startup
-function loadServerData() {
-  try {
-    if (fs.existsSync(dataFilePath)) {
-      const fileContent = fs.readFileSync(dataFilePath, 'utf-8');
-      serverData = JSON.parse(fileContent);
-      console.log('✅ Loaded server data from file');
-    }
-  } catch (error) {
-    console.log('📝 Starting with empty server data:', error.message);
-  }
-}
-
-// Save data to file
-function saveServerData() {
-  try {
-    fs.writeFileSync(dataFilePath, JSON.stringify(serverData, null, 2));
-  } catch (error) {
-    console.error('Error saving server data:', error);
-  }
-}
-
-// Load data on startup
-loadServerData();
-
 // Handler for API requests
 async function handleApiRequest(req, res) {
   if (req.url === '/api/send-order' && req.method === 'POST') {
@@ -186,45 +145,6 @@ async function handleApiRequest(req, res) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: error.message }));
     }
-  } else if (req.url === '/api/data/load' && req.method === 'GET') {
-    // Load all data from server
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(serverData));
-  } else if (req.url === '/api/data/save' && req.method === 'POST') {
-    // Save data to server
-    let body = '';
-    
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-    
-    req.on('end', () => {
-      try {
-        const newData = JSON.parse(body);
-        
-        // Update server data
-        if (newData.products) serverData.products = newData.products;
-        if (newData.auctions) serverData.auctions = newData.auctions;
-        if (newData.locations) serverData.locations = newData.locations;
-        
-        // Persist to file
-        saveServerData();
-        
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ 
-          success: true,
-          message: 'Data saved successfully',
-          dataCount: {
-            products: serverData.products.length,
-            auctions: serverData.auctions.length,
-            locations: serverData.locations.length
-          }
-        }));
-      } catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: error.message }));
-      }
-    });
   } else {
     res.writeHead(404);
     res.end();
