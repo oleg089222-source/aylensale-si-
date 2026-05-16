@@ -161,7 +161,7 @@ function deleteProductById(id) {
 }
 
 function updateProductById(id, updates) {
-  var product = products.find(function(p) { return p.id === id; });
+  var product = products.find(function(p) { return p.id === Number(id); });
   if (product) { 
     Object.assign(product, updates);
     DB.save('products', products);
@@ -212,7 +212,7 @@ function deleteAuctionById(id) {
 }
 
 function updateAuctionById(id, updates) {
-  var auction = auctions.find(function(a) { return a.id === id; });
+  var auction = auctions.find(function(a) { return a.id === Number(id); });
   if (auction) { 
     Object.assign(auction, updates);
     DB.save('auctions', auctions);
@@ -260,7 +260,7 @@ function deleteLocationById(id) {
 }
 
 function updateLocationById(id, updates) {
-  var location = locations.find(function(l) { return l.id === id; });
+  var location = locations.find(function(l) { return l.id === Number(id); });
   if (location) { 
     Object.assign(location, updates);
     DB.save('locations', locations);
@@ -297,7 +297,7 @@ function updateCard(code, updates) {
 
 // Bid functions
 function placeBid(auctionId, bidAmount, bidderName) {
-  var auction = auctions.find(function(a) { return a.id === auctionId; });
+  var auction = auctions.find(function(a) { return a.id === Number(auctionId); });
   if (!auction) return false;
   if (bidAmount <= auction.currentPrice) return false;
   if (!auctionBids[auctionId]) auctionBids[auctionId] = [];
@@ -319,8 +319,8 @@ function addNotifyRequest(productId, method, contact) {
 }
 
 // Utility functions
-function getProductById(id) { return products.find(function(p) { return p.id === id; }); }
-function getAuctionById(id) { return auctions.find(function(a) { return a.id === id; }); }
-function getLocationById(id) { return locations.find(function(l) { return l.id === id; }); }
+function getProductById(id) { return products.find(function(p) { return p.id === Number(id); }); }
+function getAuctionById(id) { return auctions.find(function(a) { return a.id === Number(id); }); }
+function getLocationById(id) { return locations.find(function(l) { return l.id === Number(id); }); }
 function getBidsForAuction(auctionId) { return auctionBids[auctionId] || []; }
 function getAllActiveLocations() { return locations.filter(function(l) { return l.active; }); }

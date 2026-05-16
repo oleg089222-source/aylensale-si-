@@ -459,7 +459,7 @@ async function addProductWithUpload(modalId) {
 }
 
 function editProduct(id) {
-  var product = products.find(function(p) { return p.id === id; });
+  var product = products.find(function(p) { return p.id === Number(id); });
   if (!product) return;
   
   // Ensure all fields exist
@@ -710,7 +710,7 @@ async function saveEditProduct(productId, modalId) {
     return;
   }
   
-  var product = products.find(function(p) { return p.id === productId; });
+  var product = products.find(function(p) { return p.id === Number(productId); });
   if (!product) return;
   
   var imageUrls = product.images || [];
@@ -756,7 +756,7 @@ async function saveEditProduct(productId, modalId) {
 }
 
 function removeProductPhoto(productId, photoIndex, modalId) {
-  var product = products.find(function(p) { return p.id === productId; });
+  var product = products.find(function(p) { return p.id === Number(productId); });
   if (!product || !product.images) return;
   
   if (confirm('Remove this photo?')) {
@@ -777,7 +777,7 @@ function removeProductPhoto(productId, photoIndex, modalId) {
 }
 
 function deleteProductConfirm(id) {
-  var product = products.find(function(p) { return p.id === id; });
+  var product = products.find(function(p) { return p.id === Number(id); });
   if (!product) return;
   
   if (confirm('Delete "' + product.name + '"? This cannot be undone.')) {
@@ -907,13 +907,13 @@ async function addAuctionWithUpload(modalId) {
 }
 
 function editAuction(id) {
-  var auction = auctions.find(function(a) { return a.id === id; });
+  var auction = auctions.find(function(a) { return a.id === Number(id); });
   if (!auction) return;
   notify('Edit functionality coming soon', 'info');
 }
 
 function deleteAuctionConfirm(id) {
-  var auction = auctions.find(function(a) { return a.id === id; });
+  var auction = auctions.find(function(a) { return a.id === Number(id); });
   if (!auction) return;
   
   if (confirm('Delete this auction? This cannot be undone.')) {
@@ -993,13 +993,13 @@ function addLocationWithData(modalId) {
 }
 
 function editLocation(id) {
-  var loc = locations.find(function(l) { return l.id === id; });
+  var loc = locations.find(function(l) { return l.id === Number(id); });
   if (!loc) return;
   notify('Edit functionality coming soon', 'info');
 }
 
 function deleteLocationConfirm(id) {
-  var loc = locations.find(function(l) { return l.id === id; });
+  var loc = locations.find(function(l) { return l.id === Number(id); });
   if (!loc) return;
   
   if (confirm('Delete this location? This cannot be undone.')) {
@@ -1012,5 +1012,58 @@ function deleteLocationConfirm(id) {
 
 // Helper functions
 function getProductById(id) {
-  return products.find(function(p) { return p.id === id; });
+  return products.find(function(p) { return p.id === Number(id); });
+}
+
+// ============ CLOUDINARY IMAGE UPLOAD ============
+// This function handles image uploads to Cloudinary or as base64 data URLs
+async function uploadImageToCloudinary(file) {
+  return new Promise(function(resolve, reject) {
+    // Check if we have Cloudinary credentials
+    var cloudinaryCloudName = 'dly3n5gno'; // Default demo account
+    var cloudinaryUploadPreset = 'ml_default'; // Demo preset
+    
+    // Try to read file as base64 for localStorage backup
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var base64Data = e.target.result;
+      
+      // Create FormData for Cloudinary upload
+      var formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', cloudinaryUploadPreset);
+      
+      // Try to upload to Cloudinary
+      fetch('https://api.cloudinary.com/v1_1/' + cloudinaryCloudName + '/image/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Upload failed');
+        return response.json();
+      })
+      .then(function(data) {
+        if (data.secure_url) {
+          resolve({ success: true, url: data.secure_url });
+        } else {
+          throw new Error('No URL returned');
+        }
+      })
+      .catch(function(error) {
+        console.log('Cloudinary upload failed, using base64:', error);
+        // Fallback to base64 data URL
+        resolve({ 
+          success: true, 
+          url: base64Data,
+          isBase64: true
+        });
+      });
+    };
+    
+    reader.onerror = function(error) {
+      reject({ success: false, error: error.message || 'File read failed' });
+    };
+    
+    reader.readAsDataURL(file);
+  });
 }
