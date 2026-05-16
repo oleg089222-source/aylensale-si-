@@ -49,12 +49,20 @@ function initializeFirebase() {
       fbDb = firebase.firestore(fbApp);
       isFirebaseReady = true;
       console.log('✓ Firebase Firestore initialized');
-      
-      // Set up real-time listeners
-      setupFirestoreListeners();
     } else {
       console.warn('Firestore not available - using localStorage fallback');
     }
+    
+    // Get Storage reference
+    if (typeof firebase.storage === 'function') {
+      fbStorage = firebase.storage(fbApp);
+      console.log('✓ Firebase Storage initialized');
+    } else {
+      console.warn('Storage not available');
+    }
+    
+    // Set up real-time listeners
+    setupFirestoreListeners();
   } catch (error) {
     console.warn('Firebase initialization failed:', error);
     console.log('Using localStorage fallback');
@@ -363,6 +371,99 @@ var FBDB = {
       var cached = localStorage.getItem('aylen_locations_cache');
       return cached ? JSON.parse(cached) : [];
     }
+  }
+};
+
+/**
+ * Image Upload/Download Functions for Firebase Storage
+ */
+FBDB.uploadImage = async function(file, productId) {
+  if (!fbStorage) {
+    console.warn('Firebase Storage not available');
+    return { success: false, error: 'Storage not available' };
+  }
+
+  try {
+    var timestamp = Date.now();
+    var randomStr = Math.random().toString(36).substring(7);
+    var fileName = 'products/' + productId + '/img_' + timestamp + '_' + randomStr + '.jpg';
+    
+    var storageRef = fbStorage.ref(fileName);
+    await storageRef.put(file);
+    
+    // Get download URL
+    var downloadURL = await storageRef.getDownloadURL();
+    console.log('✓ Image uploaded:', downloadURL);
+    
+    return { success: true, url: downloadURL };
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Convert File to base64 as fallback
+ */
+FBDB.fileToBase64 = function(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      resolve(reader.result);
+    };
+    reader.onerror = function(error) {
+      reject(error);
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
+ * Upload image with fallback to base64
+ */
+FBDB.uploadImageWithFallback = async function(file, productId) {
+  try {
+    // Try Firebase Storage first
+    if (fbStorage) {
+      var result = await FBDB.uploadImage(file, productId);
+      if (result.success) {
+        return result;
+      }
+    }
+  } catch (error) {
+    console.warn('Firebase Storage upload failed, using base64 fallback:', error.message);
+  }
+  
+  // Fallback to base64
+  try {
+    var base64 = await FBDB.fileToBase64(file);
+    console.log('✓ Image stored as base64 (fallback)');
+    return { success: true, url: base64, isBase64: true };
+  } catch (error) {
+    console.error('Base64 conversion failed:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Delete image from Firebase Storage
+ */
+FBDB.deleteImage = async function(imageUrl) {
+  if (!fbStorage || !imageUrl) {
+    return true; // Can't delete, but don't fail
+  }
+
+  try {
+    // Only delete if it's a Firebase Storage URL
+    if (imageUrl.includes('firebasestorage.app') || imageUrl.includes('firebase.google.com')) {
+      var fileRef = fbStorage.refFromURL(imageUrl);
+      await fileRef.delete();
+      console.log('✓ Image deleted from Storage');
+    }
+    return true;
+  } catch (error) {
+    console.warn('Error deleting image:', error);
+    return true; // Don't fail even if delete fails
   }
 };
 

@@ -44,7 +44,27 @@ var DEFAULT_AUCTIONS = [
 var DB = {
   save: function(key, data) {
     try { 
+      // Always save to localStorage for offline support
       localStorage.setItem('aylen_' + key, JSON.stringify(data));
+      
+      // Also save to Firebase Firestore if available
+      if (window.FBDB && ['products', 'auctions', 'locations'].includes(key)) {
+        // Save each item individually to Firestore
+        if (Array.isArray(data)) {
+          data.forEach(function(item) {
+            if (item.id) {
+              if (key === 'products') {
+                window.FBDB.saveProduct(item);
+              } else if (key === 'auctions') {
+                window.FBDB.saveAuction(item);
+              } else if (key === 'locations') {
+                window.FBDB.saveLocation(item);
+              }
+            }
+          });
+        }
+      }
+      
       return true;
     }
     catch (e) { console.error('Failed to save ' + key, e); return false; }
@@ -75,25 +95,43 @@ function initializeSystemIfNeeded() {
 // Load data into memory
 async function loadAllData() {
   try {
-    // Try to load from Firestore first
+    // Priority 1: Try to load from Firebase Firestore first (primary storage)
     if (window.FBDB) {
-      console.log('Loading data from Firestore...');
-      products = await window.FBDB.loadProducts();
-      auctions = await window.FBDB.loadAuctions();
-      locations = await window.FBDB.loadLocations();
-    } else {
-      console.log('Firestore not available, loading from localStorage...');
+      try {
+        console.log('Loading data from Firebase Firestore...');
+        var fbProducts = await window.FBDB.loadProducts();
+        var fbAuctions = await window.FBDB.loadAuctions();
+        var fbLocations = await window.FBDB.loadLocations();
+        
+        if (fbProducts && fbProducts.length > 0) {
+          products = fbProducts;
+          console.log('✓ Loaded', products.length, 'products from Firestore');
+        }
+        if (fbAuctions && fbAuctions.length > 0) {
+          auctions = fbAuctions;
+          console.log('✓ Loaded', auctions.length, 'auctions from Firestore');
+        }
+        if (fbLocations && fbLocations.length > 0) {
+          locations = fbLocations;
+          console.log('✓ Loaded', locations.length, 'locations from Firestore');
+        }
+      } catch (error) {
+        console.warn('Firebase Firestore load failed, trying localStorage:', error.message);
+      }
     }
-
-    // Fallback to localStorage if Firestore returned empty
+    
+    // Priority 2: Fallback to localStorage if Firestore data is empty
     if (!products || products.length === 0) {
-      products = DB.load('products') || DEFAULT_PRODUCTS;
+      var cached = DB.load('products');
+      products = cached || DEFAULT_PRODUCTS;
     }
     if (!auctions || auctions.length === 0) {
-      auctions = DB.load('auctions') || DEFAULT_AUCTIONS;
+      var cached = DB.load('auctions');
+      auctions = cached || DEFAULT_AUCTIONS;
     }
     if (!locations || locations.length === 0) {
-      locations = DB.load('locations') || DEFAULT_LOCATIONS;
+      var cached = DB.load('locations');
+      locations = cached || DEFAULT_LOCATIONS;
     }
 
     // Load other data from localStorage

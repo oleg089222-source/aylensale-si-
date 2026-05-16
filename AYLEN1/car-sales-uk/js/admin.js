@@ -462,6 +462,9 @@ function editProduct(id) {
   var product = products.find(function(p) { return p.id === Number(id); });
   if (!product) return;
   
+  // Track which product we're editing for image uploads
+  window.currentEditingProductId = Number(id);
+  
   // Ensure all fields exist
   if (!product.badge) product.badge = '';
   if (product.active === undefined) product.active = true;
@@ -1018,45 +1021,21 @@ function getProductById(id) {
 // ============ CLOUDINARY IMAGE UPLOAD ============
 // This function handles image uploads to Cloudinary or as base64 data URLs
 async function uploadImageToCloudinary(file) {
+  // Use Firebase Storage if available, fallback to base64
+  if (window.FBDB && window.FBDB.uploadImageWithFallback) {
+    var productId = currentEditingProductId || Date.now();
+    return await window.FBDB.uploadImageWithFallback(file, productId);
+  }
+  
+  // Fallback: base64 only
   return new Promise(function(resolve, reject) {
-    // Check if we have Cloudinary credentials
-    var cloudinaryCloudName = 'dly3n5gno'; // Default demo account
-    var cloudinaryUploadPreset = 'ml_default'; // Demo preset
-    
-    // Try to read file as base64 for localStorage backup
     var reader = new FileReader();
     reader.onload = function(e) {
       var base64Data = e.target.result;
-      
-      // Create FormData for Cloudinary upload
-      var formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', cloudinaryUploadPreset);
-      
-      // Try to upload to Cloudinary
-      fetch('https://api.cloudinary.com/v1_1/' + cloudinaryCloudName + '/image/upload', {
-        method: 'POST',
-        body: formData
-      })
-      .then(function(response) {
-        if (!response.ok) throw new Error('Upload failed');
-        return response.json();
-      })
-      .then(function(data) {
-        if (data.secure_url) {
-          resolve({ success: true, url: data.secure_url });
-        } else {
-          throw new Error('No URL returned');
-        }
-      })
-      .catch(function(error) {
-        console.log('Cloudinary upload failed, using base64:', error);
-        // Fallback to base64 data URL
-        resolve({ 
-          success: true, 
-          url: base64Data,
-          isBase64: true
-        });
+      resolve({ 
+        success: true, 
+        url: base64Data,
+        isBase64: true
       });
     };
     
