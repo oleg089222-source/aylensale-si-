@@ -43,7 +43,26 @@ var DEFAULT_AUCTIONS = [
 // Database utility
 var DB = {
   save: function(key, data) {
-    try { localStorage.setItem('aylen_' + key, JSON.stringify(data)); return true; }
+    try { 
+      localStorage.setItem('aylen_' + key, JSON.stringify(data));
+      
+      // Also sync to server if it's a main data collection
+      if (['products', 'auctions', 'locations'].includes(key)) {
+        var syncData = {};
+        syncData[key] = data;
+        
+        // Non-blocking server sync
+        fetch('/api/data/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(syncData)
+        }).catch(function(e) {
+          console.warn('Server sync failed (offline?):', e.message);
+        });
+      }
+      
+      return true;
+    }
     catch (e) { console.error('Failed to save ' + key, e); return false; }
   },
   load: function(key) {
@@ -72,7 +91,29 @@ function initializeSystemIfNeeded() {
 // Load data into memory
 async function loadAllData() {
   try {
-    // Try to load from Firestore first
+    // Try to load from server first (shared data for all users)
+    try {
+      console.log('Loading data from server...');
+      var response = await fetch('/api/data/load');
+      if (response.ok) {
+        var serverData = await response.json();
+        if (serverData.products && serverData.products.length > 0) {
+          products = serverData.products;
+          auctions = serverData.auctions || [];
+          locations = serverData.locations || [];
+          console.log('✓ Loaded from server:', products.length, 'products');
+          // Also sync to localStorage for offline support
+          DB.save('products', products);
+          DB.save('auctions', auctions);
+          DB.save('locations', locations);
+          return true;
+        }
+      }
+    } catch (e) {
+      console.log('Server not available, trying Firestore/localStorage...');
+    }
+    
+    // Try to load from Firestore
     if (window.FBDB) {
       console.log('Loading data from Firestore...');
       products = await window.FBDB.loadProducts();
