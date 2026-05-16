@@ -30,13 +30,13 @@ export function Products({ language }: ProductsProps) {
   ];
 
   useEffect(() => {
-    // Try to load products from Firebase
-    const loadProductsFromFirebase = async () => {
+    // Try to load products from Firebase with real-time listener
+    const setupFirebaseListener = async () => {
       try {
         // Wait for Firebase to be available
         const waitForFirebase = async () => {
           let attempts = 0;
-          while (attempts < 10 && typeof (window as any).firebase === 'undefined') {
+          while (attempts < 20 && typeof (window as any).firebase === 'undefined') {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
           }
@@ -45,40 +45,67 @@ export function Products({ language }: ProductsProps) {
 
         const fbReady = await waitForFirebase();
         if (!fbReady) {
-          console.warn('Firebase not available, using default products');
+          console.warn('⚠️ Firebase SDK not available, using default products');
           setProducts(DEFAULT_PRODUCTS);
           setLoading(false);
           return;
         }
 
-        // Load from Firestore if available
         const firebase = (window as any).firebase;
-        const fbDb = firebase.firestore();
-        const snapshot = await fbDb.collection('products').get();
-        
-        if (!snapshot.empty) {
-          const fbProducts = snapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            title: doc.data().name || 'Untitled',
-            price: doc.data().price || 0,
-            image: doc.data().images && doc.data().images[0] ? doc.data().images[0] : '📦',
-            category: doc.data().category || 'Other'
-          }));
-          setProducts(fbProducts);
-          console.log('✅ Products loaded from Firebase:', fbProducts.length);
-        } else {
-          console.warn('No products in Firestore, using defaults');
+        if (!firebase.firestore) {
+          console.warn('⚠️ Firestore not available, using defaults');
           setProducts(DEFAULT_PRODUCTS);
+          setLoading(false);
+          return;
         }
+
+        const fbDb = firebase.firestore();
+        
+        // Set up real-time listener for products
+        const unsubscribe = fbDb.collection('products')
+          .onSnapshot(
+            (snapshot: any) => {
+              if (!snapshot.empty) {
+                const fbProducts = snapshot.docs.map((doc: any) => {
+                  const data = doc.data();
+                  return {
+                    id: doc.id,
+                    title: data.name || data.title || 'Untitled',
+                    price: data.price || 0,
+                    image: (data.images && data.images[0]) ? data.images[0] : '📦',
+                    category: data.category || 'Other'
+                  };
+                });
+                setProducts(fbProducts);
+                console.log('✅ Products synced from Firestore (real-time):', fbProducts.length);
+              } else {
+                console.warn('ℹ️ No products in Firestore, using defaults');
+                setProducts(DEFAULT_PRODUCTS);
+              }
+              setLoading(false);
+            },
+            (error: any) => {
+              console.error('❌ Firebase listener error:', error);
+              setProducts(DEFAULT_PRODUCTS);
+              setLoading(false);
+            }
+          );
+
+        // Cleanup listener on unmount
+        return () => unsubscribe();
       } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('❌ Error setting up Firebase listener:', error);
         setProducts(DEFAULT_PRODUCTS);
-      } finally {
         setLoading(false);
       }
     };
 
-    loadProductsFromFirebase();
+    const cleanup = setupFirebaseListener();
+    
+    // Return cleanup function if it exists
+    if (cleanup && typeof cleanup === 'function') {
+      return cleanup;
+    }
   }, []);
 
   // Restore cart from localStorage
