@@ -40,31 +40,34 @@ var DEFAULT_AUCTIONS = [
   {id: 103, name: 'Antique Lamp', desc: 'Art deco floor lamp', category: 'furniture', startingPrice: 30, currentPrice: 275, endTime: new Date(Date.now() + 24*3600000).toISOString(), images: [], bidsCount: 0}
 ];
 
-// Database utility
+// Database utility - Firebase primary storage with localStorage cache
 var DB = {
-  save: function(key, data) {
-    try { 
-      // Always save to localStorage for offline support
-      localStorage.setItem('aylen_' + key, JSON.stringify(data));
-      
-      // Also save to Firebase Firestore if available
+  save: async function(key, data) {
+    try {
+      // PRIMARY: Save to Firebase Firestore first (cloud storage - synced across all devices)
       if (window.FBDB && ['products', 'auctions', 'locations'].includes(key)) {
-        // Save each item individually to Firestore
         if (Array.isArray(data)) {
-          data.forEach(function(item) {
+          for (var i = 0; i < data.length; i++) {
+            var item = data[i];
             if (item.id) {
-              if (key === 'products') {
-                window.FBDB.saveProduct(item);
-              } else if (key === 'auctions') {
-                window.FBDB.saveAuction(item);
-              } else if (key === 'locations') {
-                window.FBDB.saveLocation(item);
+              try {
+                if (key === 'products') {
+                  await window.FBDB.saveProduct(item);
+                } else if (key === 'auctions') {
+                  await window.FBDB.saveAuction(item);
+                } else if (key === 'locations') {
+                  await window.FBDB.saveLocation(item);
+                }
+              } catch (e) {
+                console.warn('Error saving to Firebase:', e.message);
               }
             }
-          });
+          }
         }
       }
       
+      // SECONDARY: Save to localStorage as offline cache
+      localStorage.setItem('aylen_' + key, JSON.stringify(data));
       return true;
     }
     catch (e) { console.error('Failed to save ' + key, e); return false; }
@@ -92,58 +95,73 @@ function initializeSystemIfNeeded() {
   return true;
 }
 
-// Load data into memory
+// Load data into memory - Firebase Firestore as primary source
 async function loadAllData() {
   try {
-    // Priority 1: Try to load from Firebase Firestore first (primary storage)
+    // PRIMARY: Load from Firebase Firestore (cloud storage - synced across all devices)
     if (window.FBDB) {
       try {
-        console.log('Loading data from Firebase Firestore...');
+        console.log('🔄 Loading from Firebase Firestore (cloud)...');
         var fbProducts = await window.FBDB.loadProducts();
         var fbAuctions = await window.FBDB.loadAuctions();
         var fbLocations = await window.FBDB.loadLocations();
         
         if (fbProducts && fbProducts.length > 0) {
           products = fbProducts;
-          console.log('✓ Loaded', products.length, 'products from Firestore');
+          console.log('✅ Loaded', products.length, 'products from Firestore');
+        } else {
+          throw new Error('No products in Firestore');
         }
+        
         if (fbAuctions && fbAuctions.length > 0) {
           auctions = fbAuctions;
-          console.log('✓ Loaded', auctions.length, 'auctions from Firestore');
+          console.log('✅ Loaded', auctions.length, 'auctions from Firestore');
+        } else {
+          auctions = DEFAULT_AUCTIONS;
         }
+        
         if (fbLocations && fbLocations.length > 0) {
           locations = fbLocations;
-          console.log('✓ Loaded', locations.length, 'locations from Firestore');
+          console.log('✅ Loaded', locations.length, 'locations from Firestore');
+        } else {
+          locations = DEFAULT_LOCATIONS;
         }
+        
+        console.log('✅ Firebase data loaded successfully - synced across all devices');
       } catch (error) {
-        console.warn('Firebase Firestore load failed, trying localStorage:', error.message);
+        console.warn('⚠️ Firebase Firestore load failed:', error.message);
+        console.log('📱 Falling back to localStorage cache...');
+        
+        // SECONDARY: Fallback to localStorage cache
+        var cached = DB.load('products');
+        products = cached || DEFAULT_PRODUCTS;
+        
+        cached = DB.load('auctions');
+        auctions = cached || DEFAULT_AUCTIONS;
+        
+        cached = DB.load('locations');
+        locations = cached || DEFAULT_LOCATIONS;
       }
-    }
-    
-    // Priority 2: Fallback to localStorage if Firestore data is empty
-    if (!products || products.length === 0) {
+    } else {
+      console.warn('Firebase not available, using localStorage cache');
       var cached = DB.load('products');
       products = cached || DEFAULT_PRODUCTS;
-    }
-    if (!auctions || auctions.length === 0) {
-      var cached = DB.load('auctions');
+      cached = DB.load('auctions');
       auctions = cached || DEFAULT_AUCTIONS;
-    }
-    if (!locations || locations.length === 0) {
-      var cached = DB.load('locations');
+      cached = DB.load('locations');
       locations = cached || DEFAULT_LOCATIONS;
     }
 
-    // Load other data from localStorage
+    // Load other data from localStorage (not cloud-synced)
     cardHolders = DB.load('cardHolders') || DEFAULT_CARDS;
     auctionBids = DB.load('auctionBids') || {};
     notifyRequests = DB.load('notifyRequests') || [];
 
-    console.log('✓ Loaded', products.length, 'products,', auctions.length, 'auctions,', locations.length, 'locations');
+    console.log('✓ Data ready:', products.length, 'products,', auctions.length, 'auctions,', locations.length, 'locations');
     return true;
   } catch (e) { 
     console.error('Error loading data', e); 
-    // Final fallback
+    // Final fallback to defaults
     products = DEFAULT_PRODUCTS;
     auctions = DEFAULT_AUCTIONS;
     locations = DEFAULT_LOCATIONS;

@@ -1,11 +1,10 @@
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 var firebaseConfig = {
-  apiKey: "AIzaSyA-1_2_3_test_key_free_tier",
-  authDomain: "aylensale-demo.firebaseapp.com",
-  projectId: "aylensale-demo",
-  storageBucket: "aylensale-demo.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcd1234efgh5678ijkl"
+  apiKey: "AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg",
+  authDomain: "aylensale.firebaseapp.com",
+  projectId: "aylensale",
+  storageBucket: "aylensale.firebasestorage.app",
+  messagingSenderId: "554559570562",
+  appId: "1:554559570562:web:714d322ab781b4314cea9b",
+  measurementId: "G-8XWD4DQFDX"
 };
-
-// Note: These are placeholder demo credentials for testing
-// For production, use real Firebase project credentials from https://firebase.google.com
