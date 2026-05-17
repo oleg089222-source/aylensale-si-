@@ -19,20 +19,34 @@ var fbStorage = null;
 var isFirebaseReady = false;
 var syncInProgress = false;
 
-// Try to initialize Firebase immediately
-if (typeof firebaseConfig !== 'undefined' && typeof firebase !== 'undefined') {
-  initializeFirebase();
-}
-
-// Also try when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeFirebase);
-} else {
-  // DOM is already loaded
-  if (!isFirebaseReady) {
-    setTimeout(initializeFirebase, 100);
+// Wait for Firebase to be initialized (either via modular import or classic SDK)
+var initCheckRetries = 0;
+var checkInitInterval = setInterval(function() {
+  initCheckRetries++;
+  
+  // Check if Firebase was initialized via module import
+  if (window.isFirebaseReady && window.fbDb && window.fbStorage) {
+    clearInterval(checkInitInterval);
+    fbDb = window.fbDb;
+    fbStorage = window.fbStorage;
+    isFirebaseReady = true;
+    console.log('✅ Firebase already initialized via module import');
+    setupFirestoreListeners();
+    return;
   }
-}
+  
+  // Fallback: Try classic SDK initialization
+  if (typeof firebaseConfig !== 'undefined' && typeof firebase !== 'undefined' && !isFirebaseReady) {
+    clearInterval(checkInitInterval);
+    initializeFirebase();
+    return;
+  }
+  
+  if (initCheckRetries > 100) {
+    clearInterval(checkInitInterval);
+    console.error('❌ Firebase initialization timeout after 10 seconds');
+  }
+}, 100);
 
 function initializeFirebase() {
   if (isFirebaseReady) return; // Already initialized

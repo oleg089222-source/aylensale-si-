@@ -179,31 +179,40 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
 </style>
 
 <!-- Firebase SDK (for persistent storage and images) -->
-<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js"></script>
+<!-- Using modular Firebase SDK for better compatibility -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js';
+  import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js';
+  import { getStorage } from 'https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js';
 
-<!-- Inline initialization for Firebase -->
-<script>
-  // Wait for Firebase SDK to load
-  var firebaseRetries = 0;
-  var firebaseCheckInterval = setInterval(function() {
-    if (typeof firebase !== 'undefined') {
-      clearInterval(firebaseCheckInterval);
-      console.log('[Inline] Firebase SDK loaded successfully');
-    } else {
-      firebaseRetries++;
-      if (firebaseRetries > 50) {
-        clearInterval(firebaseCheckInterval);
-        console.error('[Inline] Firebase SDK failed to load after 50 retries (5 seconds)');
-      }
-    }
-  }, 100);
+  const firebaseConfig = {
+    apiKey: "AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg",
+    authDomain: "aylensale.firebaseapp.com",
+    projectId: "aylensale",
+    storageBucket: "aylensale.firebasestorage.app",
+    messagingSenderId: "554559570562",
+    appId: "1:554559570562:web:714d322ab781b4314cea9b"
+  };
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    
+    // Store in window for compatibility
+    window.firebase = { app, db, storage };
+    window.fbDb = db;
+    window.fbStorage = storage;
+    window.isFirebaseReady = true;
+    
+    console.log('✅ Firebase initialized via module import');
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+  }
 </script>
 
 <!-- App Scripts -->
 <script src="js/config.js?v=2025051616"></script>
-<script src="js/firebase-config.js?v=2025051616"></script>
 <script src="js/firebase-db.js?v=2025051616"></script>
 <script src="js/cloudinary-config.js?v=2025051616"></script>
 <script src="js/photo-upload.js?v=2025051616"></script>
