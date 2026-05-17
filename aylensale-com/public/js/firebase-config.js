@@ -10,7 +10,13 @@ var firebaseConfig = {
 };
 
 // Initialize Firebase when SDK is loaded
-if (typeof firebase !== 'undefined') {
+function initializeFirebase() {
+  if (typeof firebase === 'undefined') {
+    console.warn('⏳ Waiting for Firebase SDK to load...');
+    setTimeout(initializeFirebase, 100); // Retry in 100ms
+    return;
+  }
+  
   try {
     firebase.initializeApp(firebaseConfig);
     console.log('✅ Firebase initialized (aylensale-com)');
@@ -21,6 +27,7 @@ if (typeof firebase !== 'undefined') {
       console.error('❌ Firebase init error:', e);
     }
   }
-} else {
-  console.warn('⚠️ Firebase SDK not loaded yet');
 }
+
+// Start initialization
+initializeFirebase();
