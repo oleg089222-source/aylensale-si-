@@ -179,40 +179,40 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
 </style>
 
 <!-- Firebase SDK (for persistent storage and images) -->
-<!-- Using modular Firebase SDK for better compatibility -->
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js';
-  import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js';
-  import { getStorage } from 'https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js';
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js"></script>
 
-  const firebaseConfig = {
+<!-- Initialize Firebase after SDK loads -->
+<script>
+  // Config - will be used by firebase-db.js
+  var firebaseConfig = {
     apiKey: "AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg",
     authDomain: "aylensale.firebaseapp.com",
     projectId: "aylensale",
     storageBucket: "aylensale.firebasestorage.app",
     messagingSenderId: "554559570562",
-    appId: "1:554559570562:web:714d322ab781b4314cea9b"
+    appId: "1:554559570562:web:714d322ab781b4314cea9b",
+    measurementId: "G-8XWD4DQFDX"
   };
-
-  try {
-    console.log('[Module] Starting Firebase initialization...');
-    const app = initializeApp(firebaseConfig);
-    console.log('[Module] App initialized');
-    const db = getFirestore(app);
-    console.log('[Module] Firestore initialized');
-    const storage = getStorage(app);
-    console.log('[Module] Storage initialized');
+  
+  // Wait for Firebase SDK to load
+  var firebaseCheckRetries = 0;
+  var firebaseInitInterval = setInterval(function() {
+    firebaseCheckRetries++;
     
-    // Store in window for compatibility
-    window.firebase = { app, db, storage };
-    window.fbDb = db;
-    window.fbStorage = storage;
-    window.isFirebaseReady = true;
+    if (typeof firebase !== 'undefined') {
+      clearInterval(firebaseInitInterval);
+      console.log('[Inline Init] Firebase SDK detected');
+      // Set flags for firebase-db.js to detect
+      window.firebaseSDKReady = true;
+    }
     
-    console.log('[Module] ✅ Firebase fully initialized - window.isFirebaseReady =', window.isFirebaseReady);
-  } catch (error) {
-    console.error('[Module] ❌ Firebase initialization failed:', error);
-  }
+    if (firebaseCheckRetries > 100) {
+      clearInterval(firebaseInitInterval);
+      console.error('[Inline Init] Firebase SDK failed to load');
+    }
+  }, 100);
 </script>
 
 <!-- App Scripts -->
