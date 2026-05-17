@@ -178,10 +178,11 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
 .notification.error{background:#e94560;display:block}
 </style>
 
-<!-- Firebase SDK (for persistent storage and images) -->
-<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js"></script>
+<!-- Firebase SDK (for persistent storage and images) - Using COMPAT MODE for global firebase object -->
+<!-- Compat SDK creates the 'firebase' global object -->
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js"></script>
 
 <!-- Initialize Firebase after SDK loads -->
 <script>
@@ -196,21 +197,27 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
     measurementId: "G-8XWD4DQFDX"
   };
   
-  // Wait for Firebase SDK to load
-  var firebaseCheckRetries = 0;
-  var firebaseInitInterval = setInterval(function() {
-    firebaseCheckRetries++;
-    
+  console.log('[Init] Waiting for Firebase SDK...');
+  
+  // Retry checking for Firebase SDK
+  function waitForFirebase() {
     if (typeof firebase !== 'undefined') {
-      clearInterval(firebaseInitInterval);
-      console.log('[Inline Init] Firebase SDK detected');
-      // Set flags for firebase-db.js to detect
-      window.firebaseSDKReady = true;
+      console.log('[Init] ✅ Firebase SDK loaded!');
+      return true;
     }
-    
-    if (firebaseCheckRetries > 100) {
-      clearInterval(firebaseInitInterval);
-      console.error('[Inline Init] Firebase SDK failed to load');
+    return false;
+  }
+  
+  // Check immediately and then every 100ms for 10 seconds
+  var retries = 0;
+  var waitInterval = setInterval(function() {
+    retries++;
+    if (waitForFirebase()) {
+      clearInterval(waitInterval);
+    }
+    if (retries > 100) {
+      clearInterval(waitInterval);
+      console.error('[Init] ❌ Firebase SDK failed to load after 10 seconds');
     }
   }, 100);
 </script>
