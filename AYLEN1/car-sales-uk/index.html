@@ -195,9 +195,13 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
   };
 
   try {
+    console.log('[Module] Starting Firebase initialization...');
     const app = initializeApp(firebaseConfig);
+    console.log('[Module] App initialized');
     const db = getFirestore(app);
+    console.log('[Module] Firestore initialized');
     const storage = getStorage(app);
+    console.log('[Module] Storage initialized');
     
     // Store in window for compatibility
     window.firebase = { app, db, storage };
@@ -205,9 +209,9 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
     window.fbStorage = storage;
     window.isFirebaseReady = true;
     
-    console.log('✅ Firebase initialized via module import');
+    console.log('[Module] ✅ Firebase fully initialized - window.isFirebaseReady =', window.isFirebaseReady);
   } catch (error) {
-    console.error('❌ Firebase initialization failed:', error);
+    console.error('[Module] ❌ Firebase initialization failed:', error);
   }
 </script>
 
