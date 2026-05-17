@@ -8,3 +8,18 @@ var firebaseConfig = {
   appId: "1:554559570562:web:714d322ab781b4314cea9b",
   measurementId: "G-8XWD4DQFDX"
 };
+
+// Initialize Firebase
+console.log('[Firebase Config] Initializing Firebase...');
+console.log('[Firebase Config] Firebase SDK available:', typeof firebase !== 'undefined');
+
+if (typeof firebase !== 'undefined') {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    console.log('[Firebase Config] Firebase initialized successfully');
+  } catch (error) {
+    console.error('[Firebase Config] Error initializing Firebase:', error);
+  }
+} else {
+  console.error('[Firebase Config] Firebase SDK not loaded yet');
+}
