@@ -183,6 +183,24 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
 <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js"></script>
 
+<!-- Inline initialization for Firebase -->
+<script>
+  // Wait for Firebase SDK to load
+  var firebaseRetries = 0;
+  var firebaseCheckInterval = setInterval(function() {
+    if (typeof firebase !== 'undefined') {
+      clearInterval(firebaseCheckInterval);
+      console.log('[Inline] Firebase SDK loaded successfully');
+    } else {
+      firebaseRetries++;
+      if (firebaseRetries > 50) {
+        clearInterval(firebaseCheckInterval);
+        console.error('[Inline] Firebase SDK failed to load after 50 retries (5 seconds)');
+      }
+    }
+  }, 100);
+</script>
+
 <!-- App Scripts -->
 <script src="js/config.js?v=2025051616"></script>
 <script src="js/firebase-config.js?v=2025051616"></script>

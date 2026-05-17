@@ -9,17 +9,6 @@ var firebaseConfig = {
   measurementId: "G-8XWD4DQFDX"
 };
 
-// Initialize Firebase
-console.log('[Firebase Config] Initializing Firebase...');
-console.log('[Firebase Config] Firebase SDK available:', typeof firebase !== 'undefined');
-
-if (typeof firebase !== 'undefined') {
-  try {
-    firebase.initializeApp(firebaseConfig);
-    console.log('[Firebase Config] Firebase initialized successfully');
-  } catch (error) {
-    console.error('[Firebase Config] Error initializing Firebase:', error);
-  }
-} else {
-  console.error('[Firebase Config] Firebase SDK not loaded yet');
-}
+// Note: Do NOT initialize Firebase here
+// Let firebase-db.js handle initialization after SDK is fully loaded
+console.log('[Firebase Config] Configuration loaded, waiting for firebase-db.js to initialize');
