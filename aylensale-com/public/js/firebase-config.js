@@ -9,6 +9,18 @@ var firebaseConfig = {
   measurementId: "G-8XWD4DQFDX"
 };
 
-// Firebase is initialized in browser via script tags
-// This configuration is loaded globally
-console.log('✅ Firebase config loaded (aylensale)');
+// Initialize Firebase when SDK is loaded
+if (typeof firebase !== 'undefined') {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    console.log('✅ Firebase initialized (aylensale-com)');
+  } catch (e) {
+    if (e.code === 'app/duplicate-app') {
+      console.log('ℹ️ Firebase already initialized');
+    } else {
+      console.error('❌ Firebase init error:', e);
+    }
+  }
+} else {
+  console.warn('⚠️ Firebase SDK not loaded yet');
+}
