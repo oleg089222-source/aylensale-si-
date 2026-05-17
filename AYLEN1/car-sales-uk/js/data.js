@@ -44,7 +44,8 @@ var DEFAULT_AUCTIONS = [
 var DB = {
   save: async function(key, data) {
     try {
-      // PRIMARY: Save to Firebase Firestore first (cloud storage - synced across all devices)
+      // PRIMARY: Save to Firebase Firestore (cloud storage - synced across all devices)
+      // NOTE: localStorage is REMOVED - Firestore is the single source of truth
       if (window.FBDB && ['products', 'auctions', 'locations'].includes(key)) {
         if (Array.isArray(data)) {
           for (var i = 0; i < data.length; i++) {
@@ -66,13 +67,19 @@ var DB = {
         }
       }
       
-      // SECONDARY: Save to localStorage as offline cache
-      localStorage.setItem('aylen_' + key, JSON.stringify(data));
+      // Admin preferences and non-critical data only stored locally
+      if (!['products', 'auctions', 'locations'].includes(key)) {
+        localStorage.setItem('aylen_' + key, JSON.stringify(data));
+      }
+      
       return true;
     }
     catch (e) { console.error('Failed to save ' + key, e); return false; }
   },
   load: function(key) {
+    // NOTE: load() is deprecated for main data (products, auctions, locations)
+    // Those must be loaded from Firestore via loadProducts/Auctions/Locations
+    // Only used for admin preferences and non-critical data
     try { var data = localStorage.getItem('aylen_' + key); return data ? JSON.parse(data) : null; }
     catch (e) { console.error('Failed to load ' + key, e); return null; }
   },
@@ -152,6 +159,16 @@ async function loadAllData() {
       locations = cached || DEFAULT_LOCATIONS;
     }
 
+    // Update localStorage cache with latest data (fallback for offline mode)
+    // NOTE: These are only for fallback - primary source is Firestore
+    try {
+      localStorage.setItem('aylen_products', JSON.stringify(products));
+      localStorage.setItem('aylen_auctions', JSON.stringify(auctions));
+      localStorage.setItem('aylen_locations', JSON.stringify(locations));
+    } catch (e) {
+      console.warn('⚠️ Could not cache data to localStorage:', e.message);
+    }
+
     // Load other data from localStorage (not cloud-synced)
     cardHolders = DB.load('cardHolders') || DEFAULT_CARDS;
     auctionBids = DB.load('auctionBids') || {};
@@ -193,10 +210,10 @@ function addProductWithPhotos(name, desc, price, category, imageUrls, stock, who
   };
   products.push(product);
   
-  // Save to localStorage for instant feedback
+  // Sync to Firestore (primary storage) and localStorage cache
   DB.save('products', products);
   
-  // Save to Firestore for persistence
+  // Also save individual product to Firestore for immediate persistence
   if (window.FBDB) {
     window.FBDB.saveProduct(product).catch(function(e) {
       console.error('Error saving product to Firestore:', e);
