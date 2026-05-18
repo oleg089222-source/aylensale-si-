@@ -168,8 +168,33 @@ function handleStaticFile(req, res) {
       '.svg': 'image/svg+xml',
     };
     
+    let content = fs.readFileSync(filePath, 'utf-8');
+    
+    // FIX: Replace old Firebase SDK with COMPAT mode for index.html
+    if (filePath.endsWith('index.html')) {
+      console.log('[Server] Serving index.html - injecting Firebase COMPAT SDK...');
+      
+      // Replace old SDK with compat versions
+      content = content.replace(
+        /https:\/\/www\.gstatic\.com\/firebasejs\/[^/]+\/firebase-app\.js/g,
+        'https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js?t=' + Date.now()
+      );
+      
+      content = content.replace(
+        /https:\/\/www\.gstatic\.com\/firebasejs\/[^/]+\/firebase-firestore\.js/g,
+        'https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js?t=' + Date.now()
+      );
+      
+      content = content.replace(
+        /https:\/\/www\.gstatic\.com\/firebasejs\/[^/]+\/firebase-storage\.js/g,
+        'https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js?t=' + Date.now()
+      );
+      
+      console.log('[Server] ✅ Firebase COMPAT SDK injected');
+    }
+    
     res.writeHead(200, { 'Content-Type': contentTypes[ext] || 'text/plain' });
-    res.end(fs.readFileSync(filePath));
+    res.end(content);
   } else {
     res.writeHead(404);
     res.end('Not found');
