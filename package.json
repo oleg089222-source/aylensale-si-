@@ -5,12 +5,15 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "export": "next build && next export",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint app",
+    "firebase:rules": "firebase deploy --only firestore:rules,storage:rules --project aylensale",
+    "vercel:env": "bash scripts/setup-vercel-env.sh .env.local",
+    "setup:telegram-chat": "bash scripts/telegram-get-chat-id.sh"
   },
   "dependencies": {
     "chart.js": "^4.4.0",
+    "firebase": "^12.13.0",
     "leaflet": "^1.9.4",
     "next": "16.2.6",
     "react": "18.3.1",
@@ -25,6 +28,7 @@
     "@types/react-dom": "^18",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "firebase-tools": "^14.27.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vercel": "^53.4.0"

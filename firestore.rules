@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // MVP: открытый доступ. После подключения Firebase Auth ограничьте write admin-ролью.
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /carBootLocations/{locationId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /orders/{orderId} {
+      allow read: if false;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    match /auctions/{auctionId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

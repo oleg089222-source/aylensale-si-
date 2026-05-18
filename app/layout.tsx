@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AYLENSALE Car Boot Planner",
+  title: "AYLENSALE",
   description:
-    "Простой сайт для car boot sales: погода, карта, список распродаж и админ-панель на localStorage.",
+    "Car boot planner, каталог товаров и погода на выходные. Данные в Firebase.",
 };
 
 export default function RootLayout({

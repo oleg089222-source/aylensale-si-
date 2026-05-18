@@ -12,7 +12,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Legacy subprojects and generated output (not part of root Next app)
+    "AYLEN1/**",
+    "aylensale-com/**",
+    "node_modules/**",
+    "**/*.md",
   ]),
+  {
+    files: ["app/**/*.{ts,tsx,js,jsx}"],
+  },
 ]);
 
 export default eslintConfig;

@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /products/{productId}/{fileName} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /car-boot/{locationId}/{fileName} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
