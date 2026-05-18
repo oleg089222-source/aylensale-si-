@@ -14,10 +14,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Firebase SDK for cloud storage - Load first */}
-        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js" async></script>
-        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js" async></script>
-        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js" async></script>
+        {/* Firebase SDK for cloud storage - COMPAT MODE for global firebase object */}
+        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js" async></script>
+        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js" async></script>
+        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js" async></script>
         {/* Firebase Config - Load after SDK */}
         <script src="/js/firebase-config.js" defer></script>
       </head>
