@@ -9,6 +9,27 @@ var firebaseConfig = {
   measurementId: "G-8XWD4DQFDX"
 };
 
-// Note: Do NOT initialize Firebase here
-// Let firebase-db.js handle initialization after SDK is fully loaded
-console.log('[Firebase Config] Configuration loaded, waiting for firebase-db.js to initialize');
+console.log('[Firebase Config] Configuration loaded');
+
+// Инициализируем Firebase сразу после загрузки compat SDK
+function initFirebaseSDK() {
+  console.log('[Firebase Config] Checking Firebase SDK...');
+  
+  if (typeof firebase === 'undefined') {
+    console.log('[Firebase Config] Firebase SDK not ready yet, retrying...');
+    setTimeout(initFirebaseSDK, 200);
+    return;
+  }
+  
+  try {
+    console.log('[Firebase Config] Firebase SDK found, initializing...');
+    firebase.initializeApp(firebaseConfig);
+    console.log('[Firebase Config] ✅ Firebase initialized successfully');
+    window.firebaseInitialized = true;
+  } catch (error) {
+    console.error('[Firebase Config] Error initializing Firebase:', error.message);
+  }
+}
+
+// Начинаем проверку при загрузке этого скрипта
+setTimeout(initFirebaseSDK, 100);

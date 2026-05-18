@@ -54,11 +54,18 @@ function initializeFirebase() {
       return;
     }
 
-    console.log('🔥 Initializing Firebase...');
+    console.log('🔥 Firebase SDK detected, getting app reference...');
     
-    // Initialize Firebase
-    fbApp = firebase.initializeApp(firebaseConfig, 'aylensale-app');
-    console.log('✅ Firebase app initialized');
+    // Get Firebase app (it's already initialized by firebase-config.js)
+    try {
+      fbApp = firebase.app();
+      console.log('✅ Firebase app reference obtained');
+    } catch (e) {
+      // If app doesn't exist, initialize it
+      console.log('⚠️ App not initialized yet, initializing now...');
+      fbApp = firebase.initializeApp(firebaseConfig, 'aylensale-app');
+      console.log('✅ Firebase app initialized');
+    }
     
     // Get Firestore reference
     if (typeof firebase.firestore === 'function') {
