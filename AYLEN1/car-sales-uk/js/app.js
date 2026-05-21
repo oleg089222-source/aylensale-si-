@@ -220,18 +220,34 @@ function cartQtyTotal() {
 
 function ensureEngagementBar() {
   if (document.getElementById('engagementBar')) return;
-  var banner = document.querySelector('.banner');
-  if (!banner || !banner.parentNode) return;
+  var anchor = document.querySelector('.hero-trust-strip') || document.querySelector('.banner');
+  if (!anchor || !anchor.parentNode) return;
   var bar = document.createElement('section');
   bar.id = 'engagementBar';
-  bar.style.cssText = 'max-width:1200px;margin:14px auto 0;padding:0 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px';
+  bar.className = 'live-activity-bar';
+  bar.setAttribute('aria-label', 'Live marketplace activity');
   bar.innerHTML =
-    '<div class="live-stat"><i class="fas fa-circle"></i><span><b id="onlineVisitorsCount">0</b><small>online now</small></span></div>' +
-    '<div class="live-stat"><i class="fas fa-box-open"></i><span><b id="productsAvailableCount">0</b><small>products available</small></span></div>' +
-    '<div class="live-stat"><i class="fas fa-gavel"></i><span><b id="activeAuctionsCount">0</b><small>active auctions</small></span></div>' +
-    '<div class="live-stat"><i class="fas fa-location-dot"></i><span><b id="pickupPointsCount">0</b><small>pickup points</small></span></div>' +
-    '<div class="live-stat"><i class="fas fa-cart-shopping"></i><span><b id="activeCartsCount">0</b><small>active carts</small></span></div>';
-  banner.parentNode.insertBefore(bar, banner.nextSibling);
+    '<div class="live-activity-item live-activity-item--online">' +
+      '<div class="live-activity-icon"><i class="fas fa-signal"></i></div>' +
+      '<div class="live-activity-data"><b id="onlineVisitorsCount">0</b><small>Online now</small></div>' +
+    '</div>' +
+    '<div class="live-activity-item">' +
+      '<div class="live-activity-icon"><i class="fas fa-box-open"></i></div>' +
+      '<div class="live-activity-data"><b id="productsAvailableCount">0</b><small>Products</small></div>' +
+    '</div>' +
+    '<div class="live-activity-item">' +
+      '<div class="live-activity-icon"><i class="fas fa-gavel"></i></div>' +
+      '<div class="live-activity-data"><b id="activeAuctionsCount">0</b><small>Auctions</small></div>' +
+    '</div>' +
+    '<div class="live-activity-item">' +
+      '<div class="live-activity-icon"><i class="fas fa-location-dot"></i></div>' +
+      '<div class="live-activity-data"><b id="pickupPointsCount">0</b><small>Pickup</small></div>' +
+    '</div>' +
+    '<div class="live-activity-item">' +
+      '<div class="live-activity-icon"><i class="fas fa-cart-shopping"></i></div>' +
+      '<div class="live-activity-data"><b id="activeCartsCount">0</b><small>Active carts</small></div>' +
+    '</div>';
+  anchor.parentNode.insertBefore(bar, anchor.nextSibling);
 }
 
 function renderEngagementStats() {

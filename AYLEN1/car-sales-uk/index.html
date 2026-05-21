@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="css/admin-dashboard.css?v=202605211800">
 <link rel="stylesheet" href="css/products-section.css?v=202605212400">
+<link rel="stylesheet" href="css/phase-1-hero.css?v=202605220100">
 <link rel="stylesheet" href="css/admin-modals.css?v=202605211800">
 <link rel="stylesheet" href="css/ai-assistant.css?v=202605212300">
 <style>
@@ -50,37 +51,47 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
 
 </head>
 <body>
-<header>
+<header class="site-header">
+<div class="header-shell">
 <div class="header-top">
 <div class="logo"><i class="fas fa-bolt"></i> AYLENSALE</div>
 <div class="header-right">
-<a id="headerEbayBtn" href="#" target="_blank" rel="noopener" style="display:none;align-items:center;gap:6px;background:#0064d2;color:#fff;text-decoration:none;padding:8px 12px;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap"><i class="fas fa-store"></i> eBay</a>
+<a id="headerEbayBtn" href="#" target="_blank" rel="noopener" style="display:none"><i class="fas fa-store"></i> eBay</a>
 <div class="login-box">
-<input type="text" id="cardNumber" placeholder="Your Card #">
-<button onclick="loginCard()"><i class="fas fa-sign-in-alt"></i></button>
+<input type="text" id="cardNumber" placeholder="Card #" aria-label="Your card number">
+<button type="button" onclick="loginCard()" aria-label="Sign in with card"><i class="fas fa-sign-in-alt"></i></button>
 </div>
-<button class="cart-btn" onclick="openCart()"><i class="fas fa-shopping-cart"></i> <span id="cartCount">0</span></button>
+<button type="button" class="cart-btn" onclick="openCart()" aria-label="Open cart"><i class="fas fa-shopping-cart"></i> <span id="cartCount">0</span></button>
 </div>
 </div>
-<nav>
+<nav class="header-nav" aria-label="Main">
 <a href="#products" class="nav-link active"><i class="fas fa-box"></i> Products</a>
 <a href="#auctions" class="nav-link"><i class="fas fa-gavel"></i> Auctions</a>
 <a href="#pickup" class="nav-link"><i class="fas fa-map-marker-alt"></i> Pickup</a>
 </nav>
+</div>
 </header>
-<div class="banner hero-marketplace">
+<div class="banner hero-marketplace hero-phase1">
 <div class="hero-content">
-<div class="hero-live-pill"><span></span> Live warehouse marketplace</div>
+<div class="hero-live-pill"><span aria-hidden="true"></span> Live warehouse marketplace</div>
 <h1>Fresh Amazon Returns Every Week</h1>
-<h2>Wholesale • Retail • Car Boot Deals</h2>
-<p>UK Pickup Points Every Weekend</p>
+<h2>Wholesale · Retail · Car Boot</h2>
+<p class="hero-tagline">UK pickup points every weekend — browse live stock, auctions, and trade prices.</p>
 <div class="hero-actions">
 <a href="#products" class="hero-btn primary"><i class="fas fa-box-open"></i> Shop Products</a>
-<a href="#pickup" class="hero-btn secondary"><i class="fas fa-location-dot"></i> View Pickup Points</a>
+<a href="#pickup" class="hero-btn secondary"><i class="fas fa-location-dot"></i> Pickup Points</a>
 </div>
 </div>
 </div>
-<section class="trust-section">
+<div class="hero-trust-strip" aria-label="Trust highlights">
+<span class="hero-trust-chip"><i class="fas fa-flag"></i> UK Seller</span>
+<span class="hero-trust-chip ebay"><i class="fas fa-store"></i> eBay Trusted</span>
+<span class="hero-trust-chip"><i class="fas fa-calendar-check"></i> Weekly Pickup</span>
+<span class="hero-trust-chip"><i class="fas fa-warehouse"></i> Amazon Returns</span>
+<span class="hero-trust-chip"><i class="fas fa-thumbs-up"></i> Positive Feedback</span>
+<span class="hero-trust-chip"><i class="fas fa-bolt"></i> Live Deals</span>
+</div>
+<section class="trust-section trust-section--legacy" hidden aria-hidden="true">
 <div class="trust-card"><i class="fas fa-flag"></i><b>UK Seller</b><span>local weekend pickup</span></div>
 <div class="trust-card ebay"><i class="fas fa-store"></i><b>eBay Trusted</b><span>official resale channel</span></div>
 <div class="trust-card"><i class="fas fa-calendar-check"></i><b>Weekly Pickup</b><span>car boot points</span></div>
@@ -831,7 +842,7 @@ text-shadow:0 0 8px rgba(255,79,131,.22)!important;
 <script src="js/security.js?v=202605182148"></script>
 <script src="js/compliance.js?v=202605191000"></script>
 <script src="js/seo.js?v=202605191000"></script>
-<script src="js/app.js?v=202605212400"></script>
+<script src="js/app.js?v=202605220100"></script>
 <script src="js/admin.js?v=202605212300"></script>
 <script src="js/admin-dashboard.js?v=202605211800"></script>
 <script src="js/admin-site-settings.js?v=202605211200"></script>
