@@ -1,0 +1,225 @@
+/* Unified admin modal forms (Add/Edit Product, etc.) */
+.aylen-modal-panel.aylen-admin-form {
+  background: linear-gradient(180deg, #151d33 0%, #0c111f 100%);
+  color: #e8edf7;
+  padding: 22px 24px 26px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  width: min(96vw, 680px);
+}
+
+.aylen-admin-form .close {
+  color: #94a3b8;
+  top: 12px;
+  right: 14px;
+  font-size: 26px;
+  line-height: 1;
+  z-index: 2;
+}
+
+.aylen-admin-form .aylen-modal-title {
+  color: #f87171;
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 18px;
+  padding-right: 28px;
+}
+
+.aylen-admin-form .aylen-form-section {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px 14px 10px;
+  margin-bottom: 14px;
+}
+
+.aylen-admin-form .aylen-form-section h3 {
+  color: #f87171;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 12px;
+}
+
+.aylen-admin-form label.aylen-label {
+  display: block;
+  color: #b8c4dc;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.aylen-admin-form input[type="text"],
+.aylen-admin-form input[type="number"],
+.aylen-admin-form input[type="email"],
+.aylen-admin-form input[type="password"],
+.aylen-admin-form input[type="file"],
+.aylen-admin-form textarea,
+.aylen-admin-form select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1a2438;
+  color: #e8edf7;
+  font-size: 14px;
+}
+
+.aylen-admin-form textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.aylen-admin-form input:focus,
+.aylen-admin-form textarea:focus,
+.aylen-admin-form select:focus {
+  outline: none;
+  border-color: #e94560;
+  box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+}
+
+.aylen-admin-form .aylen-form-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.aylen-admin-form .aylen-form-row > .aylen-field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.aylen-admin-form .aylen-photo-preview {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 80px;
+  border: 1px dashed #475569;
+  border-radius: 8px;
+  padding: 10px;
+  background: #0a0e17;
+  margin-bottom: 14px;
+}
+
+.aylen-admin-form .aylen-photo-preview .aylen-photo-empty {
+  color: #64748b;
+  width: 100%;
+  text-align: center;
+  line-height: 80px;
+  font-size: 13px;
+}
+
+.aylen-admin-form .aylen-form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.aylen-admin-form .aylen-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.aylen-admin-form .aylen-btn-primary {
+  background: #00cc66;
+  color: #0f172a;
+}
+
+.aylen-admin-form .aylen-btn-secondary {
+  background: #475569;
+  color: #fff;
+}
+
+.aylen-admin-form .aylen-btn-danger {
+  background: #e94560;
+  color: #fff;
+}
+
+.aylen-admin-form .aylen-btn-ai {
+  width: 100%;
+  margin-bottom: 12px;
+  background: #7c3aed;
+  color: #fff;
+}
+
+.aylen-admin-form .aylen-hint-box {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #0a0e17;
+  border-radius: 6px;
+  border-left: 3px solid #00cc66;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.aylen-admin-form .aylen-discount-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-top: 8px;
+}
+
+.aylen-admin-form .aylen-discount-row .aylen-field {
+  flex: 1;
+  min-width: 100px;
+}
+
+.aylen-admin-form #eprodSalePrice {
+  color: #00cc66;
+  font-weight: 800;
+  background: #0a0e17;
+}
+
+.aylen-admin-form .aylen-photo-preview > div {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a2438;
+}
+
+.aylen-admin-form .aylen-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aylen-admin-form .aylen-photo-preview button {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 22px;
+  height: 22px;
+  background: #e94560;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+@media (max-width: 600px) {
+  .aylen-modal-panel.aylen-admin-form {
+    padding: 16px;
+    width: 100%;
+  }
+  .aylen-admin-form .aylen-form-row {
+    flex-direction: column;
+  }
+}

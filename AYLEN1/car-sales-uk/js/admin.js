@@ -1065,7 +1065,7 @@ async function deleteProductConfirm(id) {
       await window.FBDB.deleteProduct(id);
       products = products.filter(function(p) { return !sameId(p.id, id); });
       notify('Product deleted', 'success');
-      if (window.AYLEN_MODAL) await window.AYLEN_MODAL.closeAll({ immediate: true });
+      if (window.AYLEN_MODAL && window.AYLEN_MODAL.close) await window.AYLEN_MODAL.close(null, { immediate: true });
       else onAdminModalClosed();
       refreshCatalogAfterProductChange();
     } catch (error) {

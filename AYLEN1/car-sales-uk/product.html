@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Product | AYLENSALE</title>
+<meta name="description" content="Product details — AYLENSALE UK warehouse marketplace">
+<meta name="theme-color" content="#070a14">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="css/phase-1-hero.css?v=202605220100">
+<link rel="stylesheet" href="css/products-section.css?v=202605220200">
+<link rel="stylesheet" href="css/phase-2-marketplace.css?v=202605220200">
+<link rel="stylesheet" href="css/storefront-modals.css?v=202605220300">
+</head>
+<body class="product-page">
+<header class="site-header product-page-header">
+<div class="header-shell">
+<div class="header-top">
+<a href="/" class="logo"><i class="fas fa-bolt"></i> AYLENSALE</a>
+<div class="header-right">
+<a id="headerEbayBtn" href="#" target="_blank" rel="noopener" style="display:none"><i class="fas fa-store"></i> eBay</a>
+<div class="login-box">
+<input type="text" id="cardNumber" placeholder="Card #" aria-label="Your card number">
+<button type="button" onclick="loginCard()" aria-label="Sign in"><i class="fas fa-sign-in-alt"></i></button>
+</div>
+<button type="button" class="cart-btn" onclick="openCart()" aria-label="Cart"><i class="fas fa-shopping-cart"></i> <span id="cartCount">0</span></button>
+</div>
+</div>
+</div>
+</header>
+
+<main class="product-page-main">
+<nav class="product-page-breadcrumb" aria-label="Breadcrumb">
+<a href="/"><i class="fas fa-home"></i> Home</a>
+<span aria-hidden="true">/</span>
+<a href="/#products">Products</a>
+<span aria-hidden="true">/</span>
+<span id="productBreadcrumbName">Product</span>
+</nav>
+<div id="productPageRoot" class="product-page-root"></div>
+</main>
+
+<div class="modal" id="cartModal"><div class="modal-content"><span class="close" onclick="closeCart()">&times;</span><h2><i class="fas fa-shopping-cart"></i> Your Cart</h2><div id="cartItems"></div><div class="cart-total">Total: <span id="cartTotal">£0.00</span></div><button type="button" class="btn-order" onclick="openCheckout()"><i class="fas fa-check"></i> Order</button></div></div>
+
+<div class="modal" id="checkoutModal"><div class="modal-content"><span class="close" onclick="closeCheckout()">&times;</span><h2><i class="fas fa-clipboard-list"></i> Order</h2><form id="orderForm" onsubmit="sendOrder(event)"><input type="text" id="orderWebsite" data-honeypot="true" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0" value=""><input type="hidden" id="orderFormStartedAt" value=""><input type="text" id="custName" placeholder="Your Name" required><input type="tel" id="custPhone" placeholder="Phone" required><select id="custPickup"><option value="">-- Select Pickup Point --</option></select><textarea id="custComment" placeholder="Comment" rows="2"></textarea><button type="submit" class="btn-order"><i class="fas fa-paper-plane"></i> Send Order</button></form></div></div>
+
+<div id="notification" class="notification"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg",
+    authDomain: "aylensale.firebaseapp.com",
+    projectId: "aylensale",
+    storageBucket: "aylensale.firebasestorage.app",
+    messagingSenderId: "554559570562",
+    appId: "1:554559570562:web:714d322ab781b4314cea9b",
+    measurementId: "G-8XWD4DQFDX"
+  };
+</script>
+
+<script src="js/site-config.js?v=202605191200"></script>
+<script src="js/site-defaults.js?v=202605191200"></script>
+<script src="js/site-content.js?v=202605191200"></script>
+<script src="js/runtime-env.js?v=202605212000"></script>
+<script src="js/config.js?v=202605182020"></script>
+<script src="js/listing-policies.js?v=202605192000"></script>
+<script src="js/production-store.js?v=202605192000"></script>
+<script src="js/inventory-core.js?v=202605211400"></script>
+<script src="js/firebase-db.js?v=202605220300"></script>
+<script src="js/firebase-catalog.js?v=202605211000"></script>
+<script src="js/image-utils.js?v=202605211000"></script>
+<script src="js/cloudinary-config.js?v=202605182120"></script>
+<script src="js/data.js?v=202605211000"></script>
+<script src="js/perf-mode.js?v=202605211000"></script>
+<script src="js/modal-manager.js?v=202605211800"></script>
+<script src="js/security.js?v=202605182148"></script>
+<script src="js/compliance.js?v=202605191000"></script>
+<script src="js/seo.js?v=202605191000"></script>
+<script src="js/product-nav.js?v=202605220200"></script>
+<script src="js/app.js?v=202605220300"></script>
+<script src="js/product-page.js?v=202605220300"></script>
+</body>
+</html>

@@ -768,7 +768,12 @@ document.addEventListener("DOMContentLoaded", async function() {
   applyCardFromUrl();
   validateCurrentUserCard();
   normalizeCart();
-  renderProducts();
+  if (document.body.classList.contains('product-page') && typeof initProductDetailPage === 'function') {
+    await initProductDetailPage();
+  } else {
+    renderProducts();
+  }
+  document.dispatchEvent(new CustomEvent('aylen-catalog-ready'));
   renderEbayPromo();
   renderTelegramLinks();
   renderLocations();
@@ -837,15 +842,36 @@ function getCartUnitPrice(item) {
 }
 
 function normalizeCart() {
-  cart = (Array.isArray(cart) ? cart : []).filter(function(item) {
+  var raw = (Array.isArray(cart) ? cart : []).filter(function(item) {
     return item && item.id !== undefined && Number(item.qty || 0) > 0;
-  }).map(function(item) {
+  });
+  var merged = [];
+  raw.forEach(function(item) {
     var product = productById(item.id);
     var canonicalId = product ? product.id : item.id;
+    var existing = null;
+    for (var i = 0; i < merged.length; i++) {
+      if (sameId(merged[i].id, canonicalId)) { existing = merged[i]; break; }
+    }
+    var qty = Math.max(1, parseInt(item.qty, 10) || 1);
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      merged.push({
+        id: canonicalId,
+        name: product ? product.name : (item.name || 'Product'),
+        basePrice: 0,
+        qty: qty,
+        price: 0
+      });
+    }
+  });
+  cart = merged.map(function(item) {
+    var product = productById(item.id);
     var basePrice = product ? getProductBasePrice(product) : Number(item.basePrice || item.price || 0);
     if (!Number.isFinite(basePrice) || basePrice < 0) basePrice = 0;
     var normalized = {
-      id: canonicalId,
+      id: product ? product.id : item.id,
       name: product ? product.name : (item.name || 'Product'),
       basePrice: Number(basePrice.toFixed(2)),
       qty: Math.max(1, parseInt(item.qty, 10) || 1)
@@ -1066,12 +1092,16 @@ function renderProducts(forceRender) {
     var lazyAttrs = window.AYLEN_IMAGES ? window.AYLEN_IMAGES.lazyImgAttrs() : ' loading="lazy" decoding="async"';
     
     var desc = p.description || p.desc || '';
-    var isSaved = savedItems.indexOf(p.id) !== -1;
+    var isSaved = savedItems.some(function(sid) { return sameId(sid, p.id); });
     var isComingSoon = p.status === 'coming_soon' || p.stockStatus === 'coming_soon' || p.badge === 'COMING SOON';
+    var detailUrl = typeof productPageUrl === 'function' ? productPageUrl(p.id) : '#products';
     
     var h = '<div class="product-card-media">';
-    h += '<div class="product-image-container">';
+    h += '<div class="product-image-container product-card-hit">';
+    h += '<a href="' + escapeHtml(detailUrl) + '" class="product-card-media-link" onclick="trackProductView(' + jsInlineArg(p.id) + ')">';
     h += '<img data-main-product-image="' + escapeHtml(p.id) + '" src="' + escapeHtml(img) + '" alt="' + escapeHtml(p.name) + '"' + lazyAttrs + antiTheftImageAttrs() + (isComingSoon ? ' style="filter:blur(3px)"' : '') + ' onerror="this.src=\'' + PRODUCT_FALLBACK_IMAGE + '\';this.onerror=null;" />';
+    h += '<div class="product-card-open-overlay" aria-hidden="true"><span>View product</span></div>';
+    h += '</a>';
     if (isComingSoon) {
       h += '<div class="product-coming-soon-overlay">COMING SOON<span>Reserve before release</span></div>';
     }
@@ -1113,7 +1143,7 @@ function renderProducts(forceRender) {
     }
     h += '</div>';
     h += '<div class="product-card-body product-info">';
-    h += '<h3 class="product-title">' + escapeHtml(p.name) + '</h3>';
+    h += '<h3 class="product-title"><a href="' + escapeHtml(detailUrl) + '" class="product-card-title-link" onclick="trackProductView(' + jsInlineArg(p.id) + ')">' + escapeHtml(p.name) + '</a></h3>';
     h += '<div class="product-desc-block">' + renderProductDescriptionBlock(p.id, desc) + '</div>';
     var policy = (window.AYLEN_LISTING_POLICIES && window.AYLEN_LISTING_POLICIES.getById)
       ? window.AYLEN_LISTING_POLICIES.getById(p.policyId || p.listingPolicyId)
@@ -1179,6 +1209,7 @@ function renderProducts(forceRender) {
     } else {
       h += '<button type="button" class="btn-action primary" onclick="addToCart(' + jsInlineArg(p.id) + ')"><i class="fas fa-cart-plus"></i> Add to Cart</button>';
     }
+    h += '<a href="' + escapeHtml(detailUrl) + '" class="btn-action secondary product-view-details"><i class="fas fa-arrow-up-right-from-square"></i> View details</a>';
     h += '</div>';
     if (parseInt(p.stock) === 0 && !isComingSoon) {
       h += '<p class="product-notify-compact">Notify when back in stock:</p>';
@@ -1393,21 +1424,28 @@ function updateProductCardImage(productId, index) {
   var p = products.find(function(item) { return sameId(item.id, productId); });
   if (!p || !Array.isArray(p.images) || !p.images.length) return;
   var src = p.images[index] || PRODUCT_FALLBACK_IMAGE;
-  var card = document.getElementById('product-card-' + safeDomId(productId));
-  if (!card) return;
-  var img = card.querySelector('[data-main-product-image]');
-  if (img) {
+  if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.productCardImageUrl && src) {
+    src = window.AYLEN_IMAGES.productCardImageUrl(src);
+  }
+  var pid = String(productId);
+  document.querySelectorAll('[data-main-product-image]').forEach(function(img) {
+    if (String(img.getAttribute('data-main-product-image')) !== pid) return;
     img.style.opacity = '0.35';
     window.setTimeout(function() {
       img.src = src;
       img.alt = p.name || 'Product image';
       img.style.opacity = '1';
     }, 70);
+  });
+  var card = document.getElementById('product-card-' + safeDomId(productId));
+  if (card) {
+    card.querySelectorAll('[data-product-thumb]').forEach(function(thumb) {
+      var thumbIndex = Number(thumb.getAttribute('data-thumb-index') || 0);
+      thumb.classList.toggle('active', thumbIndex === index);
+    });
   }
-  var thumbs = card.querySelectorAll('[data-product-thumb]');
-  thumbs.forEach(function(thumb) {
-    var thumbIndex = Number(thumb.getAttribute('data-thumb-index') || 0);
-    thumb.classList.toggle('active', thumbIndex === index);
+  document.querySelectorAll('.product-detail-thumb').forEach(function(btn, j) {
+    btn.classList.toggle('active', j === index);
   });
 }
 
@@ -1422,7 +1460,11 @@ function toggleSaveProduct(productId) {
   }
   localStorage.setItem('aylensaved', JSON.stringify(savedItems));
   saveWishlistToFirebase();
-  renderProducts();
+  if (document.body.classList.contains('product-page') && typeof refreshProductDetailPage === 'function') {
+    refreshProductDetailPage();
+  } else {
+    renderProducts();
+  }
 }
 
 function saveWishlistToFirebase() {
@@ -1442,7 +1484,11 @@ function showPrices(mode, btn) {
   buttons.forEach(function(b) {
     b.classList.toggle('active', b === btn);
   });
-  renderProducts();
+  if (document.body.classList.contains('product-page') && typeof refreshProductDetailPage === 'function') {
+    refreshProductDetailPage();
+  } else {
+    renderProducts();
+  }
 }
 
 async function requestNotify(productId, method) {
@@ -1495,6 +1541,11 @@ function fillPickup() {
 function addToCart(id) {
   var p = productById(id);
   if (!p) return;
+  var stock = parseInt(p.stock, 10) || 0;
+  if (stock <= 0 && p.status !== 'coming_soon' && p.stockStatus !== 'coming_soon') {
+    notify('Out of stock', 'error');
+    return;
+  }
   var basePrice = Number(getProductBasePrice(p).toFixed(2));
   var price = getCartUnitPrice({ id: p.id, basePrice: basePrice, price: basePrice });
   var item = null;
@@ -1502,7 +1553,12 @@ function addToCart(id) {
     if (sameId(cart[i].id, id)) { item = cart[i]; break; }
   }
   if (item) {
-    item.qty = (parseInt(item.qty, 10) || 0) + 1;
+    var nextQty = (parseInt(item.qty, 10) || 0) + 1;
+    if (stock > 0 && nextQty > stock) {
+      notify('Only ' + stock + ' in stock', 'error');
+      return;
+    }
+    item.qty = nextQty;
     item.name = p.name;
     item.basePrice = basePrice;
     item.price = price;
@@ -1571,9 +1627,9 @@ function renderCart() {
     h += '<div class="cart-item">' +
       '<div class="cart-item-info"><h4>' + escapeHtml(item.name) + '</h4><span class="cart-item-price">£' + unitPrice.toFixed(2) + ' each</span></div>' +
       '<div class="cart-item-qty">' +
-        '<button type="button" aria-label="Decrease quantity" ontouchend="event.preventDefault();changeQty(' + jsInlineArg(item.id) + ',-1)" onclick="changeQty(' + jsInlineArg(item.id) + ',-1)">-</button>' +
+        '<button type="button" aria-label="Decrease quantity" onclick="changeQty(' + jsInlineArg(item.id) + ',-1)">-</button>' +
         '<span id="cartQty_' + String(item.id).replace(/[^a-zA-Z0-9_-]/g, '_') + '">' + item.qty + '</span>' +
-        '<button type="button" aria-label="Increase quantity" ontouchend="event.preventDefault();changeQty(' + jsInlineArg(item.id) + ',1)" onclick="changeQty(' + jsInlineArg(item.id) + ',1)">+</button>' +
+        '<button type="button" aria-label="Increase quantity" onclick="changeQty(' + jsInlineArg(item.id) + ',1)">+</button>' +
       '</div>' +
       '<div style="font-weight:800;color:#1a1a2e;min-width:70px;text-align:right">£' + (unitPrice * item.qty).toFixed(2) + '</div>' +
     '</div>';
@@ -1774,25 +1830,51 @@ function toggleProductDesc(btn) {
   btn.textContent = expanded ? 'Show less' : 'Read more';
 }
 
-function renderProductDescriptionBlock(productId, desc) {
+function renderProductDescriptionBlock(productId, desc, context) {
   var text = String(desc || '').trim();
   if (!text) return '';
+  context = context || 'grid';
+  if (context === 'page') {
+    return '<div class="product-detail-desc-body">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
+  }
   var safeId = 'product-desc-' + safeDomId(productId);
   var longText = text.length > 140 || text.split('\n').length > 3;
   var html = '<p class="desc product-desc-clamp" id="' + safeId + '">' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>';
   if (longText) {
-    html += '<button type="button" class="desc-toggle-btn" onclick="toggleProductDesc(this)">Read more</button>';
+    var detailUrl = typeof productPageUrl === 'function' ? productPageUrl(productId) : '#products';
+    html += '<a href="' + escapeHtml(detailUrl) + '" class="desc-view-link">View details</a>';
   }
   return html;
+}
+
+function renderAuctionsSectionMeta() {
+  var meta = document.getElementById('auctionsLiveMeta');
+  if (!meta) return;
+  var active = 0;
+  var endingSoon = 0;
+  var now = Date.now();
+  (auctions || []).forEach(function(a) {
+    if (getAuctionStatus(a) !== 'active') return;
+    active++;
+    var end = new Date(a.endTime).getTime();
+    if (end - now < 3600000 && end > now) endingSoon++;
+  });
+  var html = '<span class="auctions-live-pill"><span aria-hidden="true"></span> ' + active + ' live</span>';
+  if (endingSoon) {
+    html += '<span class="auctions-ending-soon"><i class="fas fa-hourglass-half"></i> ' + endingSoon + ' ending soon</span>';
+  }
+  meta.innerHTML = html;
 }
 
 function renderAuctions() {
   var grid = document.getElementById('auctionsGrid');
   if (!grid) return;
+  grid.classList.add('auctions-rail');
   grid.innerHTML = '';
+  renderAuctionsSectionMeta();
   if (!auctions.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;background:#fff;border-radius:12px;padding:32px;color:#777;border:1px dashed #ddd">' +
-      '<h3 style="color:#1a1a2e;margin-bottom:8px">No active auctions</h3>' +
+    grid.innerHTML = '<div class="auctions-rail-empty">' +
+      '<h3 style="color:#fff;margin-bottom:8px">No active auctions</h3>' +
       '<p>Auctions will appear here when they are added in Firestore.</p>' +
     '</div>';
     return;
@@ -1927,26 +2009,27 @@ function formatTimeLeft(ms) {
 }
 
 function startAuctionTimers() {
-  // Clear any existing interval
   if (window.auctionTimerInterval) clearInterval(window.auctionTimerInterval);
-  
+  if (!window._auctionEndedHandled) window._auctionEndedHandled = {};
+
   window.auctionTimerInterval = setInterval(function() {
     var now = new Date();
     for (var i = 0; i < auctions.length; i++) {
       var a = auctions[i];
       var el = document.getElementById('timer-' + a.id);
       if (!el) continue;
-      
+
       var endTime = new Date(a.endTime);
       var timeLeft = endTime - now;
-      
+
       if (timeLeft <= 0) {
         el.textContent = '00:00:00';
-        if (!a.finalizedAt && getAuctionStatus(a) === 'ended') {
-          finalizeAuction(a.id).then(function() { renderAuctions(); });
-        } else {
-          var card = document.getElementById('auction-' + a.id);
-          if (card) renderAuctions();
+        var aid = String(a.id);
+        if (!window._auctionEndedHandled[aid]) {
+          window._auctionEndedHandled[aid] = true;
+          if (!a.finalizedAt && getAuctionStatus(a) === 'ended') {
+            finalizeAuction(a.id).then(function() { renderAuctions(); });
+          }
         }
       } else {
         el.textContent = formatTimeLeft(timeLeft);

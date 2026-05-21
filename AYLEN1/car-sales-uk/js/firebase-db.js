@@ -1364,7 +1364,7 @@ FBDB.loadProductById = async function(id) {
 
 FBDB.refreshCatalogFirstPage = async function() {
   var page = await FBDB.loadProductsPage({ limit: window.AYLEN_FIREBASE_CATALOG ? window.AYLEN_FIREBASE_CATALOG.DEFAULT_PAGE : 36 });
-  applyCatalogSnapshot('products', page.items, { fromServer: true });
+  applyCatalogSnapshot('products', page.items, { fromServer: true, merge: true });
   return page;
 };
 

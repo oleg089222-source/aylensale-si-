@@ -1,0 +1,60 @@
+/* Lightweight admin — flat, no blur, no animations */
+.aylen-env-banner{position:sticky;top:0;z-index:10001;padding:6px 12px;font-size:11px;text-align:center;font-weight:700}
+.aylen-env-staging{background:#166534;color:#dcfce7}
+.aylen-env-production{background:#991b1b;color:#fee2e2}
+
+.catalog-toolbar{margin:0 0 12px;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px}
+.catalog-toolbar-row{display:flex;flex-wrap:wrap;gap:8px}
+.catalog-search{flex:1;min-width:160px;padding:8px;border:1px solid #d1d5db;border-radius:4px}
+.catalog-select{padding:8px;border:1px solid #d1d5db;border-radius:4px}
+.catalog-meta{font-size:12px;color:#6b7280;margin:6px 0 0}
+.catalog-pagination{text-align:center;padding:12px 0}
+.catalog-load-more{padding:10px 20px;background:#1a1a2e;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer}
+
+#aylenAdminShell.aylen-shell{position:fixed;inset:0;z-index:10050;display:none;background:#f4f5f7;color:#111;font-family:system-ui,-apple-system,sans-serif}
+#aylenAdminShell.open{display:flex}
+.aylen-side{width:200px;background:#1a1a2e;color:#fff;display:flex;flex-direction:column}
+.aylen-side-title{padding:14px 12px;font-weight:800;font-size:14px;color:#e94560}
+.aylen-side-nav button{display:block;width:100%;text-align:left;padding:10px 12px;border:none;background:transparent;color:#cbd5e1;font-size:13px;cursor:pointer}
+.aylen-side-nav button:hover,.aylen-side-nav button.active{background:#2d3748;color:#fff}
+.aylen-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.aylen-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid #e5e7eb}
+.aylen-top-actions{display:flex;flex-wrap:wrap;gap:6px}
+.aylen-body{flex:1;overflow:auto;padding:12px 14px 20px}
+.aylen-btn{padding:7px 12px;border:1px solid #1a1a2e;background:#1a1a2e;color:#fff;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer}
+.aylen-btn-quiet{background:#fff;color:#1a1a2e;border-color:#d1d5db}
+.aylen-btn-danger{background:#e94560;border-color:#e94560}
+.aylen-hint{font-size:12px;color:#6b7280;margin:0 0 10px}
+.aylen-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center}
+.aylen-toolbar input,.aylen-toolbar select{padding:7px 9px;border:1px solid #d1d5db;border-radius:4px;font-size:12px}
+.aylen-table-wrap{border:1px solid #e5e7eb;border-radius:4px;background:#fff;overflow:auto}
+.aylen-table{width:100%;border-collapse:collapse;font-size:12px}
+.aylen-table th,.aylen-table td{padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:left}
+.aylen-table th{background:#f8fafc;color:#64748b;font-size:11px}
+.aylen-table img{border-radius:4px;object-fit:cover;background:#f1f5f9}
+.aylen-pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;font-size:12px}
+.aylen-stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.aylen-stat{background:#fff;border:1px solid #e5e7eb;border-radius:4px;padding:10px 14px;min-width:120px}
+.aylen-stat span{display:block;font-size:10px;color:#64748b;text-transform:uppercase}
+.aylen-stat b{font-size:20px}
+.aylen-settings-grid{display:flex;flex-wrap:wrap;gap:8px}
+.aylen-row-actions{white-space:nowrap}
+
+body.admin-dashboard-open{overflow:hidden}
+body.admin-lite *{animation:none!important;transition:none!important}
+body.admin-lite .hero-marketplace::before,
+body.admin-lite .hero-live-pill span{animation:none!important}
+body.admin-lite header,
+body.admin-lite .product-card,
+body.admin-lite .auction-card,
+body.admin-lite .modal-content,
+body.admin-lite .bottom-nav{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important}
+body.admin-lite .telegram-float,
+body.admin-lite .whatsapp-float{display:none!important}
+
+@media(max-width:768px){
+  #aylenAdminShell.aylen-shell{flex-direction:column}
+  .aylen-side{width:100%;max-height:120px}
+  .aylen-side-nav{display:flex;overflow-x:auto}
+  .aylen-side-nav button{width:auto;white-space:nowrap}
+}
