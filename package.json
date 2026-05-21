@@ -9,7 +9,7 @@
     "lint": "eslint app",
     "firebase:rules": "firebase deploy --only firestore:rules,storage:rules --project aylensale",
     "vercel:env": "bash scripts/setup-vercel-env.sh .env.local",
-    "setup:telegram-chat": "bash scripts/telegram-get-chat-id.sh"
+    "setup:telegram-chat": "node scripts/get-chat-id.mjs"
   },
   "dependencies": {
     "chart.js": "^4.4.0",
@@ -28,9 +28,9 @@
     "@types/react-dom": "^18",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "firebase-tools": "^14.27.0",
+    "firebase-tools": "^14.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vercel": "^53.4.0"
+    "vercel": "^54.2.0"
   }
 }

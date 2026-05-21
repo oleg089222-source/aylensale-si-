@@ -12,7 +12,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDb } from "./firebase";
-import type { Product, CarBootLocation, Order, Auction, ProductStatus } from "./types";
+import type { Product, CarBootLocation, Order, Auction } from "./types";
 
 const productsCol = () => collection(getDb(), "products");
 const locationsCol = () => collection(getDb(), "carBootLocations");
@@ -69,7 +69,8 @@ export async function createProduct(
 }
 
 export async function updateProduct(id: string, data: Partial<Product>): Promise<void> {
-  const { id: _id, ...rest } = data;
+  const rest = { ...data };
+  delete rest.id;
   await updateDoc(doc(getDb(), "products", id), {
     ...rest,
     updatedAt: Timestamp.now(),
@@ -117,7 +118,8 @@ export async function updateCarBootLocation(
   id: string,
   data: Partial<CarBootLocation>
 ): Promise<void> {
-  const { id: _id, ...rest } = data;
+  const rest = { ...data };
+  delete rest.id;
   await updateDoc(doc(getDb(), "carBootLocations", id), {
     ...rest,
     updatedAt: Timestamp.now(),

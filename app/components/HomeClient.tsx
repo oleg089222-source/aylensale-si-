@@ -19,13 +19,11 @@ import {
   toggleGoingToLocation,
 } from "../lib/firestore";
 import { uploadProductPhotos, uploadLocationPhoto } from "../lib/storage";
-import { readCache, writeCache } from "../lib/cache";
 import { fetchWeekendForecast, geocodePostcode } from "../lib/weather";
 import { sendTelegramNotification } from "../lib/telegram";
 
 const DISCOUNT_THRESHOLD = 100;
 const DISCOUNT_PERCENT = 10;
-const ADMIN_SESSION_KEY = "aylensale-admin-session";
 
 type ProductFormState = {
   title: string;
@@ -99,44 +97,24 @@ export function HomeClient() {
     [products, categoryFilter, loggedIn]
   );
 
-  const adminProducts = useMemo(
-    () => (loggedIn ? products : visibleProducts),
-    [loggedIn, products, visibleProducts]
-  );
-
-  useEffect(() => {
-    if (sessionStorage.getItem(ADMIN_SESSION_KEY) === "1") {
-      setLoggedIn(true);
-    }
-    const cachedWa = readCache<string>("whatsapp");
-    if (cachedWa) setWhatsappNumber(cachedWa);
-  }, []);
-
   useEffect(() => {
     if (!isFirebaseConfigured()) {
-      setStatus("Firebase не настроен. Заполните .env.local");
+      queueMicrotask(() => setStatus("Firebase не настроен. Заполните .env.local"));
       return;
     }
 
-    setFirebaseReady(true);
-    const cachedProducts = readCache<Product[]>("products");
-    const cachedLocations = readCache<CarBootLocation[]>("locations");
-    if (cachedProducts?.length) setProducts(cachedProducts);
-    if (cachedLocations?.length) setLocations(cachedLocations);
+    queueMicrotask(() => setFirebaseReady(true));
 
     const unsubProducts = loggedIn
       ? listenAllProducts((items) => {
           setProducts(items);
-          writeCache("products", items);
         })
       : listenProducts((items) => {
           setProducts(items);
-          writeCache("products", items);
         });
 
     const unsubLocations = listenCarBootLocations((items) => {
       setLocations(items);
-      writeCache("locations", items);
     });
 
     return () => {
@@ -153,7 +131,6 @@ export function HomeClient() {
     });
     if (res.ok) {
       setLoggedIn(true);
-      sessionStorage.setItem(ADMIN_SESSION_KEY, "1");
       setStatus("Админ доступ открыт.");
       return;
     }
@@ -162,7 +139,6 @@ export function HomeClient() {
 
   const handleAdminLogout = () => {
     setLoggedIn(false);
-    sessionStorage.removeItem(ADMIN_SESSION_KEY);
     setPassword("");
   };
 
@@ -668,7 +644,6 @@ export function HomeClient() {
                       value={whatsappNumber}
                       onChange={(e) => {
                         setWhatsappNumber(e.target.value);
-                        writeCache("whatsapp", e.target.value);
                       }}
                     />
                     <button

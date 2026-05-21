@@ -2,27 +2,281 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // MVP: открытый доступ. После подключения Firebase Auth ограничьте write admin-ролью.
+    function isAdmin() {
+      return request.auth != null &&
+        (
+          request.auth.token.admin == true ||
+          request.auth.token.email == 'oleg.yuryevich@gmail.com'
+        );
+    }
+
+    function isShortText(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    function validImages(images) {
+      return images is list && images.size() <= 10;
+    }
+
+    function isNumberLike(value) {
+      return value is number || value is string;
+    }
+
+    function validProduct() {
+      return (!('name' in request.resource.data) || isShortText(request.resource.data.name, 140)) &&
+        (!('desc' in request.resource.data) || isShortText(request.resource.data.desc, 2000)) &&
+        (!('description' in request.resource.data) || isShortText(request.resource.data.description, 2000)) &&
+        (!('images' in request.resource.data) || validImages(request.resource.data.images)) &&
+        (!('photos' in request.resource.data) || validImages(request.resource.data.photos)) &&
+        (!('stock' in request.resource.data) || isNumberLike(request.resource.data.stock)) &&
+        (!('price' in request.resource.data) || isNumberLike(request.resource.data.price)) &&
+        (!('retail' in request.resource.data) || isNumberLike(request.resource.data.retail)) &&
+        (!('wholesale' in request.resource.data) || isNumberLike(request.resource.data.wholesale)) &&
+        (!('policyId' in request.resource.data) || isShortText(request.resource.data.policyId, 80)) &&
+        (!('listingPolicyId' in request.resource.data) || isShortText(request.resource.data.listingPolicyId, 80));
+    }
+
+    function validListingPolicy() {
+      return (!('title' in request.resource.data) || isShortText(request.resource.data.title, 120)) &&
+        (!('conditionText' in request.resource.data) || isShortText(request.resource.data.conditionText, 1200)) &&
+        (!('returnPolicy' in request.resource.data) || isShortText(request.resource.data.returnPolicy, 1200)) &&
+        (!('warrantyText' in request.resource.data) || isShortText(request.resource.data.warrantyText, 800)) &&
+        (!('deliveryRules' in request.resource.data) || isShortText(request.resource.data.deliveryRules, 800)) &&
+        (!('ukDisclaimer' in request.resource.data) || isShortText(request.resource.data.ukDisclaimer, 800));
+    }
+
+    function validAuction() {
+      return (!('name' in request.resource.data) || isShortText(request.resource.data.name, 140)) &&
+        (!('desc' in request.resource.data) || isShortText(request.resource.data.desc, 1000)) &&
+        (!('images' in request.resource.data) || validImages(request.resource.data.images)) &&
+        (!('bids' in request.resource.data) || (request.resource.data.bids is list && request.resource.data.bids.size() <= 200)) &&
+        (!('startingPrice' in request.resource.data) || isNumberLike(request.resource.data.startingPrice)) &&
+        (!('currentPrice' in request.resource.data) || isNumberLike(request.resource.data.currentPrice)) &&
+        (!('status' in request.resource.data) || request.resource.data.status in ['active', 'ended', 'winner_pending', 'order_sent', 'completed']);
+    }
+
+    function oldBidCount() {
+      return ('bids' in resource.data) && resource.data.bids is list ? resource.data.bids.size() : 0;
+    }
+
+    function validPublicBidUpdate() {
+      return resource != null &&
+        resource.data.status == 'active' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bids', 'bidsCount', 'currentPrice', 'status', 'updatedAt', 'lastModified']) &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.bids is list &&
+        request.resource.data.bids.size() == oldBidCount() + 1 &&
+        request.resource.data.bids.size() <= 200 &&
+        request.resource.data.bidsCount == request.resource.data.bids.size() &&
+        isNumberLike(request.resource.data.currentPrice) &&
+        request.resource.data.currentPrice > resource.data.currentPrice;
+    }
+
+    function validPublicWinnerOrderUpdate() {
+      return resource != null &&
+        resource.data.status == 'winner_pending' &&
+        (!('winnerOrder' in resource.data) || resource.data.winnerOrder == null) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['winnerOrder', 'status', 'orderSentAt', 'updatedAt', 'lastModified']) &&
+        request.resource.data.status == 'order_sent' &&
+        request.resource.data.winnerOrder is map &&
+        isShortText(request.resource.data.winnerOrder.name, 100) &&
+        isShortText(request.resource.data.winnerOrder.phone, 30);
+    }
+
+    function validLocation() {
+      return (!('name' in request.resource.data) || isShortText(request.resource.data.name, 140)) &&
+        (!('address' in request.resource.data) || isShortText(request.resource.data.address, 300)) &&
+        (!('postcode' in request.resource.data) || isShortText(request.resource.data.postcode, 20)) &&
+        (!('day' in request.resource.data) || isShortText(request.resource.data.day, 80)) &&
+        (!('days' in request.resource.data) || isShortText(request.resource.data.days, 80)) &&
+        (!('note' in request.resource.data) || isShortText(request.resource.data.note, 500)) &&
+        (!('weatherError' in request.resource.data) || isShortText(request.resource.data.weatherError, 120)) &&
+        (!('photoUrl' in request.resource.data) || isShortText(request.resource.data.photoUrl, 2000)) &&
+        (!('imageUrl' in request.resource.data) || isShortText(request.resource.data.imageUrl, 2000));
+    }
+
+    function validCard() {
+      return (!('name' in request.resource.data) || isShortText(request.resource.data.name, 100)) &&
+        (!('code' in request.resource.data) || isShortText(request.resource.data.code, 40)) &&
+        (!('discount' in request.resource.data) || isNumberLike(request.resource.data.discount)) &&
+        (!('note' in request.resource.data) || isShortText(request.resource.data.note, 1000)) &&
+        (!('status' in request.resource.data) || request.resource.data.status in ['unused', 'active', 'blocked']);
+    }
+
+    function validNotifyCreate() {
+      return request.resource.data.keys().hasOnly(['productId', 'productName', 'method', 'contact', 'notified', 'status', 'source', 'createdAt']) &&
+        request.resource.data.keys().hasAll(['productId', 'productName', 'method', 'contact', 'notified', 'status']) &&
+        isShortText(request.resource.data.productId, 120) &&
+        isShortText(request.resource.data.productName, 140) &&
+        request.resource.data.method in ['email', 'telegram', 'whatsapp'] &&
+        isShortText(request.resource.data.contact, 200) &&
+        request.resource.data.notified == false &&
+        request.resource.data.status == 'waiting';
+    }
+
+    function validEbaySettings() {
+      return (!('enabled' in request.resource.data) || request.resource.data.enabled is bool) &&
+        (!('url' in request.resource.data) || isShortText(request.resource.data.url, 500)) &&
+        (!('buttonText' in request.resource.data) || isShortText(request.resource.data.buttonText, 80)) &&
+        (!('description' in request.resource.data) || isShortText(request.resource.data.description, 300));
+    }
+
+    function validMarketplaceSettings() {
+      return (!('newArrivalsEnabled' in request.resource.data) || request.resource.data.newArrivalsEnabled is bool) &&
+        (!('telegramUrl' in request.resource.data) || isShortText(request.resource.data.telegramUrl, 160)) &&
+        (!('whatsappUrl' in request.resource.data) || isShortText(request.resource.data.whatsappUrl, 220));
+    }
+
+    function validLegalContactSettings() {
+      return request.resource.data.keys().hasOnly(['published', 'draft', 'publishedAt', 'draftUpdatedAt', 'updatedAt', 'lastModified']) &&
+        (!('published' in request.resource.data) || request.resource.data.published is map) &&
+        (!('draft' in request.resource.data) || request.resource.data.draft is map) &&
+        (!('publishedAt' in request.resource.data) || isShortText(request.resource.data.publishedAt, 40)) &&
+        (!('draftUpdatedAt' in request.resource.data) || isShortText(request.resource.data.draftUpdatedAt, 40)) &&
+        (!('updatedAt' in request.resource.data) || isShortText(request.resource.data.updatedAt, 40));
+    }
+
+    function validPriceListItem() {
+      return (!('name' in request.resource.data) || isShortText(request.resource.data.name, 140)) &&
+        (!('desc' in request.resource.data) || isShortText(request.resource.data.desc, 1000)) &&
+        (!('images' in request.resource.data) || validImages(request.resource.data.images)) &&
+        (!('photoUrl' in request.resource.data) || isShortText(request.resource.data.photoUrl, 2000)) &&
+        (!('retailPrice' in request.resource.data) || isNumberLike(request.resource.data.retailPrice)) &&
+        (!('wholesalePrice' in request.resource.data) || isNumberLike(request.resource.data.wholesalePrice)) &&
+        (!('minQty' in request.resource.data) || isNumberLike(request.resource.data.minQty)) &&
+        (!('stockStatus' in request.resource.data) || isShortText(request.resource.data.stockStatus, 80)) &&
+        (!('note' in request.resource.data) || isShortText(request.resource.data.note, 500));
+    }
+
+    function validPresence(sessionId) {
+      return request.resource.data.keys().hasOnly(['sessionId', 'currentProductId', 'cartQty', 'hasCart', 'card', 'page', 'updatedAt', 'lastSeen']) &&
+        request.resource.data.sessionId == sessionId &&
+        isShortText(request.resource.data.sessionId, 80) &&
+        (!('currentProductId' in request.resource.data) || isShortText(request.resource.data.currentProductId, 120)) &&
+        (!('card' in request.resource.data) || isShortText(request.resource.data.card, 40)) &&
+        (!('page' in request.resource.data) || isShortText(request.resource.data.page, 120)) &&
+        (!('updatedAt' in request.resource.data) || isShortText(request.resource.data.updatedAt, 40)) &&
+        (!('cartQty' in request.resource.data) || isNumberLike(request.resource.data.cartQty)) &&
+        (!('hasCart' in request.resource.data) || request.resource.data.hasCart is bool);
+    }
+
+    function validActivity() {
+      return request.resource.data.keys().hasOnly(['message', 'type', 'productId', 'createdAt', 'createdAtMs']) &&
+        isShortText(request.resource.data.message, 160) &&
+        (!('type' in request.resource.data) || isShortText(request.resource.data.type, 40)) &&
+        (!('productId' in request.resource.data) || isShortText(request.resource.data.productId, 120)) &&
+        (!('createdAt' in request.resource.data) || isShortText(request.resource.data.createdAt, 40)) &&
+        (!('createdAtMs' in request.resource.data) || isNumberLike(request.resource.data.createdAtMs));
+    }
+
+    function validWishlist(sessionId) {
+      return request.resource.data.keys().hasOnly(['sessionId', 'productIds', 'count', 'card', 'updatedAt', 'lastModified']) &&
+        request.resource.data.sessionId == sessionId &&
+        isShortText(request.resource.data.sessionId, 80) &&
+        request.resource.data.productIds is list &&
+        request.resource.data.productIds.size() <= 80 &&
+        (!('count' in request.resource.data) || isNumberLike(request.resource.data.count)) &&
+        (!('card' in request.resource.data) || isShortText(request.resource.data.card, 40)) &&
+        (!('updatedAt' in request.resource.data) || isShortText(request.resource.data.updatedAt, 40));
+    }
 
     match /products/{productId} {
       allow read: if true;
-      allow write: if true;
+      allow create, update: if isAdmin() && validProduct();
+      allow delete: if isAdmin();
     }
 
-    match /carBootLocations/{locationId} {
+    match /locations/{locationId} {
       allow read: if true;
-      allow write: if true;
+      allow create, update: if isAdmin() && validLocation();
+      allow delete: if isAdmin();
     }
 
     match /orders/{orderId} {
-      allow read: if false;
-      allow create: if true;
-      allow update, delete: if false;
+      allow read: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['name', 'phone', 'pickup', 'comment', 'items', 'total', 'card', 'discount', 'telegramMessageId', 'createdAt']) &&
+        request.resource.data.keys().hasAll(['name', 'phone']) &&
+        isShortText(request.resource.data.name, 100) &&
+        isShortText(request.resource.data.phone, 30) &&
+        (!('pickup' in request.resource.data) || isShortText(request.resource.data.pickup, 160)) &&
+        (!('comment' in request.resource.data) || isShortText(request.resource.data.comment, 500)) &&
+        (!('card' in request.resource.data) || isShortText(request.resource.data.card, 40)) &&
+        (!('discount' in request.resource.data) || isNumberLike(request.resource.data.discount)) &&
+        (!('total' in request.resource.data) || isNumberLike(request.resource.data.total)) &&
+        (!('items' in request.resource.data) || (request.resource.data.items is list && request.resource.data.items.size() <= 50));
+      allow update, delete: if isAdmin();
     }
 
     match /auctions/{auctionId} {
       allow read: if true;
-      allow write: if true;
+      allow create: if isAdmin() && validAuction();
+      allow update: if (isAdmin() && validAuction()) || validPublicBidUpdate() || validPublicWinnerOrderUpdate();
+      allow delete: if isAdmin();
+    }
+
+    match /cards/{cardId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validCard();
+      allow delete: if isAdmin();
+    }
+
+    match /cardNotes/{cardId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /notifyRequests/{requestId} {
+      allow create: if validNotifyCreate();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /siteSettings/{settingId} {
+      allow read: if true;
+      allow create, update: if isAdmin() &&
+        (
+          (settingId == 'ebay' && validEbaySettings()) ||
+          (settingId == 'marketplace' && validMarketplaceSettings()) ||
+          (settingId == 'legalContact' && validLegalContactSettings())
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /priceListItems/{itemId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validPriceListItem();
+      allow delete: if isAdmin();
+    }
+
+    match /listingPolicies/{policyId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validListingPolicy();
+      allow delete: if isAdmin();
+    }
+
+    match /presenceSessions/{sessionId} {
+      allow read: if true;
+      allow create, update: if validPresence(sessionId);
+      allow delete: if false;
+    }
+
+    match /activityFeed/{activityId} {
+      allow read: if true;
+      allow create: if validActivity();
+      allow update, delete: if isAdmin();
+    }
+
+    match /wishlists/{sessionId} {
+      allow read: if isAdmin();
+      allow create, update: if validWishlist(sessionId);
+      allow delete: if isAdmin();
+    }
+
+    match /aiAuditLog/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

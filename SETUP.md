@@ -1,54 +1,75 @@
-# Настройка AYLENSALE (6 шагов)
+# Настройка AYLENSALE
 
-## 1. Telegram — новый токен
+## Учётные данные (ваши)
 
-1. Откройте [@BotFather](https://t.me/BotFather)
-2. `/mybots` → ваш бот → **Revoke current token** → скопируйте **новый** токен
-3. Напишите боту `/start` в Telegram
-4. Получите chat id:
+| Сервис | Значение |
+|--------|----------|
+| Vercel | `olegyuryevich-5608s-projects` / `olegyuryevich-5608` |
+| Email | `oleg.yuryevich@gmail.com` |
+| Telegram бот | [@aylensale_bot](https://t.me/aylensale_bot) |
+| Admin пароль сайта | `159357Oleg` (в `.env.local` и Vercel) |
+
+Старый пароль `admin2024` в коде **не используется** — только `ADMIN_PASSWORD` из env.
+
+---
+
+## 1. Telegram CHAT_ID
+
+1. Откройте [@aylensale_bot](https://t.me/aylensale_bot) → **Start** (`/start`)
+2. В терминале:
    ```bash
-   TELEGRAM_BOT_TOKEN=новый_токен ./scripts/telegram-get-chat-id.sh
+   npm run setup:telegram-chat
    ```
+3. Скопируйте `TELEGRAM_CHAT_ID=...` в `.env.local`
 
-## 2. Vercel — переменные
+Токен бота уже в `.env.local` (`TELEGRAM_BOT_TOKEN`).
+
+---
+
+## 2. Vercel
 
 ```bash
 npx vercel login
-# заполните .env.local (см. ниже)
-chmod +x scripts/setup-vercel-env.sh
-./scripts/setup-vercel-env.sh .env.local
+# email: oleg.yuryevich@gmail.com
+
+# после TELEGRAM_CHAT_ID в .env.local:
+npm run vercel:env
+npx vercel --prod
 ```
 
-## 3. Firebase — правила
+Домен: Vercel → **aylensale-si** → Settings → Domains → `aylensale.com`
+
+---
+
+## 3. Firebase rules
 
 ```bash
-npm install
 npx firebase login
-chmod +x scripts/deploy-firebase-rules.sh
-./scripts/deploy-firebase-rules.sh
+npm run firebase:rules
 ```
 
-Или вручную: Firebase Console → Firestore/Storage → Rules → вставьте `firestore.rules` / `storage.rules`.
+---
 
-## 4. Локально `.env.local`
+## 4. Локально
 
-Скопируйте `.env.example` и заполните все поля (уже частично в `.env.local`).
+```bash
+npm run dev
+```
 
-## 5. Удалить остаток aylensale-com
+Admin → пароль: **159357Oleg**
+
+---
+
+## 5. Удалить остаток (если есть)
 
 ```bash
 sudo rm -rf aylensale-com
 ```
 
-(если `Operation not permitted` на `.claude` в node_modules)
+---
 
-## 6. Деплой
+## 6. Git push
 
 ```bash
-git checkout main
-git merge refactor/single-aylensale-app
 git push origin main
-npx vercel --prod
 ```
-
-Домен: Vercel → Project → Settings → Domains → `aylensale.com`

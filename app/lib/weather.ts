@@ -70,11 +70,11 @@ export async function fetchWeekendForecast(
 }
 
 export async function geocodePostcode(postcode: string): Promise<{ lat: number; lon: number } | null> {
-  const q = encodeURIComponent(postcode.trim());
-  const res = await fetch(`https://api.open-meteo.com/v1/search?name=${q}&count=1&language=en&format=json`);
+  const q = encodeURIComponent(postcode.trim().toUpperCase());
+  const res = await fetch(`https://api.postcodes.io/postcodes/${q}`);
   if (!res.ok) return null;
   const data = await res.json();
-  const first = data?.results?.[0];
-  if (!first) return null;
-  return { lat: first.latitude, lon: first.longitude };
+  const result = data?.result;
+  if (!result) return null;
+  return { lat: result.latitude, lon: result.longitude };
 }
