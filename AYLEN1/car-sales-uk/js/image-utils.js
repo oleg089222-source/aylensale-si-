@@ -34,13 +34,25 @@
     return productThumbUrl(url, 320);
   }
 
+  function productDetailMainUrl(url) {
+    if (!url || isDataUrl(url)) return url || '';
+    if (url.indexOf('res.cloudinary.com') !== -1) return cloudinaryThumb(url, 900, 900);
+    return productCardImageUrl(url);
+  }
+
   function lazyImgAttrs() {
     return ' loading="lazy" decoding="async" fetchpriority="low"';
+  }
+
+  function eagerMainAttrs() {
+    return ' loading="eager" decoding="async" fetchpriority="high"';
   }
 
   global.AYLEN_IMAGES = {
     productThumbUrl: productThumbUrl,
     productCardImageUrl: productCardImageUrl,
-    lazyImgAttrs: lazyImgAttrs
+    productDetailMainUrl: productDetailMainUrl,
+    lazyImgAttrs: lazyImgAttrs,
+    eagerMainAttrs: eagerMainAttrs
   };
 })(window);

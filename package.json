@@ -31,6 +31,6 @@
     "firebase-tools": "^14.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vercel": "^54.2.0"
+    "vercel": "^54.4.1"
   }
 }

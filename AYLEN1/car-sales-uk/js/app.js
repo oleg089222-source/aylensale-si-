@@ -760,35 +760,40 @@ document.addEventListener("DOMContentLoaded", async function() {
       }
     });
   }
-  showProductSkeletons();
-  if (!prefersReducedMotion() && !(window.matchMedia && window.matchMedia('(max-width: 1024px)').matches)) {
+  var isProductPage = document.body.classList.contains('product-page');
+  if (!isProductPage) showProductSkeletons();
+  if (!isProductPage && !prefersReducedMotion() && !(window.matchMedia && window.matchMedia('(max-width: 1024px)').matches)) {
     initSmoothReveal();
   }
   await loadAllData();
   applyCardFromUrl();
   validateCurrentUserCard();
   normalizeCart();
-  if (document.body.classList.contains('product-page') && typeof initProductDetailPage === 'function') {
+  if (isProductPage && typeof initProductDetailPage === 'function') {
     await initProductDetailPage();
   } else {
     renderProducts();
   }
   document.dispatchEvent(new CustomEvent('aylen-catalog-ready'));
   renderEbayPromo();
-  renderTelegramLinks();
-  renderLocations();
-  renderAuctions();
-  showPrices('retail');
+  if (!isProductPage) renderTelegramLinks();
   updateCartCount();
   fillPickup();
-  scheduleWeatherAutoRefresh();
-  if (window.AYLEN_PERF && window.AYLEN_PERF.scheduleEngagement) {
-    window.AYLEN_PERF.scheduleEngagement();
-  } else {
-    startEngagementTracking();
+  if (!isProductPage) {
+    renderLocations();
+    renderAuctions();
+    showPrices('retail');
+    scheduleWeatherAutoRefresh();
+    if (window.AYLEN_PERF && window.AYLEN_PERF.scheduleEngagement) {
+      window.AYLEN_PERF.scheduleEngagement();
+    } else {
+      startEngagementTracking();
+    }
+    if (document.documentElement.classList.contains('motion-ready')) refreshRevealItems();
+    if (currentUser) showWelcome(currentUser);
+  } else if (typeof renderTelegramLinks === 'function') {
+    renderTelegramLinks();
   }
-  if (document.documentElement.classList.contains('motion-ready')) refreshRevealItems();
-  if (currentUser) showWelcome(currentUser);
 });
 
 function refreshVisibleWeatherCards() {
@@ -1421,6 +1426,11 @@ function nextImage(productId) {
 }
 
 function updateProductCardImage(productId, index) {
+  if (window.AYLEN_PRODUCT_GALLERY && window.AYLEN_PRODUCT_GALLERY.setIndex &&
+      window.AYLEN_PRODUCT_GALLERY.productId && sameId(window.AYLEN_PRODUCT_GALLERY.productId, productId)) {
+    window.AYLEN_PRODUCT_GALLERY.setIndex(index);
+    return;
+  }
   var p = products.find(function(item) { return sameId(item.id, productId); });
   if (!p || !Array.isArray(p.images) || !p.images.length) return;
   var src = p.images[index] || PRODUCT_FALLBACK_IMAGE;
@@ -1430,12 +1440,8 @@ function updateProductCardImage(productId, index) {
   var pid = String(productId);
   document.querySelectorAll('[data-main-product-image]').forEach(function(img) {
     if (String(img.getAttribute('data-main-product-image')) !== pid) return;
-    img.style.opacity = '0.35';
-    window.setTimeout(function() {
-      img.src = src;
-      img.alt = p.name || 'Product image';
-      img.style.opacity = '1';
-    }, 70);
+    img.src = src;
+    img.alt = p.name || 'Product image';
   });
   var card = document.getElementById('product-card-' + safeDomId(productId));
   if (card) {

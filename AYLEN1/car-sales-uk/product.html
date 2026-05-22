@@ -1,21 +1,26 @@
 <!DOCTYPE html>
-<html lang="en-GB">
+<html lang="en-GB" class="product-page-root">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070a14">
 <title>Product | AYLENSALE</title>
 <meta name="description" content="Product details — AYLENSALE UK warehouse marketplace">
-<meta name="theme-color" content="#070a14">
+<style>
+  html.product-page-root, html.product-page-root body { background: #070a14; color: #f8fafc; }
+  .product-page-root body { margin: 0; }
+</style>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/product-page.css?v=202605221200">
+<link rel="stylesheet" href="css/phase-1-hero.css?v=202605220100">
+<link rel="stylesheet" href="css/storefront-modals.css?v=202605220300">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<link rel="stylesheet" href="css/phase-1-hero.css?v=202605220100">
-<link rel="stylesheet" href="css/products-section.css?v=202605220200">
-<link rel="stylesheet" href="css/phase-2-marketplace.css?v=202605220200">
-<link rel="stylesheet" href="css/storefront-modals.css?v=202605220300">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
 </head>
 <body class="product-page">
 <header class="site-header product-page-header">
@@ -42,8 +47,23 @@
 <span aria-hidden="true">/</span>
 <span id="productBreadcrumbName">Product</span>
 </nav>
-<div id="productPageRoot" class="product-page-root"></div>
+<div id="productPageRoot" class="product-page-root">
+<div class="product-page-skeleton" aria-hidden="true">
+<div class="product-page-skel-gallery"></div>
+<div class="product-page-skel-body">
+<div class="product-page-skel-line w80"></div>
+<div class="product-page-skel-line w60"></div>
+<div class="product-page-skel-line w40"></div>
+<div class="product-page-skel-line w60"></div>
+</div>
+</div>
+</div>
 </main>
+
+<div id="productStickyBar" class="product-sticky-bar" aria-hidden="true">
+<span class="product-sticky-price">—</span>
+<button type="button" class="btn-action primary" data-sticky-add><i class="fas fa-cart-plus"></i> Add to Cart</button>
+</div>
 
 <div class="modal" id="cartModal"><div class="modal-content"><span class="close" onclick="closeCart()">&times;</span><h2><i class="fas fa-shopping-cart"></i> Your Cart</h2><div id="cartItems"></div><div class="cart-total">Total: <span id="cartTotal">£0.00</span></div><button type="button" class="btn-order" onclick="openCheckout()"><i class="fas fa-check"></i> Order</button></div></div>
 
@@ -77,16 +97,15 @@
 <script src="js/inventory-core.js?v=202605211400"></script>
 <script src="js/firebase-db.js?v=202605220300"></script>
 <script src="js/firebase-catalog.js?v=202605211000"></script>
-<script src="js/image-utils.js?v=202605211000"></script>
-<script src="js/cloudinary-config.js?v=202605182120"></script>
+<script src="js/image-utils.js?v=202605221200"></script>
 <script src="js/data.js?v=202605211000"></script>
 <script src="js/perf-mode.js?v=202605211000"></script>
-<script src="js/modal-manager.js?v=202605211800"></script>
+<script src="js/modal-manager.js?v=202605220300"></script>
 <script src="js/security.js?v=202605182148"></script>
 <script src="js/compliance.js?v=202605191000"></script>
 <script src="js/seo.js?v=202605191000"></script>
 <script src="js/product-nav.js?v=202605220200"></script>
-<script src="js/app.js?v=202605220300"></script>
-<script src="js/product-page.js?v=202605220300"></script>
+<script src="js/app.js?v=202605221200"></script>
+<script src="js/product-page.js?v=202605221200"></script>
 </body>
 </html>

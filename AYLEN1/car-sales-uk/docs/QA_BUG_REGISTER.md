@@ -23,9 +23,12 @@
 | IMG-001 | P1 | open | Images | `sanitizeProductImageUrls` empties arrays |
 | ADM-001 | P1 | open | Admin | Email vs username login mismatch |
 | CSS-001 | P2 | open | CSS | Grid breakpoint wars index vs products-section.css |
-| MOB-001 | P2 | fixed | Mobile | product.html cart modal safe area |
+| MOB-001 | P2 | fixing | Mobile | product.html cart modal safe area |
 | PRD-007 | P3 | open | Saved | savedItems id type mismatch |
 | PERF-001 | P2 | open | perf-lite | Reveal disabled on mobile |
+| PRD-010 | P1 | fixed | product.html | White flash on load — critical dark CSS + skeleton |
+| PRD-011 | P1 | fixed | product page | Premium gallery: arrows, thumbs, swipe, lightbox, counter |
+| PRD-012 | P2 | fixed | product page | Skip auctions/locations render on product page |
 
 ---
 
