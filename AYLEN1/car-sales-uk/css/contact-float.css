@@ -1,0 +1,246 @@
+/* Floating support — Message pill + Telegram / WhatsApp menu (baseline navw7lu9k) */
+
+.contact-float.contact-float--support {
+  position: fixed;
+  right: 14px;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  z-index: 340;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.contact-float-fab {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 14px 8px 10px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  color: #f1f5f9;
+  background: rgba(10, 14, 26, 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.contact-float-fab > i {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: linear-gradient(135deg, rgba(233, 69, 96, 0.95), rgba(180, 30, 70, 0.95));
+  color: #fff;
+}
+
+.contact-float-fab-label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.contact-float--open .contact-float-fab {
+  border-color: rgba(233, 69, 96, 0.45);
+  background: rgba(14, 20, 36, 0.98);
+}
+
+.contact-float-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  min-width: min(240px, calc(100vw - 24px));
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.contact-float--open .contact-float-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+}
+
+.contact-float-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 339;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.contact-float-backdrop.contact-float-backdrop--visible {
+  display: block;
+}
+
+.contact-float--support .contact-float-btn {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-decoration: none;
+  color: #e8eef8;
+  padding: 8px 11px 8px 9px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 18, 32, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.contact-float--support .contact-float-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.contact-float--support .contact-float-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.contact-float--support .contact-float-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.contact-float--support .contact-float-meta {
+  display: none !important;
+}
+
+.contact-float--support .contact-float-btn--telegram .contact-float-icon {
+  color: #38bdf8;
+}
+
+.contact-float--support .contact-float-btn--whatsapp .contact-float-icon {
+  color: #4ade80;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .contact-float-fab:hover {
+    transform: translateY(-2px);
+    border-color: rgba(233, 69, 96, 0.35);
+  }
+
+  .contact-float--support .contact-float-btn--telegram:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.35);
+    box-shadow: 0 8px 24px rgba(56, 189, 248, 0.18), 0 6px 20px rgba(0, 0, 0, 0.3);
+    background: rgba(14, 22, 40, 0.88);
+  }
+
+  .contact-float--support .contact-float-btn--whatsapp:hover {
+    transform: translateY(-2px);
+    border-color: rgba(74, 222, 128, 0.35);
+    box-shadow: 0 8px 24px rgba(37, 211, 102, 0.16), 0 6px 20px rgba(0, 0, 0, 0.3);
+    background: rgba(14, 22, 40, 0.88);
+  }
+}
+
+@media (min-width: 769px) {
+  .contact-float.contact-float--support {
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .contact-float-fab {
+    min-height: 48px;
+    padding: 10px 16px 10px 12px;
+  }
+
+  .contact-float-fab > i {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .contact-float-fab-label {
+    font-size: 14px;
+  }
+
+}
+
+@media (max-width: 768px) {
+  .contact-float.contact-float--support {
+    right: 12px !important;
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 330 !important;
+  }
+
+  .contact-float-fab {
+    min-height: 42px;
+    padding: 7px 12px 7px 9px;
+    gap: 8px;
+  }
+
+  .contact-float-fab > i {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+  }
+
+  .contact-float-fab-label {
+    font-size: 12px;
+  }
+
+  /* Contact only via Message — free space in bottom nav */
+  .bottom-nav a.bottom-nav-contact {
+    display: none !important;
+  }
+
+  .bottom-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-float-fab,
+  .contact-float--support .contact-float-btn,
+  .contact-float-menu {
+    transition: none;
+  }
+
+  .contact-float-fab:hover,
+  .contact-float--support .contact-float-btn:hover {
+    transform: none;
+  }
+}
+
+html.perf-lite .contact-float--support .contact-float-btn,
+.contact-float--support .contact-float-btn {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28) !important;
+}
+
+.contact-float.contact-float--support {
+  right: 14px !important;
+}

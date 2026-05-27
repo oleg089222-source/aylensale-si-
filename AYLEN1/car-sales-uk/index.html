@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="css/phase-1-hero.css?v=202605220100">
 <link rel="stylesheet" href="css/phase-2-marketplace.css?v=202605220200">
 <link rel="stylesheet" href="css/storefront-modals.css?v=202605220300">
-<link rel="stylesheet" href="css/contact-float.css?v=202605221000">
+<link rel="stylesheet" href="css/contact-float.css?v=202605273200">
 <link rel="stylesheet" href="css/admin-modals.css?v=202605211800">
 <link rel="stylesheet" href="css/ai-assistant.css?v=202605212300">
 <style>
@@ -102,21 +102,25 @@ nav{display:flex;gap:5px;padding:0 20px 10px}
 <div class="trust-card"><i class="fas fa-thumbs-up"></i><b>Positive Feedback</b><span>trusted buyers network</span></div>
 <div class="trust-card"><i class="fas fa-bolt"></i><b>Live Deals</b><span>stock moves fast</span></div>
 </section>
-<div class="contact-float contact-float--support" aria-label="Support contact">
-<a class="contact-float-btn contact-float-btn--telegram" href="https://t.me/OOY999" target="_blank" rel="noopener noreferrer">
+<div class="contact-float-backdrop" id="contactFloatBackdrop" aria-hidden="true"></div>
+<div class="contact-float contact-float--support" id="contactFloat" aria-label="Support contact">
+<button type="button" class="contact-float-fab" id="contactFloatFab" aria-expanded="false" aria-controls="contactFloatMenu" aria-label="Message — choose Telegram or WhatsApp">
+<i class="fas fa-comment-dots" aria-hidden="true"></i><span class="contact-float-fab-label">Message</span>
+</button>
+<div class="contact-float-menu" id="contactFloatMenu" role="menu" aria-label="Choose how to message us">
+<a class="contact-float-btn contact-float-btn--telegram contact-float-btn--compact" href="https://t.me/OOY999" target="_blank" rel="noopener noreferrer" role="menuitem" aria-label="Telegram support">
 <span class="contact-float-icon" aria-hidden="true"><i class="fab fa-telegram"></i></span>
 <span class="contact-float-text">
-<span class="contact-float-label">Oleg Support</span>
-<span class="contact-float-meta">+44 7471 647771 · @OOY999</span>
+<span class="contact-float-label">Message on Telegram</span>
 </span>
 </a>
-<a class="contact-float-btn contact-float-btn--whatsapp" href="https://wa.me/447471647771" target="_blank" rel="noopener noreferrer">
+<a class="contact-float-btn contact-float-btn--whatsapp contact-float-btn--compact" href="https://wa.me/447471647771" target="_blank" rel="noopener noreferrer" role="menuitem" aria-label="WhatsApp support">
 <span class="contact-float-icon" aria-hidden="true"><i class="fab fa-whatsapp"></i></span>
 <span class="contact-float-text">
 <span class="contact-float-label">Message on WhatsApp</span>
-<span class="contact-float-meta">+44 7471 647771</span>
 </span>
 </a>
+</div>
 </div>
 <nav class="bottom-nav">
 <a href="#products"><i class="fas fa-box"></i><span>Products</span></a>
@@ -847,6 +851,7 @@ text-shadow:0 0 8px rgba(255,79,131,.22)!important;
 <script src="js/compliance.js?v=202605191000"></script>
 <script src="js/seo.js?v=202605191000"></script>
 <script src="js/product-nav.js?v=202605220200"></script>
+<script src="js/contact-float.js?v=202605273000"></script>
 <script src="js/app.js?v=202605220200"></script>
 <script src="js/admin.js?v=202605220300"></script>
 <script src="js/admin-dashboard.js?v=202605211800"></script>
