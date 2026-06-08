@@ -1,0 +1,445 @@
+/**
+ * Hero action hub — tiered layout
+ * 1) VIP upsell  2) Shop (Products · Auctions · Pickup)  3) Quick tools dock
+ */
+
+.hero-actions-hub--tiered {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* —— Shop row: VIP + primary CTAs —— */
+.hero-hub-shop-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.hero-hub-vip.hero-btn--lead {
+  width: 100%;
+  min-height: 44px !important;
+  padding: 10px 16px !important;
+  border-radius: 14px !important;
+  justify-content: center;
+  animation: vipCtaGlow 2.6s ease-in-out infinite;
+}
+
+.hero-hub-primary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.hero-hub-primary .hero-btn {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 42px !important;
+  padding: 10px 10px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  border-radius: 12px !important;
+  justify-content: center;
+  text-align: center;
+  gap: 6px !important;
+  box-sizing: border-box;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.hero-hub-primary .hero-btn i {
+  font-size: 13px !important;
+  flex-shrink: 0;
+}
+
+.hero-hub-primary .hero-btn--featured {
+  min-height: 44px !important;
+  box-shadow: 0 14px 28px rgba(233, 69, 96, 0.34) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.hero-hub-primary .hero-btn.auctions {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(180, 83, 9, 0.42));
+  color: #fde68a;
+  border: 1px solid rgba(251, 191, 36, 0.38);
+  box-shadow: 0 10px 20px rgba(180, 83, 9, 0.22);
+}
+
+.hero-hub-primary .hero-btn.secondary {
+  background: rgba(255, 255, 255, 0.07);
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.hero-hub-primary .hero-btn:hover {
+  transform: translateY(-1px);
+}
+
+.hero-hub-primary .hero-btn:active {
+  transform: translateY(0);
+}
+
+/* —— Quick tools dock —— */
+.hero-hub-tools {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.hero-hub-tools__label {
+  display: none;
+  align-items: center;
+  padding: 0 4px 0 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.hero-hub-tools__track {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-hub-tools__text--short {
+  display: none;
+}
+
+.hero-hub-tools .hero-btn--tool {
+  width: 100% !important;
+  min-height: 36px !important;
+  padding: 7px 6px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  justify-content: center;
+  gap: 5px !important;
+  flex-direction: row !important;
+  line-height: 1.15;
+  background: rgba(15, 23, 42, 0.55);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.hero-hub-tools .hero-btn--tool.price-list {
+  background: rgba(15, 23, 42, 0.55) !important;
+  color: #cbd5e1 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+.hero-hub-tools .hero-btn--tool.message,
+.hero-hub-tools .hero-btn--tool.stats,
+.hero-hub-tools .hero-btn--tool.install {
+  background: rgba(15, 23, 42, 0.55) !important;
+  color: #cbd5e1 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+.hero-hub-tools .hero-btn--tool.message {
+  background: rgba(233, 69, 96, 0.2) !important;
+  color: #fff !important;
+  border: 1px solid rgba(251, 113, 133, 0.45) !important;
+  box-shadow: 0 2px 10px rgba(233, 69, 96, 0.15) !important;
+}
+
+.hero-hub-tools .hero-btn--tool i {
+  font-size: 14px !important;
+  line-height: 1;
+}
+
+.hero-hub-tools .hero-btn--tool .hero-btn__app-icon,
+.hero-hub-tools .hero-btn--tool [data-aylen-install-icon] {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  object-fit: cover;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+
+.hero-hub-tools .hero-btn--tool.price-list i {
+  color: #34d399;
+}
+
+.hero-hub-tools .hero-btn--tool.message i {
+  color: #fb7185;
+}
+
+.hero-hub-tools .hero-btn--tool.stats i {
+  color: #38bdf8;
+}
+
+.hero-hub-tools .hero-btn--tool.install i,
+.hero-hub-tools .hero-btn--tool.install .hero-btn__install-fallback {
+  color: #818cf8;
+}
+
+.hero-hub-tools .hero-btn--tool.install .hero-btn__install-fallback {
+  display: none;
+}
+
+.hero-hub-tools .hero-btn--tool:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.hero-hub-tools .hero-btn--tool.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.hero-hub-tools .hero-btn--tool.price-list.is-active {
+  border-color: rgba(52, 211, 153, 0.55) !important;
+  background: rgba(16, 185, 129, 0.14) !important;
+}
+
+.hero-hub-tools .hero-btn--tool.message.is-active {
+  border-color: rgba(251, 113, 133, 0.55) !important;
+  background: rgba(233, 69, 96, 0.14) !important;
+}
+
+.hero-hub-tools .hero-btn--tool.stats.is-active {
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  background: rgba(14, 165, 233, 0.14) !important;
+}
+
+.hero-hub-tools .hero-btn--tool.install.is-hidden,
+.hero-hub-tools .hero-btn--tool.install[hidden] {
+  display: none !important;
+}
+
+/* When install hidden, redistribute tools to 3 columns */
+.hero-hub-tools__track:has(.install.is-hidden),
+.hero-hub-tools__track:has(.install[hidden]) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Legacy badge (branding preview) */
+.hero-actions-hub__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.hero-actions-hub__badge.is-branded {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.hero-actions-hub__badge img {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  object-fit: cover;
+}
+
+.hero-actions-hub__badge span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #cbd5e1;
+  line-height: 1.3;
+}
+
+/* Tablet */
+@media (min-width: 480px) {
+  .hero-actions-hub--tiered {
+    gap: 10px;
+  }
+
+  .hero-hub-primary .hero-btn {
+    min-height: 44px !important;
+    font-size: 13px !important;
+    border-radius: 999px !important;
+  }
+
+  .hero-hub-tools .hero-btn--tool {
+    font-size: 11px !important;
+    min-height: 38px !important;
+    padding: 8px 10px !important;
+    border-radius: 999px !important;
+  }
+}
+
+/* Desktop */
+@media (min-width: 900px) {
+  .hero-actions-hub--tiered {
+    gap: 12px;
+    max-width: 920px;
+  }
+
+  .hero-hub-shop-row {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .hero-hub-vip.hero-btn--lead {
+    flex: 0 0 220px;
+    width: auto;
+    max-width: 240px;
+    min-height: 48px !important;
+    animation: none;
+  }
+
+  .hero-hub-primary {
+    flex: 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .hero-hub-primary .hero-btn {
+    min-height: 48px !important;
+    font-size: 14px !important;
+  }
+
+  .hero-hub-primary .hero-btn--featured {
+    min-height: 48px !important;
+  }
+
+  .hero-hub-tools {
+    padding: 8px 10px;
+    gap: 12px;
+  }
+
+  .hero-hub-tools__label {
+    display: flex;
+  }
+
+  .hero-hub-tools__track {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    grid-template-columns: unset;
+  }
+
+  .hero-hub-tools .hero-btn--tool {
+    width: auto !important;
+    flex: 0 1 auto;
+    min-width: 108px;
+    padding: 9px 14px !important;
+    font-size: 12px !important;
+    min-height: 40px !important;
+  }
+
+  .hero-hub-tools__track:has(.install.is-hidden),
+  .hero-hub-tools__track:has(.install[hidden]) {
+    grid-template-columns: unset;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .hero-hub-primary .hero-btn {
+    font-size: 11px !important;
+    padding: 9px 6px !important;
+  }
+
+  .hero-hub-tools .hero-btn--tool {
+    font-size: 9px !important;
+    padding: 6px 4px !important;
+  }
+
+  .hero-hub-tools__text--full {
+    display: none;
+  }
+
+  .hero-hub-tools__text--short {
+    display: inline;
+  }
+
+  .hero-hub-vip .hero-btn__vip-text strong {
+    font-size: 12px !important;
+  }
+
+  .hero-hub-vip .hero-btn__vip-text small {
+    font-size: 9px !important;
+  }
+}
+
+/* Message overlay when opened from hero hub */
+body.hero-contact-via-hub .contact-float-fab {
+  display: none !important;
+}
+
+body.hero-contact-via-hub .contact-float.contact-float--support {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 520 !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 0 !important;
+  top: 0 !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  padding-bottom: calc(16px + var(--aylen-bottom-nav, 78px) + env(safe-area-inset-bottom, 0px)) !important;
+  pointer-events: none;
+}
+
+body.hero-contact-open.hero-contact-via-hub .contact-float.contact-float--support {
+  pointer-events: auto !important;
+}
+
+body.hero-contact-via-hub .contact-float-backdrop.is-visible,
+body.hero-contact-via-hub .contact-float-backdrop.contact-float-backdrop--visible {
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 510 !important;
+  background: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+body.hero-contact-via-hub .contact-float-menu {
+  position: relative !important;
+  z-index: 522 !important;
+  width: min(100%, 360px) !important;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
+body.hero-contact-open.hero-contact-via-hub .contact-float.contact-float--hub-open .contact-float-menu,
+body.hero-contact-open.hero-contact-via-hub .contact-float.contact-float--open .contact-float-menu {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}

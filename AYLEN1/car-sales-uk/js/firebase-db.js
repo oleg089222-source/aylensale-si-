@@ -105,6 +105,8 @@ function normalizeProductFromFirestore(docId, raw) {
   normalized.active = item.active !== false && item.status !== 'hidden';
   normalized.policyId = item.policyId || item.listingPolicyId || '';
   normalized.listingPolicyId = normalized.policyId;
+  normalized.viewCount = Number(item.viewCount || 0);
+  normalized.videoUrl = String(item.videoUrl || '').slice(0, 500);
 
   return normalized;
 }
@@ -112,7 +114,10 @@ function normalizeProductFromFirestore(docId, raw) {
 function normalizeAuctionFromFirestore(docId, raw) {
   var item = raw || {};
   var normalized = Object.assign({}, item);
-  normalized.id = item.id || docId;
+  normalized.id = docId;
+  if (item.id && String(item.id) !== String(docId)) {
+    normalized.legacyId = item.id;
+  }
   normalized.name = item.name || item.title || 'Untitled auction';
   normalized.desc = item.desc || item.description || '';
   normalized.images = firebaseImageUrls(Array.isArray(item.images)
@@ -122,6 +127,8 @@ function normalizeAuctionFromFirestore(docId, raw) {
   normalized.currentPrice = Number(item.currentPrice || item.currentBid || normalized.startingPrice || 0);
   normalized.bids = Array.isArray(item.bids) ? item.bids : [];
   normalized.bidsCount = Number(item.bidsCount || normalized.bids.length || 0);
+  normalized.viewCount = Number(item.viewCount || 0);
+  normalized.videoUrl = String(item.videoUrl || '').slice(0, 500);
   normalized.status = item.status || 'active';
   normalized.winner = item.winner || null;
   normalized.winnerOrder = item.winnerOrder || null;
@@ -129,7 +136,18 @@ function normalizeAuctionFromFirestore(docId, raw) {
   normalized.orderSentAt = item.orderSentAt || null;
   normalized.completedAt = item.completedAt || null;
   normalized.endTime = item.endTime || item.endsAt || new Date(Date.now() + 24 * 3600000).toISOString();
+  normalized.createdAt = item.createdAt || item.updatedAt || null;
+  normalized.botEnabled = item.botEnabled;
+  normalized.botPaused = !!item.botPaused;
+  normalized.botMaxTotal = Number(item.botMaxTotal || 0);
+  normalized.relistCount = Number(item.relistCount || 0);
   return normalized;
+}
+
+function productViewStatsDocId(productId) {
+  return String(productId || '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 120) || ('prod_' + Date.now());
 }
 
 function normalizeLocationFromFirestore(docId, raw) {
@@ -150,7 +168,6 @@ function normalizeLocationFromFirestore(docId, raw) {
   normalized.lat = Number(item.lat || 0);
   normalized.lng = Number(item.lng || item.lon || 0);
   normalized.lon = normalized.lng;
-  normalized.active = item.active !== false && item.goingThisWeekend !== false;
   normalized.note = item.note || '';
   normalized.pinned = item.pinned === true;
   normalized.sortOrder = Number(item.sortOrder || 0);
@@ -164,19 +181,53 @@ function normalizeLocationFromFirestore(docId, raw) {
   normalized.weatherError = item.weatherError || '';
   normalized.lastWeatherUpdate = item.lastWeatherUpdate || '';
   normalized.weatherSource = item.weatherSource || '';
+  normalized.showOnWebsite = item.showOnWebsite !== false;
+  if (typeof window !== 'undefined' && window.AYLEN_PICKUP && window.AYLEN_PICKUP.hydrateLocationRecord) {
+    return window.AYLEN_PICKUP.hydrateLocationRecord(normalized);
+  }
+  var rawStatus = String(item.status || '').toLowerCase().replace(/-/g, '_');
+  if (rawStatus === 'notconfirmed') rawStatus = 'not_confirmed';
+  if (rawStatus === 'going' || rawStatus === 'possible' || rawStatus === 'not_confirmed') {
+    normalized.status = rawStatus;
+  } else if (item.goingThisWeekend === true || item.active === true) {
+    normalized.status = 'going';
+  } else {
+    normalized.status = 'not_confirmed';
+  }
+  normalized.active = normalized.status === 'going';
+  normalized.goingThisWeekend = normalized.status === 'going';
   return normalized;
 }
 
 function normalizeCardFromFirestore(docId, raw) {
   var item = raw || {};
   var status = item.status || (item.active === false ? 'blocked' : 'active');
+  var discountType = item.discountType || (Number(item.discount || 0) > 0 ? 'percent' : 'percent');
+  var discountValue = Number(
+    item.discountValue != null ? item.discountValue : (item.discount != null ? item.discount : 0)
+  );
   return {
-    code: item.code || docId,
+    code: String(item.code || docId).toUpperCase(),
     name: item.name || 'Customer',
-    discount: Number(item.discount || 0),
+    phone: item.phone || '',
+    email: item.email || '',
+    discountType: discountType,
+    discountValue: discountValue,
+    discount: discountType === 'percent' ? discountValue : Number(item.discount || 0),
+    expiryDate: item.expiryDate || '',
+    usageLimit: Number(item.usageLimit || 0),
+    usageCount: Number(item.usageCount || 0),
+    minOrderValue: Number(item.minOrderValue || 0),
+    priceGroup: item.priceGroup || '',
     note: '',
     status: status,
-    active: status !== 'blocked' && item.active !== false,
+    active: status === 'active' && item.active !== false,
+    wholesaleAccess: discountType === 'wholesale' || !!item.wholesaleAccess,
+    freeDelivery: discountType === 'free_delivery' || !!item.freeDelivery,
+    loyaltyTier: Number(item.loyaltyTier != null ? item.loyaltyTier : 0),
+    loyaltyOrders: Number(item.loyaltyOrders || 0),
+    loyaltySpend: Number(item.loyaltySpend || 0),
+    batchTag: item.batchTag || '',
     createdAt: item.createdAt || null,
     updatedAt: item.updatedAt || null
   };
@@ -194,6 +245,9 @@ function normalizeOrderFromFirestore(docId, raw) {
     total: Number(item.total || 0),
     card: item.card ? String(item.card).toUpperCase() : '',
     discount: Number(item.discount || 0),
+    status: item.status || 'new',
+    adminNote: item.adminNote || '',
+    vipMember: !!item.vipMember,
     createdAt: item.createdAt || null
   });
 }
@@ -209,11 +263,11 @@ function normalizePriceListItemFromFirestore(docId, raw) {
     retailPrice: Number(item.retailPrice || item.retail || item.price || 0),
     wholesalePrice: Number(item.wholesalePrice || item.wholesale || 0),
     minQty: Number(item.minQty || item.minimumQuantity || 1),
-    stockStatus: item.stockStatus || item.status || 'available',
     note: item.note || '',
     images: images,
     photoUrl: images[0] || '',
     visible: item.visible !== false,
+    stockStatus: String(item.stockStatus || item.status || 'available').slice(0, 20),
     sortOrder: Number(item.sortOrder || 0),
     updatedAt: item.updatedAt || null,
     createdAt: item.createdAt || null
@@ -393,26 +447,39 @@ function applyCatalogSnapshot(collectionName, items, meta) {
     });
     if (typeof renderAuctions === 'function') renderAuctions();
   } else if (collectionName === 'locations') {
-    locations = list;
+    locations = list.map(function(loc) {
+      if (window.AYLEN_PICKUP && window.AYLEN_PICKUP.hydrateLocationRecord) {
+        return window.AYLEN_PICKUP.hydrateLocationRecord(loc);
+      }
+      return loc;
+    });
     if (typeof renderLocations === 'function') renderLocations();
     if (typeof fillPickup === 'function') fillPickup();
   }
   return true;
 }
 
-// Wait for Firebase SDK to load and initialize
+function tryInitializeFirebaseFromSdk() {
+  if (typeof firebase !== 'undefined' && typeof firebaseConfig !== 'undefined' && !isFirebaseReady) {
+    console.log('✅ Firebase SDK detected, initializing...');
+    initializeFirebase();
+    return true;
+  }
+  return false;
+}
+
+document.addEventListener('aylen-firebase-sdk-ready', tryInitializeFirebaseFromSdk);
+
+// Wait for Firebase SDK to load and initialize (sync pages + deferred loader)
 var initCheckRetries = 0;
 var checkInitInterval = setInterval(function() {
   initCheckRetries++;
-  
-  // Try to detect if Firebase SDK has loaded
-  if (typeof firebase !== 'undefined' && typeof firebaseConfig !== 'undefined' && !isFirebaseReady) {
+
+  if (tryInitializeFirebaseFromSdk()) {
     clearInterval(checkInitInterval);
-    console.log('✅ Firebase SDK detected, initializing...');
-    initializeFirebase();
     return;
   }
-  
+
   if (initCheckRetries > 150) {
     clearInterval(checkInitInterval);
     console.error('❌ Firebase SDK initialization timeout');
@@ -437,15 +504,19 @@ function initializeFirebase() {
 
     console.log('🔥 Firebase SDK detected, getting app reference...');
     
-    // Get Firebase app (it's already initialized by firebase-config.js)
+    // Prefer named app (vip-live-preview), then default (index/admin), then init.
     try {
-      fbApp = firebase.app();
-      console.log('✅ Firebase app reference obtained');
-    } catch (e) {
-      // If app doesn't exist, initialize it
-      console.log('⚠️ App not initialized yet, initializing now...');
-      fbApp = firebase.initializeApp(firebaseConfig, 'aylensale-app');
-      console.log('✅ Firebase app initialized');
+      fbApp = firebase.app('aylensale-app');
+      console.log('✅ Firebase named app reference obtained');
+    } catch (eNamed) {
+      try {
+        fbApp = firebase.app();
+        console.log('✅ Firebase default app reference obtained');
+      } catch (eDefault) {
+        console.log('⚠️ App not initialized yet, initializing now...');
+        fbApp = firebase.initializeApp(firebaseConfig, 'aylensale-app');
+        console.log('✅ Firebase app initialized');
+      }
     }
     
     // Get Firestore reference
@@ -456,13 +527,7 @@ function initializeFirebase() {
       console.error('❌ Firestore SDK not loaded');
     }
     
-    // Get Storage reference
-    if (typeof firebase.storage === 'function') {
-      fbStorage = firebase.storage(fbApp);
-      console.log('✅ Cloud Storage initialized');
-    } else {
-      console.error('❌ Storage SDK not loaded');
-    }
+    // Storage SDK loads on demand (admin uploads) via FBDB.ensureStorageReady
 
     if (typeof firebase.auth === 'function') {
       fbAuth = firebase.auth(fbApp);
@@ -475,6 +540,13 @@ function initializeFirebase() {
         window.firebaseAdminUser = user || null;
         window.isAdminAuthenticated = isFirebaseAdminUser(user);
         console.log(window.isAdminAuthenticated ? '✅ Firebase admin authenticated' : 'ℹ️ Firebase admin signed out');
+        syncFirebaseAdminBodyClass();
+        if (window.AYLEN_ADMIN_GATE && window.AYLEN_ADMIN_GATE.setGateLoggedIn) {
+          window.AYLEN_ADMIN_GATE.setGateLoggedIn(window.isAdminAuthenticated);
+        }
+        if (window.AYLEN_ADMIN_GATE && typeof window.AYLEN_ADMIN_GATE.onFirebaseAuth === 'function') {
+          window.AYLEN_ADMIN_GATE.onFirebaseAuth(user);
+        }
         if (typeof syncAdminModeWithFirebaseAuth === 'function') {
           syncAdminModeWithFirebaseAuth(user);
         }
@@ -482,17 +554,23 @@ function initializeFirebase() {
       });
       setTimeout(function() {
         if (FBDB.isAdmin && FBDB.isAdmin()) return;
+        if (window.AYLEN_ADMIN_SESSION && window.AYLEN_ADMIN_SESSION.hydrateFromRemember) {
+          window.AYLEN_ADMIN_SESSION.hydrateFromRemember();
+        }
         try {
-          var storedPass = sessionStorage.getItem('aylen_admin_key');
+          var storedPass = window.AYLEN_ADMIN_SESSION && window.AYLEN_ADMIN_SESSION.getSessionPassword
+            ? window.AYLEN_ADMIN_SESSION.getSessionPassword()
+            : sessionStorage.getItem('aylen_admin_key');
           if (storedPass && FBDB.signInAdmin) {
-            var storedLogin = null;
-            try { storedLogin = sessionStorage.getItem('aylen_admin_login'); } catch (e) {}
+            var storedLogin = window.AYLEN_ADMIN_SESSION && window.AYLEN_ADMIN_SESSION.getSessionLogin
+              ? window.AYLEN_ADMIN_SESSION.getSessionLogin()
+              : (function() { try { return sessionStorage.getItem('aylen_admin_login'); } catch (e) { return null; } })();
             FBDB.signInAdmin(storedPass, storedLogin || 'admin').catch(function(err) {
               console.warn('Admin session restore failed:', err.message);
             });
           }
         } catch (e) {}
-      }, 1200);
+      }, 800);
       console.log('✅ Firebase Auth initialized');
     } else {
       console.error('❌ Firebase Auth SDK not loaded');
@@ -532,7 +610,8 @@ function setupFirestoreListeners() {
       window.AYLEN_FIREBASE_CATALOG.attachProductsListener('off');
     }
 
-    fbDb.collection('auctions').onSnapshot({ includeMetadataChanges: true }, function(snapshot) {
+    fbDb.collection('auctions').onSnapshot(function(snapshot) {
+      if (snapshot.metadata.fromCache && snapshot.metadata.hasPendingWrites) return;
       var data = [];
       snapshot.forEach(function(doc) {
         data.push(normalizeAuctionFromFirestore(doc.id, doc.data()));
@@ -576,10 +655,26 @@ function setupFirestoreListeners() {
       if (typeof validateCurrentUserCard === 'function') validateCurrentUserCard();
       if (typeof recalculateCartPrices === 'function') recalculateCartPrices();
       if (typeof renderCart === 'function') renderCart();
-      if (typeof renderProducts === 'function') renderProducts();
       console.log('✅ Discount cards updated:', Object.keys(data).length);
     }, function(error) {
       console.warn('⚠️ Discount card listener error:', error.message);
+    });
+
+    fbDb.collection('priceListItems').onSnapshot({ includeMetadataChanges: true }, function(snapshot) {
+      var data = [];
+      snapshot.forEach(function(doc) {
+        data.push(normalizePriceListItemFromFirestore(doc.id, doc.data()));
+      });
+      data.sort(function(a, b) {
+        return Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.name || '').localeCompare(String(b.name || ''));
+      });
+      if (typeof priceListItems !== 'undefined') {
+        priceListItems.length = 0;
+        data.forEach(function(item) { priceListItems.push(item); });
+      }
+      console.log('✅ Price list updated on this device:', data.length, 'items');
+    }, function(error) {
+      console.warn('⚠️ Price list listener error:', error.message);
     });
 
     fbDb.collection('siteSettings').doc('ebay').onSnapshot(function(doc) {
@@ -618,7 +713,6 @@ function setupFirestoreListeners() {
         data.push(normalizeListingPolicyFromFirestore(doc.id, doc.data()));
       });
       listingPolicies = data;
-      if (typeof renderProducts === 'function') renderProducts();
       console.log('✅ Listing policies updated:', data.length);
     }, function(error) {
       console.warn('⚠️ Listing policies listener error:', error.message);
@@ -639,6 +733,16 @@ var FBDB = {};
 function isFirebaseAdminUser(user) {
   if (!user || !user.email) return false;
   return FIREBASE_ADMIN_EMAILS.indexOf(user.email.toLowerCase()) !== -1;
+}
+
+function syncFirebaseAdminBodyClass() {
+  var authed = isFirebaseAdminUser(fbAuth ? fbAuth.currentUser : null);
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.classList.toggle('firebase-admin-authed', authed);
+  }
+  try {
+    window.dispatchEvent(new CustomEvent('aylen-firebase-admin'));
+  } catch (e) {}
 }
 
 function requireAdminAuth(action) {
@@ -687,21 +791,57 @@ FBDB.signInAdmin = async function(password, loginId) {
 FBDB.ensureAdminSession = async function() {
   if (FBDB.isAdmin()) return true;
   var pass = null;
-  try {
-    pass = sessionStorage.getItem('aylen_admin_key');
-  } catch (e) {}
+  if (window.AYLEN_ADMIN_SESSION && window.AYLEN_ADMIN_SESSION.getSessionPassword) {
+    pass = window.AYLEN_ADMIN_SESSION.getSessionPassword();
+  }
+  if (!pass) {
+    try {
+      pass = sessionStorage.getItem('aylen_admin_key');
+    } catch (e) {}
+  }
   if (!pass) {
     throw new Error(ADMIN_AUTH_INVALID);
   }
   var storedLogin = null;
-  try {
-    storedLogin = sessionStorage.getItem('aylen_admin_login');
-  } catch (e) {}
+  if (window.AYLEN_ADMIN_SESSION && window.AYLEN_ADMIN_SESSION.getSessionLogin) {
+    storedLogin = window.AYLEN_ADMIN_SESSION.getSessionLogin();
+  }
+  if (!storedLogin) {
+    try {
+      storedLogin = sessionStorage.getItem('aylen_admin_login');
+    } catch (e) {}
+  }
   await FBDB.signInAdmin(pass, storedLogin || 'admin');
   if (!FBDB.isAdmin()) {
     throw new Error(ADMIN_AUTH_INVALID);
   }
   return true;
+};
+
+/**
+ * Bearer token for VIP preview / admin API calls (uses named Firebase app, not default).
+ */
+FBDB.getAdminIdToken = async function(forceRefresh) {
+  if (!isFirebaseReady) {
+    await new Promise(function(resolve, reject) {
+      var tries = 0;
+      var timer = setInterval(function() {
+        tries += 1;
+        if (isFirebaseReady) {
+          clearInterval(timer);
+          resolve();
+        } else if (tries > 80) {
+          clearInterval(timer);
+          reject(new Error('Firebase is still loading — wait a moment and try again'));
+        }
+      }, 100);
+    });
+  }
+  await FBDB.ensureAdminSession();
+  if (!fbAuth || !fbAuth.currentUser) {
+    throw new Error('Admin Firebase login required — open Admin CMS and sign in first');
+  }
+  return fbAuth.currentUser.getIdToken(!!forceRefresh);
 };
 
 FBDB.signOutAdmin = async function() {
@@ -819,6 +959,13 @@ FBDB.deleteProduct = async function(productId) {
   try {
     var docId = String(productId || '').trim();
     if (!docId) throw new Error('Missing productId. Product was not deleted.');
+    var snap = await fbDb.collection('products').doc(docId).get();
+    if (snap.exists) {
+      var data = snap.data() || {};
+      var urls = firebaseImageUrls(data.images).concat(firebaseImageUrls(data.photos || []));
+      if (data.videoUrl) urls.push(String(data.videoUrl));
+      await FBDB.deleteImages(urls);
+    }
     await fbDb.collection('products').doc(docId).delete();
     console.log('☁️ Product deleted from Firestore:', docId);
     return true;
@@ -831,10 +978,27 @@ FBDB.deleteProduct = async function(productId) {
 /**
  * Save auction to Firestore
  */
+FBDB.deleteImages = async function(urls) {
+  var list = Array.isArray(urls) ? urls : [];
+  var seen = {};
+  for (var i = 0; i < list.length; i++) {
+    var url = String(list[i] || '').trim();
+    if (!url || seen[url]) continue;
+    seen[url] = true;
+    try {
+      await FBDB.deleteImage(url);
+    } catch (e) {
+      console.warn('[deleteImages]', url, e.message);
+    }
+  }
+  return true;
+};
+
 FBDB.saveAuction = async function(auction) {
   if (!fbDb) {
     throw new Error('Firestore not available. Auction was not saved.');
   }
+  await FBDB.ensureAdminSession();
   requireAdminAuth('saving auctions');
 
   try {
@@ -853,8 +1017,8 @@ FBDB.saveAuction = async function(auction) {
     data.lastModified = firebase.firestore.FieldValue.serverTimestamp();
     
     await fbDb.collection('auctions').doc(auctionId).set(data, { merge: true });
-    console.log('☁️ Auction saved to Firestore');
-    return auction;
+    console.log('☁️ Auction saved to Firestore:', auctionId);
+    return Object.assign({}, auction, { id: auctionId });
   } catch (error) {
     console.error('❌ Error saving auction:', error.message);
     throw error;
@@ -868,10 +1032,18 @@ FBDB.deleteAuction = async function(auctionId) {
   if (!fbDb) {
     throw new Error('Firestore not available. Auction was not deleted.');
   }
+  await FBDB.ensureAdminSession();
   requireAdminAuth('deleting auctions');
 
   try {
-    await fbDb.collection('auctions').doc(firestoreDocId('auction', auctionId)).delete();
+    var docId = firestoreDocId('auction', auctionId);
+    var snap = await fbDb.collection('auctions').doc(docId).get();
+    if (snap.exists) {
+      var data = snap.data() || {};
+      var urls = firebaseImageUrls(data.images).concat(firebaseImageUrls(data.photos || []));
+      await FBDB.deleteImages(urls);
+    }
+    await fbDb.collection('auctions').doc(docId).delete();
     console.log('☁️ Auction deleted from Firestore');
     return true;
   } catch (error) {
@@ -902,6 +1074,9 @@ FBDB.saveLocation = async function(location) {
     data.lat = Number(data.lat || 0);
     data.lng = Number(data.lng || data.lon || 0);
     data.lon = data.lng;
+    if (window.AYLEN_PICKUP && window.AYLEN_PICKUP.syncPickupStatusFields) {
+      window.AYLEN_PICKUP.syncPickupStatusFields(data);
+    }
     data.updatedAt = new Date().toISOString();
     data.lastModified = firebase.firestore.FieldValue.serverTimestamp();
     
@@ -936,6 +1111,7 @@ FBDB.deleteLocation = async function(locationId) {
 };
 
 FBDB.saveLocationWeather = async function(locationId, weather) {
+  if (!FBDB.isAdmin || !FBDB.isAdmin()) return false;
   if (!fbDb) {
     throw new Error('Firestore not available. Weather was not saved.');
   }
@@ -999,6 +1175,45 @@ FBDB.saveCard = async function(code, card) {
   await fbDb.collection('cards').doc(cleanCode).set(data, { merge: true });
   console.log('☁️ Discount card saved:', cleanCode);
   return data;
+};
+
+FBDB.saveCardsBatch = async function(cardsByCode) {
+  if (!fbDb) {
+    throw new Error('Firestore not available. Cards were not saved.');
+  }
+  requireAdminAuth('saving discount cards');
+  var codes = Object.keys(cardsByCode || {});
+  if (!codes.length) return { saved: 0 };
+
+  var saved = 0;
+  var chunkSize = 400;
+  for (var i = 0; i < codes.length; i += chunkSize) {
+    var batch = fbDb.batch();
+    var chunk = codes.slice(i, i + chunkSize);
+    chunk.forEach(function(code) {
+      var cleanCode = String(code || '').trim().toUpperCase();
+      if (!cleanCode) return;
+      var card = cardsByCode[code] || {};
+      var data = Object.assign({}, card, {
+        code: cleanCode,
+        discount: Number(card.discount || 0),
+        status: ['unused', 'active', 'blocked', 'paused', 'expired'].indexOf(card.status) !== -1
+          ? card.status
+          : (card.active === false ? 'blocked' : 'unused'),
+        active: card.status === 'active' && card.active !== false,
+        updatedAt: new Date().toISOString(),
+        lastModified: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      if (!data.createdAt) {
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      }
+      batch.set(fbDb.collection('cards').doc(cleanCode), data, { merge: true });
+      saved++;
+    });
+    await batch.commit();
+  }
+  console.log('☁️ Discount cards batch saved:', saved);
+  return { saved: saved };
 };
 
 FBDB.saveCardNote = async function(code, note) {
@@ -1066,6 +1281,9 @@ FBDB.saveOrder = async function(order) {
     total: Number(order.total || 0),
     card: order.card ? String(order.card).trim().toUpperCase().slice(0, 40) : '',
     discount: Number(order.discount || 0),
+    status: String(order.status || 'new').slice(0, 40),
+    adminNote: String(order.adminNote || '').slice(0, 500),
+    vipMember: !!order.vipMember,
     telegramMessageId: order.telegramMessageId || null,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -1095,6 +1313,18 @@ FBDB.loadOrders = async function() {
     return bd - ad;
   });
   return data;
+};
+
+FBDB.updateShopOrder = async function(orderId, patch) {
+  if (!fbDb) throw new Error('Firestore not available');
+  requireAdminAuth('updating shop orders');
+  var docId = String(orderId || '').trim();
+  if (!docId) throw new Error('Missing order id');
+  var data = { updatedAt: new Date().toISOString() };
+  if (patch && patch.status != null) data.status = String(patch.status).slice(0, 40);
+  if (patch && patch.adminNote != null) data.adminNote = String(patch.adminNote || '').slice(0, 500);
+  await fbDb.collection('orders').doc(docId).set(data, { merge: true });
+  return true;
 };
 
 FBDB.savePriceListItem = async function(item) {
@@ -1141,6 +1371,409 @@ FBDB.loadPriceListItems = async function() {
     return Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.name || '').localeCompare(String(b.name || ''));
   });
   return data;
+};
+
+function auctionViewStatsDocId(auctionId) {
+  return String(auctionId || '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 120) || ('auc_' + Date.now());
+}
+
+function normalizeVipStockItemFromFirestore(docId, raw) {
+  var item = raw || {};
+  var images = firebaseImageUrls(Array.isArray(item.images)
+    ? item.images
+    : (item.imageUrl || item.photoUrl ? [item.imageUrl || item.photoUrl] : []));
+  return {
+    id: docId,
+    title: item.title || item.name || 'VIP item',
+    name: item.title || item.name || 'VIP item',
+    desc: String(item.desc || item.description || '').slice(0, 1000),
+    imageUrl: images[0] || '',
+    photoUrl: images[0] || '',
+    images: images,
+    videoUrl: String(item.videoUrl || '').slice(0, 500),
+    price: Number(item.price || 0),
+    vipPrice: Number(item.vipPrice != null ? item.vipPrice : item.price || 0),
+    badge: String(item.badge || 'VIP').slice(0, 40),
+    category: String(item.category || 'general').slice(0, 40),
+    categoryLabel: String(item.categoryLabel || item.category || 'General').slice(0, 60),
+    visible: item.visible !== false,
+    stock: Number(item.stock != null ? item.stock : 0),
+    stockStatus: String(item.stockStatus || 'available').slice(0, 20),
+    royalMailPayEnabled: !!item.royalMailPayEnabled,
+    royalMailFeeGbp: Number(item.royalMailFeeGbp || 0),
+    viewCount: Number(item.viewCount || 0),
+    sortOrder: Number(item.sortOrder || 0),
+    updatedAt: item.updatedAt || ''
+  };
+}
+
+FBDB.loadVipAdminMemberPreview = async function() {
+  await FBDB.ensureAdminSession();
+  if (!fbAuth || !fbAuth.currentUser) {
+    throw new Error('Admin Firebase login required for VIP live preview.');
+  }
+  requireAdminAuth('loading VIP member preview');
+  var token = await fbAuth.currentUser.getIdToken();
+  var resp = await fetch('/api/vip-admin-member-preview', {
+    method: 'GET',
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  var data = {};
+  try {
+    data = await resp.json();
+  } catch (e) {}
+  if (!resp.ok) {
+    throw new Error((data && data.error) || ('VIP live preview API failed (' + resp.status + ')'));
+  }
+  return data;
+};
+
+FBDB.loadVipAdminPanelData = async function() {
+  if (!fbAuth || !fbAuth.currentUser) {
+    throw new Error('Admin Firebase login required for loading VIP admin data.');
+  }
+  requireAdminAuth('loading VIP admin data');
+  var token = await fbAuth.currentUser.getIdToken();
+  var resp = await fetch('/api/vip?action=admin-panel', {
+    method: 'GET',
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  var data = {};
+  try {
+    data = await resp.json();
+  } catch (e) {}
+  if (!resp.ok) {
+    throw new Error((data && data.error) || ('VIP admin API failed (' + resp.status + ')'));
+  }
+  return {
+    subscribers: data.subscribers || [],
+    stock: data.stock || [],
+    settings: data.settings || {},
+    liveStats: data.liveStats || null,
+    orders: data.orders || []
+  };
+};
+
+FBDB.updateVipOrderAdmin = async function(orderId, patch) {
+  if (!fbAuth || !fbAuth.currentUser) {
+    throw new Error('Admin Firebase login required for updating VIP orders.');
+  }
+  requireAdminAuth('updating VIP orders');
+  var token = await fbAuth.currentUser.getIdToken();
+  var resp = await fetch('/api/vip-admin-order', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token
+    },
+    body: JSON.stringify({
+      orderId: orderId,
+      status: patch && patch.status,
+      adminNote: patch && patch.adminNote,
+      royalMailTracking: patch && patch.royalMailTracking
+    })
+  });
+  var data = {};
+  try {
+    data = await resp.json();
+  } catch (e) {}
+  if (!resp.ok) {
+    throw new Error((data && data.error) || ('VIP order update failed (' + resp.status + ')'));
+  }
+  return data.order || data;
+};
+
+FBDB.loadVipSubscribers = async function() {
+  if (!fbDb) throw new Error('Firestore not available');
+  requireAdminAuth('loading VIP subscribers');
+  var snapshot;
+  try {
+    snapshot = await fbDb.collection('vipSubscribers').orderBy('updatedAt', 'desc').limit(500).get();
+  } catch (err) {
+    snapshot = await fbDb.collection('vipSubscribers').limit(500).get();
+  }
+  var data = [];
+  snapshot.forEach(function(doc) {
+    var row = doc.data() || {};
+    data.push({
+      id: doc.id,
+      email: row.email || '',
+      phone: row.phone || '',
+      status: row.status || '',
+      stripeCustomerId: row.stripeCustomerId || '',
+      stripeSubscriptionId: row.stripeSubscriptionId || '',
+      currentPeriodEnd: row.currentPeriodEnd || '',
+      cancelAtPeriodEnd: !!row.cancelAtPeriodEnd,
+      amountGbp: Number(row.amountGbp || 9.99),
+      paymentFailedCount: Number(row.paymentFailedCount || 0),
+      lastPaymentAt: row.lastPaymentAt || '',
+      createdAt: row.createdAt || '',
+      updatedAt: row.updatedAt || ''
+    });
+  });
+  data.sort(function(a, b) {
+    return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+  });
+  return data;
+};
+
+FBDB.loadVipStockItems = async function() {
+  if (!fbDb) throw new Error('Firestore not available');
+  requireAdminAuth('loading VIP stock items');
+  var snapshot = await fbDb.collection('vipStockItems').get();
+  var data = [];
+  snapshot.forEach(function(doc) {
+    data.push(normalizeVipStockItemFromFirestore(doc.id, doc.data()));
+  });
+  data.sort(function(a, b) {
+    return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+  });
+  return data;
+};
+
+FBDB.saveVipStockItem = async function(item) {
+  await FBDB.ensureAdminSession();
+  requireAdminAuth('saving VIP stock items');
+
+  if (fbAuth && fbAuth.currentUser) {
+    var token = await fbAuth.currentUser.getIdToken();
+    var resp = await fetch('/api/vip-admin-stock', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token
+      },
+      body: JSON.stringify({ action: 'save', item: item })
+    });
+    var data = {};
+    try {
+      data = await resp.json();
+    } catch (e) {}
+    if (resp.ok && data.item) {
+      return normalizeVipStockItemFromFirestore(data.item.id || item.id, data.item);
+    }
+    if (resp.ok) {
+      return normalizeVipStockItemFromFirestore(item.id, item);
+    }
+    var apiErr = (data && data.error) || ('VIP stock save failed (' + resp.status + ')');
+    if (!fbDb) throw new Error(apiErr);
+    console.warn('[VIP stock] API save failed, trying Firestore client:', apiErr);
+  }
+
+  if (!fbDb) throw new Error('Firestore not available');
+  var itemId = String(item.id || '').trim() || ('vip_' + Date.now());
+  var payload = Object.assign({}, item);
+  delete payload.id;
+  payload.title = String(payload.title || payload.name || 'VIP item').slice(0, 140);
+  payload.name = payload.title;
+  payload.desc = String(payload.desc || '').slice(0, 1000);
+  payload.images = firebaseImageUrls(Array.isArray(payload.images) ? payload.images : (payload.imageUrl ? [payload.imageUrl] : []));
+  payload.imageUrl = payload.images[0] || (isValidProductImageUrl(payload.imageUrl) ? payload.imageUrl : '');
+  payload.photoUrl = payload.imageUrl;
+  payload.videoUrl = String(payload.videoUrl || '').slice(0, 500);
+  payload.price = Number(payload.price || 0);
+  payload.vipPrice = Number(payload.vipPrice != null ? payload.vipPrice : payload.price || 0);
+  payload.badge = String(payload.badge || 'VIP').slice(0, 40);
+  payload.category = String(payload.category || 'general').slice(0, 40);
+  payload.categoryLabel = String(payload.categoryLabel || payload.category || 'General').slice(0, 60);
+  payload.visible = payload.visible !== false;
+  payload.stock = Math.max(0, Number(payload.stock != null ? payload.stock : 0));
+  payload.stockStatus = String(payload.stockStatus || 'available').slice(0, 20);
+  if (payload.stock === 0 && payload.stockStatus === 'available') payload.stockStatus = 'sold';
+  payload.royalMailPayEnabled = !!payload.royalMailPayEnabled;
+  payload.royalMailFeeGbp = Number(payload.royalMailFeeGbp || 0);
+  payload.viewCount = Number(payload.viewCount || 0);
+  payload.sortOrder = Number(payload.sortOrder || 0);
+  payload.updatedAt = new Date().toISOString();
+  payload.lastModified = firebase.firestore.FieldValue.serverTimestamp();
+  if (!payload.createdAt) payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+  await fbDb.collection('vipStockItems').doc(itemId).set(payload, { merge: true });
+  return normalizeVipStockItemFromFirestore(itemId, payload);
+};
+
+FBDB.deleteVipStockItem = async function(itemId) {
+  await FBDB.ensureAdminSession();
+  requireAdminAuth('deleting VIP stock items');
+
+  if (fbAuth && fbAuth.currentUser) {
+    var token = await fbAuth.currentUser.getIdToken();
+    var resp = await fetch('/api/vip-admin-stock', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token
+      },
+      body: JSON.stringify({ action: 'delete', itemId: itemId })
+    });
+    var data = {};
+    try {
+      data = await resp.json();
+    } catch (e) {}
+    if (resp.ok) return true;
+    var apiErr = (data && data.error) || ('VIP stock delete failed (' + resp.status + ')');
+    if (!fbDb) throw new Error(apiErr);
+    console.warn('[VIP stock] API delete failed, trying Firestore client:', apiErr);
+  }
+
+  if (!fbDb) throw new Error('Firestore not available');
+  var docId = String(itemId || '').trim();
+  if (!docId) throw new Error('Missing VIP stock item id.');
+  await fbDb.collection('vipStockItems').doc(docId).delete();
+  return true;
+};
+
+function vipCarouselDefaults() {
+  return global.AYLEN_VIP_CAROUSEL_DEFAULTS || null;
+}
+
+function parseVipCarouselField(raw) {
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw.split(/[\n,]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+  }
+  return [];
+}
+
+function vipSettingsCarouselPatch(data) {
+  return {
+    carouselSchemaVersion: Number(data && data.carouselSchemaVersion || 0),
+    carouselImages: parseVipCarouselField(data && data.carouselImages),
+    hubCarouselImages: parseVipCarouselField(data && data.hubCarouselImages)
+  };
+}
+
+function resolveVipPaywallCarouselForAdmin(data) {
+  var defs = vipCarouselDefaults();
+  var patch = vipSettingsCarouselPatch(data);
+  if (defs && defs.resolveVipPaywallCarousel) return defs.resolveVipPaywallCarousel(patch);
+  return patch.carouselImages.length ? patch.carouselImages : (defs && defs.DEFAULT_VIP_PAYWALL_CAROUSEL) || [];
+}
+
+function resolveVipHubCarouselForAdmin(data) {
+  var defs = vipCarouselDefaults();
+  var patch = vipSettingsCarouselPatch(data);
+  if (defs && defs.resolveVipHubCarousel) return defs.resolveVipHubCarousel(patch);
+  return patch.hubCarouselImages.length ? patch.hubCarouselImages : (defs && defs.DEFAULT_VIP_HUB_CAROUSEL) || [];
+}
+
+function sanitizeVipCarouselUrlsForSave(urls, kind) {
+  var defs = vipCarouselDefaults();
+  var list = parseVipCarouselField(urls);
+  if (defs && defs.sanitizeVipCarouselUrls) {
+    var fb = kind === 'hub'
+      ? (defs.DEFAULT_VIP_HUB_CAROUSEL || defs.DEFAULT_VIP_WAREHOUSE_CAROUSEL)
+      : (defs.DEFAULT_VIP_PAYWALL_CAROUSEL || defs.DEFAULT_VIP_WAREHOUSE_CAROUSEL);
+    return defs.sanitizeVipCarouselUrls(list, fb);
+  }
+  return list.slice(0, 12);
+}
+
+FBDB.saveVipSettings = async function(settings) {
+  if (!fbDb) throw new Error('Firestore not available');
+  await FBDB.ensureAdminSession();
+  requireAdminAuth('saving VIP settings');
+  var tg = String(settings.telegramUrl || '').trim();
+  var wa = String(settings.whatsappUrl || '').trim();
+  var menuTg = String(settings.menuTelegramUrl || '').trim();
+  var menuWa = String(settings.menuWhatsappUrl || '').trim();
+  if (menuTg && tg === menuTg) tg = '';
+  if (menuWa && wa === menuWa) wa = '';
+  var data = {
+    discountCode: String(settings.discountCode || 'VIPSTOCK').slice(0, 32).toUpperCase(),
+    discountPercent: Number(settings.discountPercent || 10),
+    telegramUrl: tg,
+    whatsappUrl: wa,
+    monthlyPriceGbp: Number(settings.monthlyPriceGbp || 9.99),
+    displayMemberCount: settings.displayMemberCount != null && settings.displayMemberCount !== ''
+      ? Number(settings.displayMemberCount)
+      : null,
+    foundingMemberLimit: Number(settings.foundingMemberLimit || 50),
+    carouselImages: sanitizeVipCarouselUrlsForSave(
+      Array.isArray(settings.carouselImages)
+        ? settings.carouselImages
+        : String(settings.carouselImages || '').split(/[\n,]+/).map(function(s) { return s.trim(); }).filter(Boolean),
+      'paywall'
+    ),
+    hubVideoUrl: String(settings.hubVideoUrl || '').trim().slice(0, 500),
+    hubCarouselImages: sanitizeVipCarouselUrlsForSave(
+      Array.isArray(settings.hubCarouselImages)
+        ? settings.hubCarouselImages
+        : String(settings.hubCarouselImages || '').split(/[\n,]+/).map(function(s) { return s.trim(); }).filter(Boolean),
+      'hub'
+    ),
+    carouselSchemaVersion: (vipCarouselDefaults() && vipCarouselDefaults().VIP_CAROUSEL_SCHEMA_VERSION) || 4,
+    updatedAt: new Date().toISOString()
+  };
+  await fbDb.collection('siteSettings').doc('vip').set(data, { merge: true });
+  return data;
+};
+
+FBDB.seedVipStarterStock = async function(force) {
+  if (!fbDb) throw new Error('Firestore not available');
+  await FBDB.ensureAdminSession();
+  requireAdminAuth('seeding VIP stock');
+  var existing = await FBDB.loadVipStockItems();
+  if (existing.length && !force) {
+    throw new Error('VIP stock already has ' + existing.length + ' items. Use force to add starter pack anyway.');
+  }
+  var builder = global.AYLEN_VIP_SEED && global.AYLEN_VIP_SEED.buildStarterItems;
+  if (!builder) throw new Error('VIP seed module not loaded.');
+  var items = builder();
+  var saved = 0;
+  for (var i = 0; i < items.length; i++) {
+    await FBDB.saveVipStockItem(items[i]);
+    saved++;
+  }
+  return saved;
+};
+
+FBDB.loadVipSettings = async function() {
+  if (!fbDb) throw new Error('Firestore not available');
+  requireAdminAuth('loading VIP settings');
+  var doc = await fbDb.collection('siteSettings').doc('vip').get();
+  var data = doc.exists ? doc.data() : {};
+  var marketplace = {};
+  try {
+    var mpDoc = await fbDb.collection('siteSettings').doc('marketplace').get();
+    marketplace = mpDoc.exists ? mpDoc.data() : {};
+  } catch (e) {}
+  var menuTg = (marketplace.telegramUrl && String(marketplace.telegramUrl).trim()) || 'https://t.me/aylensale';
+  var menuWa = (marketplace.whatsappUrl && String(marketplace.whatsappUrl).trim()) ||
+    'https://wa.me/?text=Hi%20AYLENSALE!%20I%27m%20interested%20in%20your%20wholesale%20stock%20and%20weekend%20car%20boot%20deals.%20Please%20send%20availability%20and%20prices.%20Thank%20you!';
+  var tgOverride = data.telegramUrl ? String(data.telegramUrl).trim() : '';
+  var waOverride = data.whatsappUrl ? String(data.whatsappUrl).trim() : '';
+  return {
+    discountCode: data.discountCode || 'VIPSTOCK',
+    discountPercent: Number(data.discountPercent || 10),
+    telegramUrl: tgOverride || menuTg,
+    whatsappUrl: waOverride || menuWa,
+    telegramOverride: tgOverride,
+    whatsappOverride: waOverride,
+    menuTelegramUrl: menuTg,
+    menuWhatsappUrl: menuWa,
+    monthlyPriceGbp: Number(data.monthlyPriceGbp || 9.99),
+    displayMemberCount: data.displayMemberCount != null && data.displayMemberCount !== ''
+      ? Number(data.displayMemberCount)
+      : null,
+    foundingMemberLimit: Number(data.foundingMemberLimit || 50),
+    carouselImages: resolveVipPaywallCarouselForAdmin(data),
+    hubVideoUrl: String(data.hubVideoUrl || '').trim(),
+    hubCarouselImages: resolveVipHubCarouselForAdmin(data),
+    carouselSchemaVersion: Number(data.carouselSchemaVersion || 0)
+  };
+};
+
+FBDB.loadVipOrdersAdmin = async function(limit) {
+  if (!fbDb) throw new Error('Firestore not available');
+  requireAdminAuth('loading VIP orders');
+  var snap = await fbDb.collection('vipOrders').limit(limit || 200).get();
+  return snap.docs.map(function(doc) {
+    return Object.assign({ id: doc.id }, doc.data());
+  }).sort(function(a, b) {
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+  });
 };
 
 FBDB.loadSiteSettings = async function() {
@@ -1262,6 +1895,80 @@ FBDB.savePresence = async function(sessionId, presence) {
   };
   await fbDb.collection('presenceSessions').doc(cleanId).set(data, { merge: true });
   return true;
+};
+
+async function recordViewViaApi(type, id) {
+  var cleanId = String(id || '').slice(0, 120);
+  if (!cleanId) return false;
+  try {
+    var res = await fetch('/api/record-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: type, id: cleanId }),
+      keepalive: true
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+FBDB.recordProductView = async function(productId) {
+  if (!productId) return false;
+  return recordViewViaApi('product', String(productId));
+};
+
+FBDB.loadProductViewStats = async function() {
+  if (!fbDb) return {};
+  try {
+    var snapshot = await fbDb.collection('productViewStats').limit(500).get();
+    var map = {};
+    snapshot.forEach(function(doc) {
+      var item = doc.data() || {};
+      var pid = String(item.productId || doc.id);
+      map[pid] = Number(item.totalViews || 0);
+    });
+    return map;
+  } catch (error) {
+    return {};
+  }
+};
+
+FBDB.listenProductViewStats = function(callback) {
+  if (!fbDb) throw new Error('Firestore not available');
+  return fbDb.collection('productViewStats').onSnapshot(function(snapshot) {
+    var map = {};
+    snapshot.forEach(function(doc) {
+      var item = doc.data() || {};
+      var pid = String(item.productId || doc.id);
+      map[pid] = Number(item.totalViews || 0);
+    });
+    callback(map);
+  }, function(error) {
+    if (error && String(error.message || error).indexOf('permission') !== -1) return;
+    console.warn('Product view stats listener failed:', error.message || error);
+  });
+};
+
+FBDB.recordAuctionView = async function(auctionId) {
+  if (!auctionId) return false;
+  return recordViewViaApi('auction', String(auctionId));
+};
+
+FBDB.loadAuctionViewStats = async function() {
+  if (!fbDb) return {};
+  try {
+    var snapshot = await fbDb.collection('auctionViewStats').limit(500).get();
+    var map = {};
+    snapshot.forEach(function(doc) {
+      var item = doc.data() || {};
+      var aid = String(item.auctionId || doc.id);
+      map[aid] = Number(item.totalViews || 0);
+    });
+    return map;
+  } catch (error) {
+    return {};
+  }
 };
 
 FBDB.listenPresence = function(callback) {
@@ -1601,10 +2308,93 @@ FBDB.saveAuctionPublicState = async function(auction) {
  * Accessible from ANY device, synced automatically
  */
 
-FBDB.uploadImage = async function(file, productId) {
+function readFileAsDataUrl(file) {
+  return new Promise(function(resolve, reject) {
+    if (!file) {
+      reject(new Error('No file'));
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      resolve(ev.target && ev.target.result ? ev.target.result : '');
+    };
+    reader.onerror = function() {
+      reject(new Error('Could not read file'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImageViaAdminApi(file, entityId, storageFolder, onProgress) {
+  if (!fbAuth || !fbAuth.currentUser) return null;
+  try {
+    await FBDB.ensureAdminSession();
+    requireAdminAuth('uploading images');
+  } catch (authErr) {
+    return { success: false, error: authErr.message };
+  }
+
+  try {
+    if (file && file.size > 8 * 1024 * 1024) {
+      return { success: false, error: 'File too large (max 8MB). Use a smaller image or Fallback URL.' };
+    }
+    if (typeof onProgress === 'function') onProgress(5);
+    var dataUrl = await readFileAsDataUrl(file);
+    if (typeof onProgress === 'function') onProgress(15);
+    var token = await fbAuth.currentUser.getIdToken();
+    var resp = await fetch('/api/admin-media-upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        dataUrl: dataUrl,
+        entityId: entityId,
+        storageFolder: storageFolder || 'products',
+        fileName: file && file.name,
+        contentType: file && file.type
+      })
+    });
+    var data = {};
+    try {
+      data = await resp.json();
+    } catch (e) {}
+    if (typeof onProgress === 'function') onProgress(100);
+    if (resp.ok && data.url) {
+      return { success: true, url: data.url };
+    }
+    var apiErr = (data && data.error) || ('Upload API failed (' + resp.status + ')');
+    return { success: false, error: apiErr, apiFailed: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Upload API error', apiFailed: true };
+  }
+}
+
+async function ensureFbStorage() {
+  if (fbStorage) return fbStorage;
+  if (window.AYLEN_FIREBASE && window.AYLEN_FIREBASE.ensureStorage) {
+    await window.AYLEN_FIREBASE.ensureStorage();
+  }
+  if (typeof firebase !== 'undefined' && typeof firebase.storage === 'function' && fbApp) {
+    fbStorage = firebase.storage(fbApp);
+  }
+  return fbStorage;
+}
+
+FBDB.ensureStorageReady = ensureFbStorage;
+
+FBDB.uploadImage = async function(file, entityId, storageFolder) {
+  var apiRes = await uploadImageViaAdminApi(file, entityId, storageFolder, null);
+  if (apiRes && apiRes.success) return apiRes;
+  if (apiRes && apiRes.apiFailed) {
+    console.warn('[upload] Admin API failed, trying client Storage:', apiRes.error);
+  }
+
+  await ensureFbStorage();
   if (!fbStorage) {
     console.warn('❌ Firebase Cloud Storage not available');
-    return { success: false, error: 'Storage not available' };
+    return { success: false, error: (apiRes && apiRes.error) || 'Storage not available' };
   }
   try {
     await FBDB.ensureAdminSession();
@@ -1618,20 +2408,21 @@ FBDB.uploadImage = async function(file, productId) {
     
     var timestamp = Date.now();
     var randomStr = Math.random().toString(36).substring(7);
-    var fileName = 'products/' + productId + '/img_' + timestamp + '_' + randomStr + '.jpg';
+    var folder = String(storageFolder || 'products').replace(/[^a-zA-Z0-9/_-]/g, '') || 'products';
+    var ext = 'jpg';
+    if (file && file.name && file.name.indexOf('.') !== -1) {
+      ext = String(file.name.split('.').pop() || 'jpg').toLowerCase().slice(0, 8);
+    }
+    if (file && file.type && file.type.indexOf('video/') === 0) {
+      ext = ext === 'jpg' ? 'mp4' : ext;
+    }
+    var fileName = folder + '/' + entityId + '/media_' + timestamp + '_' + randomStr + '.' + ext;
     
-    // Use the new Firebase SDK syntax
     var storageRef = fbStorage.ref(fileName);
-    
-    // Upload the file
     var uploadTask = storageRef.put(file);
-    
-    // Wait for upload to complete
     await uploadTask;
-    
-    // Get download URL
     var downloadURL = await storageRef.getDownloadURL();
-    console.log('✅ Image uploaded to Cloud Storage:', downloadURL);
+    console.log('✅ Media uploaded to Cloud Storage:', downloadURL);
     
     return { success: true, url: downloadURL };
   } catch (error) {
@@ -1640,16 +2431,74 @@ FBDB.uploadImage = async function(file, productId) {
   }
 };
 
+FBDB.uploadImageWithProgress = function(file, entityId, onProgress, storageFolder) {
+  return new Promise(async function(resolve) {
+    var apiRes = await uploadImageViaAdminApi(file, entityId, storageFolder, onProgress);
+    if (apiRes && apiRes.success) {
+      resolve(apiRes);
+      return;
+    }
+    if (apiRes && apiRes.apiFailed) {
+      console.warn('[upload] Admin API failed, trying client Storage:', apiRes.error);
+    }
+
+    await ensureFbStorage();
+    if (!fbStorage) {
+      resolve({ success: false, error: (apiRes && apiRes.error) || 'Storage not available' });
+      return;
+    }
+    try {
+      await FBDB.ensureAdminSession();
+      requireAdminAuth('uploading images');
+    } catch (authError) {
+      resolve({ success: false, error: authError.message });
+      return;
+    }
+    try {
+      var timestamp = Date.now();
+      var randomStr = Math.random().toString(36).substring(7);
+      var folder = String(storageFolder || 'products').replace(/[^a-zA-Z0-9/_-]/g, '') || 'products';
+      var ext = 'jpg';
+      if (file && file.name && file.name.indexOf('.') !== -1) {
+        ext = String(file.name.split('.').pop() || 'jpg').toLowerCase().slice(0, 8);
+      }
+      if (file && file.type && file.type.indexOf('video/') === 0) {
+        ext = ext === 'jpg' ? 'mp4' : ext;
+      }
+      var fileName = folder + '/' + entityId + '/media_' + timestamp + '_' + randomStr + '.' + ext;
+      var storageRef = fbStorage.ref(fileName);
+      var uploadTask = storageRef.put(file);
+      uploadTask.on('state_changed', function(snapshot) {
+        var pct = snapshot.totalBytes ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) : 0;
+        if (typeof onProgress === 'function') onProgress(pct);
+      }, function(err) {
+        resolve({ success: false, error: err.message || 'Upload failed' });
+      }, async function() {
+        try {
+          var downloadURL = await storageRef.getDownloadURL();
+          resolve({ success: true, url: downloadURL });
+        } catch (e) {
+          resolve({ success: false, error: e.message || 'Could not get download URL' });
+        }
+      });
+    } catch (error) {
+      resolve({ success: false, error: error.message });
+    }
+  });
+};
+
 /**
  * Delete image from Cloud Storage
  */
 FBDB.deleteImage = async function(imageUrl) {
-  if (!fbStorage || !imageUrl) {
-    return true;
-  }
+  if (!imageUrl) return true;
+  await ensureFbStorage();
+  if (!fbStorage) return true;
 
-  // Check if it's a Firebase Storage URL
-  if (imageUrl.includes('firebasestorage.googleapis.com')) {
+  if (
+    imageUrl.includes('firebasestorage.googleapis.com') ||
+    imageUrl.includes('storage.googleapis.com')
+  ) {
     try {
       // Extract file path from URL
       var urlParts = imageUrl.split('/o/')[1];

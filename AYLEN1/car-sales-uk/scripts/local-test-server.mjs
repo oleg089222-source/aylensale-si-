@@ -6,7 +6,27 @@ import adminAuth from '../api/admin-auth.js';
 import aiAdmin from '../api/ai-admin.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const STATIC_ROOT = fs.existsSync(path.join(ROOT, 'public', 'index.html'))
+  ? path.join(ROOT, 'public')
+  : ROOT;
 const PORT = Number(process.env.PORT || 3340);
+
+/** Clean URLs → static HTML (mirrors vercel.json). */
+const CLEAN_HTML_ROUTES = {
+  '/vip-stock': '/vip-stock.html'
+};
+
+function resolveStaticRel(urlPath) {
+  let rel = urlPath.split('?')[0];
+  if (rel === '/' || rel === '') return '/index.html';
+  if (CLEAN_HTML_ROUTES[rel]) return CLEAN_HTML_ROUTES[rel];
+  if (!path.extname(rel)) {
+    const htmlRel = rel.endsWith('/') ? rel.slice(0, -1) + '.html' : rel + '.html';
+    const htmlPath = path.join(STATIC_ROOT, htmlRel.replace(/^\//, ''));
+    if (fs.existsSync(htmlPath)) return htmlRel;
+  }
+  return rel;
+}
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -44,10 +64,9 @@ function readBody(req) {
 }
 
 function serveStatic(urlPath, res) {
-  let rel = urlPath.split('?')[0];
-  if (rel === '/' || rel === '') rel = '/index.html';
-  const filePath = path.join(ROOT, rel.replace(/^\//, ''));
-  if (!filePath.startsWith(ROOT)) {
+  const rel = resolveStaticRel(urlPath);
+  const filePath = path.join(STATIC_ROOT, rel.replace(/^\//, ''));
+  if (!filePath.startsWith(STATIC_ROOT)) {
     res.writeHead(403);
     res.end('Forbidden');
     return;

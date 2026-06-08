@@ -44,7 +44,10 @@
 
   function getAdminKey() {
     try {
-      return sessionStorage.getItem('aylen_admin_key') || '';
+      if (global.AYLEN_ADMIN_SESSION && global.AYLEN_ADMIN_SESSION.getSessionPassword) {
+        return global.AYLEN_ADMIN_SESSION.getSessionPassword() || '';
+      }
+      try { return sessionStorage.getItem('aylen_admin_key') || ''; } catch (e) { return ''; }
     } catch (e) {
       return '';
     }

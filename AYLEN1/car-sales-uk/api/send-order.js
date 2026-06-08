@@ -6,83 +6,29 @@
  * Usage: POST /api/send-order
  * Body: regular order or { type: 'auction_winner', ...auction winner fields }
  */
+import {
+  cleanString,
+  countUrls,
+  detectBot,
+  guardPublicForm
+} from './lib/spam-guard.mjs';
+import { getFirestoreAdmin } from './lib/firebase-admin-app.mjs';
+import { isAdminConfigured } from './lib/firestore-admin.mjs';
 
-// Simple in-memory rate limiting (resets on serverless instance restart).
-const ipRateLimits = new Map();
-const sessionRateLimits = new Map();
-
-function getClientIP(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0] ||
-         req.headers['x-client-ip'] ||
-         req.socket?.remoteAddress ||
-         'unknown';
-}
-
-function checkRateLimit(bucket, key, maxAttempts, windowMs) {
-  const now = Date.now();
-  const cutoff = now - windowMs;
-
-  if (!bucket.has(key)) {
-    bucket.set(key, []);
+async function saveOrderActivity(message, productId) {
+  if (!isAdminConfigured()) return;
+  try {
+    const db = getFirestoreAdmin();
+    await db.collection('activityFeed').add({
+      message: cleanString(message, 160),
+      type: 'order',
+      productId: cleanString(productId, 120),
+      createdAt: new Date().toISOString(),
+      createdAtMs: Date.now()
+    });
+  } catch (err) {
+    console.warn('[send-order] activity feed skipped:', err.message);
   }
-
-  let attempts = bucket.get(key).filter(time => time > cutoff);
-  if (attempts.length >= maxAttempts) {
-    bucket.set(key, attempts);
-    return false;
-  }
-
-  attempts.push(now);
-  bucket.set(key, attempts);
-  return true;
-}
-
-function cleanString(value, maxLength) {
-  return String(value || '').trim().slice(0, maxLength);
-}
-
-function countUrls(value) {
-  return (String(value || '').match(/https?:\/\//gi) || []).length;
-}
-
-/**
- * Simple bot detection
- */
-function detectBot(name, phone, email, comment) {
-  let suspicion = 0;
-  
-  // Name validation
-  if (!name || name.trim().length < 2) suspicion += 2;
-  if (name && /^\d+$/.test(name.replace(/\s/g, ''))) suspicion += 3;
-  
-  // Phone validation
-  const digitsOnly = (phone || '').replace(/\D/g, '');
-  if (digitsOnly.length < 8) suspicion += 1;
-  if (digitsOnly.length > 15) suspicion += 1;
-  
-  // Spam keywords
-  const spamKeywords = ['viagra', 'casino', 'lottery', 'bitcoin', 'forex', 'crypto', 'loan', 'porn', 'hack', 'click here', 'free money'];
-  const contentLower = (name + ' ' + comment).toLowerCase();
-  for (const keyword of spamKeywords) {
-    if (contentLower.includes(keyword)) suspicion += 3;
-  }
-  
-  // Suspicious URLs
-  const urlMatches = (comment || '').match(/https?:\/\//g) || [];
-  if (urlMatches.length > 1) suspicion += 5;
-  
-  return suspicion >= 5;
-}
-
-function validateSecurityMeta(security) {
-  if (!security || typeof security !== 'object') return true;
-  if (security.website) return false;
-
-  const startedAt = Number(security.formStartedAt || 0);
-  const submittedAt = Number(security.submittedAt || 0);
-  if (startedAt && submittedAt && submittedAt - startedAt < 1000) return false;
-
-  return true;
 }
 
 function validateItem(item) {
@@ -107,20 +53,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const clientIP = getClientIP(req);
-    
     const { name, phone, pickup, comment, items, total, card, discount, type, security } = req.body || {};
-    const sessionId = cleanString(security?.sessionId, 80) || 'no-session';
 
-    // Check rate limits by IP and browser session.
-    if (!checkRateLimit(ipRateLimits, clientIP, 5, 3600000) || !checkRateLimit(sessionRateLimits, sessionId, 5, 3600000)) {
-      return res.status(429).json({ 
-        error: 'Too many requests. Please wait before placing another order.' 
-      });
-    }
-
-    if (!validateSecurityMeta(security)) {
-      return res.status(400).json({ error: 'Submission blocked.' });
+    const guard = await guardPublicForm(req, {
+      scope: type === 'auction_winner' ? 'auction-winner' : 'order',
+      maxAttempts: type === 'auction_winner' ? 3 : 5,
+      windowMs: 3600000,
+      minimumMs: 1200,
+      rateMessage: 'Too many requests. Please wait before placing another order.'
+    });
+    if (!guard.ok) {
+      return res.status(guard.status).json({ error: guard.error });
     }
 
     const safeName = cleanString(name, 100);
@@ -184,6 +127,7 @@ export default async function handler(req, res) {
 
     // Build the message
     let text = '';
+    let orderTotal = parseFloat(total) || 0;
     if (type === 'auction_winner') {
       const {
         auctionName,
@@ -247,6 +191,7 @@ export default async function handler(req, res) {
       }
       
       text += `\n<b>TOTAL:</b> £${validTotal.toFixed(2)}`;
+      orderTotal = validTotal;
     }
 
     // Send to Telegram
@@ -275,10 +220,39 @@ export default async function handler(req, res) {
     }
 
     // Success!
+    let firestoreOrderId = null;
+    if (type !== 'auction_winner') {
+      const firstItem = Array.isArray(items) && items[0] ? items[0] : null;
+      await saveOrderActivity(
+        'Someone ordered ' + cleanString(firstItem && firstItem.name ? firstItem.name : 'AYLENSALE item', 120),
+        firstItem && firstItem.id ? firstItem.id : ''
+      );
+      try {
+        const { saveShopOrderToFirestore } = await import('./lib/save-shop-order.mjs');
+        const saved = await saveShopOrderToFirestore({
+          name: safeName,
+          phone: safePhone,
+          pickup: safePickup,
+          comment: safeComment,
+          items: items,
+          total: orderTotal,
+          card: card || '',
+          discount: discount || 0,
+          status: 'new',
+          vipMember: !!(card && String(card).toUpperCase() === 'VIPSTOCK') || !!req.body.vipMember,
+          telegramMessageId: data.result.message_id || null
+        });
+        firestoreOrderId = saved.id;
+      } catch (persistErr) {
+        console.error('Order Firestore persist failed:', persistErr.message);
+      }
+    }
+
     return res.status(200).json({ 
       success: true, 
       message: 'Order sent successfully!',
-      messageId: data.result.message_id 
+      messageId: data.result.message_id,
+      orderId: firestoreOrderId
     });
 
   } catch (error) {

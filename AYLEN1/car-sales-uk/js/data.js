@@ -21,7 +21,7 @@ var siteSettings = {
     description: 'Prefer eBay? You can also buy from our official AYLENSALE eBay store.'
   },
   marketplace: {
-    newArrivalsEnabled: true,
+    newArrivalsEnabled: false,
     telegramUrl: 'https://t.me/aylensale',
     whatsappUrl: 'https://wa.me/?text=Hi%20AYLENSALE!%20I%27m%20interested%20in%20your%20wholesale%20stock%20and%20weekend%20car%20boot%20deals.%20Please%20send%20availability%20and%20prices.%20Thank%20you!'
   },
@@ -86,10 +86,174 @@ function waitForFirebaseReady(timeoutMs) {
   });
 }
 
+function applyAuctionBidsFromList(list) {
+  auctionBids = {};
+  (Array.isArray(list) ? list : []).forEach(function(auction) {
+    if (Array.isArray(auction.bids) && auction.bids.length > 0) {
+      auctionBids[String(auction.id)] = auction.bids;
+    }
+  });
+}
+
+function applyStorefrontApiPayload(payload) {
+  var prodBlock = payload.products || {};
+  var items = prodBlock.items || [];
+  products = window.AYLEN_PRODUCTION
+    ? window.AYLEN_PRODUCTION.filterProductionProducts(items)
+    : items;
+  window.AYLEN_CATALOG_HAS_MORE = !!prodBlock.hasMore;
+  window.AYLEN_CATALOG_LAST_ID = prodBlock.lastId || null;
+  window.AYLEN_CATALOG_LAST_DOC = null;
+  window.AYLEN_CATALOG_FROM_API = true;
+
+  auctions = Array.isArray(payload.auctions) ? payload.auctions : [];
+  applyAuctionBidsFromList(auctions);
+
+  locations = Array.isArray(payload.locations) ? payload.locations : [];
+
+  if (payload.settings) {
+    if (payload.settings.ebay) {
+      siteSettings.ebay = Object.assign({}, siteSettings.ebay, payload.settings.ebay);
+    }
+    if (payload.settings.marketplace) {
+      siteSettings.marketplace = Object.assign({}, siteSettings.marketplace, payload.settings.marketplace);
+    }
+  }
+
+  if (window.AYLEN_PRODUCTION) {
+    window.AYLEN_PRODUCTION.markHydrated('products', products.length);
+    window.AYLEN_PRODUCTION.markHydrated('auctions', auctions.length);
+    window.AYLEN_PRODUCTION.markHydrated('locations', locations.length);
+  }
+  if (window.AYLEN_SITE_CONTENT && window.AYLEN_SITE_CONTENT.apply) {
+    window.AYLEN_SITE_CONTENT.apply();
+  }
+  if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.preloadFirstCatalogImage) {
+    window.AYLEN_IMAGES.preloadFirstCatalogImage(products);
+  }
+}
+
+function readInlineCatalogBootstrap() {
+  var el = document.getElementById('aylen-catalog-bootstrap');
+  if (!el || !el.textContent) return null;
+  try {
+    var data = JSON.parse(el.textContent);
+    if (data && data.ok === true && data.products) return data;
+  } catch (e) {}
+  return null;
+}
+
+async function hydrateFromStorefrontApi() {
+  if (!window.AYLEN_STOREFRONT_CATALOG_API || !window.AYLEN_STOREFRONT_CATALOG_API.isEnabled()) {
+    return false;
+  }
+  try {
+    var api = window.AYLEN_STOREFRONT_CATALOG_API;
+    var inline = readInlineCatalogBootstrap();
+    var payload = null;
+
+    if (api.getPrefetch) {
+      payload = await api.getPrefetch();
+    }
+    if (!payload && inline) {
+      payload = inline;
+      console.log('✅ Using inline catalog bootstrap');
+    }
+    if (!payload) {
+      var limit = api.DEFAULT_LIMIT || 36;
+      payload = await api.fetchCatalog({ limit: limit });
+    }
+    if (payload) {
+      applyStorefrontApiPayload(payload);
+      console.log('✅ Loaded storefront catalog (' + products.length + ' products)');
+    }
+    return products.length > 0;
+  } catch (error) {
+    var fallback = readInlineCatalogBootstrap();
+    if (fallback) {
+      applyStorefrontApiPayload(fallback);
+      console.warn('⚠️ Catalog API failed — inline bootstrap fallback:', error.message);
+      return true;
+    }
+    console.warn('⚠️ Storefront catalog API failed, falling back to Firestore:', error.message);
+    return false;
+  }
+}
+
+async function resolveFirestoreCursorFromApiId(lastId) {
+  if (!lastId || !window.fbDb) return null;
+  try {
+    var snap = await window.fbDb.collection('products').doc(String(lastId)).get();
+    return snap.exists ? snap : null;
+  } catch (error) {
+    console.warn('Could not resolve Firestore cursor:', error.message);
+    return null;
+  }
+}
+
+async function loadFirebaseSupplement() {
+  if (!window.AYLEN_FIREBASE) return;
+  await window.AYLEN_FIREBASE.ensureReady();
+  await waitForFirebaseReady(8000);
+  if (!window.FBDB) return;
+
+  try {
+    if (window.AYLEN_CATALOG_FROM_API && window.AYLEN_CATALOG_LAST_ID && window.AYLEN_CATALOG_LAST_DOC === null) {
+      window.AYLEN_CATALOG_LAST_DOC = await resolveFirestoreCursorFromApiId(window.AYLEN_CATALOG_LAST_ID);
+    }
+
+    var fbCards = window.FBDB.loadCards ? await window.FBDB.loadCards() : null;
+    cardHolders = fbCards || {};
+    console.log('✅ Loaded', Object.keys(cardHolders).length, 'discount cards from Firestore');
+
+    var fbSettings = window.FBDB.loadSiteSettings ? await window.FBDB.loadSiteSettings() : null;
+    if (fbSettings && fbSettings.ebay) {
+      siteSettings.ebay = Object.assign({}, siteSettings.ebay, fbSettings.ebay);
+    }
+    if (fbSettings && fbSettings.marketplace) {
+      siteSettings.marketplace = Object.assign({}, siteSettings.marketplace, fbSettings.marketplace);
+    }
+    if (fbSettings && fbSettings.legalContact) {
+      siteSettings.legalContact = fbSettings.legalContact;
+    }
+    if (window.AYLEN_SITE_CONTENT && window.AYLEN_SITE_CONTENT.apply) {
+      window.AYLEN_SITE_CONTENT.apply();
+    }
+    if (window.FBDB.loadListingPolicies) {
+      await window.FBDB.loadListingPolicies();
+    }
+    console.log('✅ Firebase supplement loaded (cards, policies, cursor)');
+  } catch (error) {
+    console.warn('⚠️ Firebase supplement load failed:', error.message);
+  }
+}
+
+function scheduleFirebaseSupplement() {
+  if (window.AYLEN_FIREBASE && window.AYLEN_FIREBASE.scheduleBackgroundLoad) {
+    window.AYLEN_FIREBASE.scheduleBackgroundLoad(function() {
+      loadFirebaseSupplement();
+    });
+    return;
+  }
+  var idle = window.requestIdleCallback || function(cb) { return setTimeout(cb, 30000); };
+  idle(function() { loadFirebaseSupplement(); }, { timeout: 30000 });
+}
+
 async function loadAllData() {
   try {
     if (window.AYLEN_PRODUCTION && window.AYLEN_PRODUCTION.purgeLegacyProductionCaches) {
       window.AYLEN_PRODUCTION.purgeLegacyProductionCaches();
+    }
+
+    var apiHydrated = await hydrateFromStorefrontApi();
+
+    if (apiHydrated) {
+      scheduleFirebaseSupplement();
+    } else {
+      window.AYLEN_CATALOG_FROM_API = false;
+
+    if (window.AYLEN_FIREBASE && window.AYLEN_FIREBASE.ensureReady) {
+      await window.AYLEN_FIREBASE.ensureReady();
     }
 
     await waitForFirebaseReady(8000);
@@ -109,7 +273,9 @@ async function loadAllData() {
         var fbAuctions = await window.FBDB.loadAuctions();
         var fbLocations = await window.FBDB.loadLocations();
         var fbCards = window.FBDB.loadCards ? await window.FBDB.loadCards() : null;
-        var fbPriceListItems = [];
+        var fbPriceListItems = window.FBDB.loadPriceListItems
+          ? await window.FBDB.loadPriceListItems()
+          : [];
         var fbSettings = window.FBDB.loadSiteSettings ? await window.FBDB.loadSiteSettings() : null;
         
         products = window.AYLEN_PRODUCTION
@@ -120,12 +286,7 @@ async function loadAllData() {
         
         auctions = Array.isArray(fbAuctions) ? fbAuctions : [];
         if (window.AYLEN_PRODUCTION) window.AYLEN_PRODUCTION.markHydrated('auctions', auctions.length);
-        auctionBids = {};
-        auctions.forEach(function(auction) {
-          if (Array.isArray(auction.bids) && auction.bids.length > 0) {
-            auctionBids[String(auction.id)] = auction.bids;
-          }
-        });
+        applyAuctionBidsFromList(auctions);
         console.log('✅ Loaded', auctions.length, 'auctions from Firestore');
         
         locations = Array.isArray(fbLocations) ? fbLocations : [];
@@ -166,6 +327,7 @@ async function loadAllData() {
       if (!window.AYLEN_PRODUCTION || !window.AYLEN_PRODUCTION.state.auctionsHydrated) auctions = [];
       if (!window.AYLEN_PRODUCTION || !window.AYLEN_PRODUCTION.state.locationsHydrated) locations = [];
       cardHolders = {};
+    }
     }
 
     notifyRequests = [];
@@ -228,8 +390,8 @@ window.addProductFromAiDraft = async function addProductFromAiDraft(payload) {
   return saved;
 }
 
-async function addProductWithPhotos(name, desc, price, category, imageUrls, stock, wholesale, policyId) {
-  var newId = 'prod_' + Date.now();
+async function addProductWithPhotos(name, desc, price, category, imageUrls, stock, wholesale, policyId, productId) {
+  var newId = productId || ('prod_' + Date.now());
   var product = {
     id: newId,
     name: name,
@@ -302,23 +464,41 @@ async function updateProductById(id, updates) {
   return saved;
 }
 
-// Auction functions
-function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, durationHours) {
-  var newId = 101;
-  auctions.forEach(function(a) { if (a.id >= newId) newId = a.id + 1; });
+function generateAuctionId() {
+  return 'auction_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+// Auction functions — each auction gets a unique Firestore doc id (never overwrite auction_101).
+function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, durationHours, auctionId) {
+  var newId = auctionId || generateAuctionId();
   var endTime = new Date(Date.now() + (durationHours || 24) * 3600000);
-  var auction = {id: newId, name: name, desc: desc, category: category, startingPrice: startingPrice, currentPrice: startingPrice, endTime: endTime.toISOString(), images: imageUrls || [], bids: [], bidsCount: 0, status: 'active', createdAt: new Date().toISOString()};
+  var auction = {
+    id: newId,
+    name: name,
+    desc: desc,
+    category: category,
+    startingPrice: startingPrice,
+    currentPrice: startingPrice,
+    endTime: endTime.toISOString(),
+    images: imageUrls || [],
+    bids: [],
+    bidsCount: 0,
+    status: 'active',
+    createdAt: new Date().toISOString()
+  };
   if (window.FBDB && window.FBDB.saveAuction) {
-    window.FBDB.saveAuction(auction).then(function(saved) {
+    return window.FBDB.saveAuction(auction).then(function(saved) {
       var idx = auctions.findIndex(function(a) { return sameId(a.id, saved.id); });
       if (idx === -1) auctions.push(saved);
       else auctions[idx] = saved;
+      return saved;
     }).catch(function(e) {
       console.error('Error saving auction to Firestore:', e);
+      throw e;
     });
   }
   auctions.push(auction);
-  return auction;
+  return Promise.resolve(auction);
 }
 
 function deleteAuctionById(id) {
@@ -331,6 +511,23 @@ function deleteAuctionById(id) {
       console.error('Error deleting auction from Firestore:', e);
     });
   }
+}
+
+function duplicateAuctionById(id) {
+  var source = auctions.find(function(a) { return sameId(a.id, id); });
+  if (!source) return Promise.resolve(null);
+  var durationHours = 24;
+  var endMs = new Date(source.endTime || Date.now()).getTime();
+  var startMs = new Date(source.createdAt || endMs - durationHours * 3600000).getTime();
+  if (endMs > startMs) durationHours = Math.max(1, Math.round((endMs - startMs) / 3600000));
+  return addAuctionWithPhotos(
+    (source.name || 'Auction') + ' (copy)',
+    source.desc || '',
+    Number(source.startingPrice || source.currentPrice || 0),
+    source.category || '',
+    (source.images || []).slice(),
+    durationHours
+  );
 }
 
 function updateAuctionById(id, updates) {
@@ -472,34 +669,69 @@ async function saveAuctionState(auction) {
   return false;
 }
 
-async function placeBid(auctionId, bidAmount, bidderInfo) {
+async function placeBid(auctionId, bidAmount, bidderInfo, meta) {
   var auction = auctions.find(function(a) { return sameId(a.id, auctionId); });
   if (!auction) return false;
   if (getAuctionStatus(auction) !== 'active') return false;
   var currentPrice = Number(auction.currentPrice || auction.startingPrice || 0);
   if (bidAmount <= currentPrice) return false;
   var contact = typeof bidderInfo === 'object' && bidderInfo ? bidderInfo : { name: bidderInfo || 'Anonymous' };
-  var bidKey = String(auction.id);
-  if (!auctionBids[bidKey]) auctionBids[bidKey] = [];
-  var bid = {
-    id: bidKey + '_' + Date.now(),
-    auctionId: auction.id,
-    amount: bidAmount,
-    bidder: contact.name || 'Anonymous',
-    bidderName: contact.name || 'Anonymous',
-    bidderPhone: contact.phone || '',
-    bidderContact: contact.contact || '',
-    timestamp: new Date().toISOString()
-  };
-  auctionBids[bidKey].push(bid);
-  auction.bids = auctionBids[bidKey];
-  auction.currentPrice = bidAmount;
-  auction.bidsCount = (auction.bidsCount || 0) + 1;
-  auction.status = 'active';
-  var saved = await saveAuctionState(auction);
-  if (!saved) return false;
-  saveStoredBidderContact(contact);
-  return true;
+  meta = meta || {};
+
+  try {
+    var response = await fetch('/api/auction-bid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auctionId: auction.id,
+        bidAmount: bidAmount,
+        name: contact.name || 'Anonymous',
+        phone: contact.phone || '',
+        contact: contact.contact || '',
+        cardCode: (typeof currentUser !== 'undefined' && currentUser && currentUser.card) ? currentUser.card : '',
+        security: typeof SECURITY !== 'undefined' && SECURITY.submissionMeta
+          ? SECURITY.submissionMeta(meta.startedAt, meta.honeypot || '')
+          : {},
+        turnstileToken: meta.turnstileToken || null
+      })
+    });
+    var data = await response.json();
+    if (!response.ok || !data.success) {
+      return false;
+    }
+
+    if (data.endTimeExtended && typeof notify === 'function') {
+      notify('Anti-snipe: auction extended by 3 minutes!', 'success');
+    }
+    if (data.endTime && auction.endTime !== data.endTime) {
+      auction.endTime = data.endTime;
+    }
+
+    var bidKey = String(auction.id);
+    if (!auctionBids[bidKey]) auctionBids[bidKey] = [];
+    if (data.bid) {
+      auctionBids[bidKey].push(data.bid);
+      auction.bids = auctionBids[bidKey];
+    }
+    auction.currentPrice = Number(data.currentPrice || bidAmount);
+    auction.bidsCount = Number(data.bidsCount || auction.bids.length || 0);
+    auction.status = 'active';
+    saveStoredBidderContact(contact);
+    if (data.outbid && window.AYLEN_AUCTION_HUB && window.AYLEN_AUCTION_HUB.pushNotif) {
+      window.AYLEN_AUCTION_HUB.pushNotif({
+        title: 'You were outbid',
+        body: (data.outbid.name || 'Another bidder') + ' beat your bid — current ' +
+          (typeof formatGBP === 'function' ? formatGBP(data.currentPrice) : ('£' + data.currentPrice))
+      });
+    }
+    if (window.AYLEN_AUCTION_HUB && window.AYLEN_AUCTION_HUB.onBidPlaced) {
+      window.AYLEN_AUCTION_HUB.onBidPlaced(auction.id, bidAmount);
+    }
+    return true;
+  } catch (e) {
+    console.warn('Auction bid API failed:', e.message || e);
+    return false;
+  }
 }
 
 async function finalizeAuction(auctionId) {

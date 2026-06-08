@@ -16,6 +16,21 @@
     keyHandler: null
   };
 
+  function directUrl(raw) {
+    if (!raw || !String(raw).trim()) return '';
+    if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.firebaseMediaUrl) {
+      return window.AYLEN_IMAGES.firebaseMediaUrl(String(raw).trim());
+    }
+    return String(raw).trim();
+  }
+
+  function imageDataAttrs(raw, fallback) {
+    var full = directUrl(raw);
+    var fb = fallback || (typeof PRODUCT_FALLBACK_IMAGE !== 'undefined' ? PRODUCT_FALLBACK_IMAGE : '');
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(v) { return String(v || ''); };
+    return ' data-full="' + esc(full) + '" data-fallback="' + esc(fb) + '" onerror="if(typeof aylenImageLoadFallback===\'function\'){aylenImageLoadFallback(this)}else if(typeof aylenProductImageFallback===\'function\'){aylenProductImageFallback(this)}"';
+  }
+
   function mainUrl(raw) {
     if (!raw || !String(raw).trim()) return typeof PRODUCT_FALLBACK_IMAGE !== 'undefined' ? PRODUCT_FALLBACK_IMAGE : '';
     if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.productDetailMainUrl) {
@@ -85,7 +100,7 @@
     lb.innerHTML =
       '<button type="button" class="product-lightbox-close" aria-label="Close">&times;</button>' +
       '<button type="button" class="pdp-gallery-nav prev product-lightbox-prev" aria-label="Previous image"><i class="fas fa-chevron-left"></i></button>' +
-      '<img class="product-lightbox-img" alt="">' +
+      '<img class="product-lightbox-img" alt=""' + imageDataAttrs('', typeof PRODUCT_FALLBACK_IMAGE !== 'undefined' ? PRODUCT_FALLBACK_IMAGE : '') + '>' +
       '<button type="button" class="pdp-gallery-nav next product-lightbox-next" aria-label="Next image"><i class="fas fa-chevron-right"></i></button>' +
       '<span class="product-lightbox-counter"></span>';
     document.body.appendChild(lb);
@@ -133,7 +148,12 @@
     var main = stage.querySelector('.pdp-gallery-main');
     var counter = stage.querySelector('.pdp-gallery-counter');
     var src = mainUrl(imgs[galleryState.index]);
-    if (main && main.src !== src) main.src = src;
+    var raw = imgs[galleryState.index];
+    if (main) {
+      if (main.src !== src) main.src = src;
+      main.setAttribute('data-full', directUrl(raw));
+      main.setAttribute('data-fallback', typeof PRODUCT_FALLBACK_IMAGE !== 'undefined' ? PRODUCT_FALLBACK_IMAGE : '');
+    }
     if (counter) counter.textContent = (galleryState.index + 1) + ' / ' + imgs.length;
 
     document.querySelectorAll('.pdp-gallery-thumb').forEach(function(btn, j) {
@@ -154,7 +174,10 @@
     var img = lb.querySelector('.product-lightbox-img');
     var c = lb.querySelector('.product-lightbox-counter');
     if (img) {
-      img.src = mainUrl(imgs[galleryState.index]);
+      var raw = imgs[galleryState.index];
+      img.src = mainUrl(raw);
+      img.setAttribute('data-full', directUrl(raw));
+      img.setAttribute('data-fallback', typeof PRODUCT_FALLBACK_IMAGE !== 'undefined' ? PRODUCT_FALLBACK_IMAGE : '');
       img.alt = galleryState.product.name || 'Product';
     }
     if (c) c.textContent = (galleryState.index + 1) + ' / ' + imgs.length;
@@ -235,7 +258,7 @@
     h += '<span class="pdp-gallery-counter">' + (activeIndex + 1) + ' / ' + imgs.length + '</span>';
     h += '<img class="pdp-gallery-main" data-main-product-image="' + escapeHtml(p.id) + '" src="' + escapeHtml(mainUrl(imgs[activeIndex])) + '" alt="' + escapeHtml(p.name) + '"' + eager;
     if (typeof antiTheftImageAttrs === 'function') h += antiTheftImageAttrs();
-    h += ' onerror="this.onerror=null;this.src=\'' + (typeof PRODUCT_FALLBACK_IMAGE !== 'undefined' ? PRODUCT_FALLBACK_IMAGE : '') + '\';">';
+    h += imageDataAttrs(imgs[activeIndex]) + '>';
     if (imgs.length > 1) {
       h += '<button type="button" class="pdp-gallery-nav prev" aria-label="Previous image"><i class="fas fa-chevron-left"></i></button>';
       h += '<button type="button" class="pdp-gallery-nav next" aria-label="Next image"><i class="fas fa-chevron-right"></i></button>';
@@ -247,7 +270,7 @@
         h += '<button type="button" class="pdp-gallery-thumb' + (j === activeIndex ? ' active' : '') + '" data-index="' + j + '">';
         h += '<img src="' + escapeHtml(thumbUrl(imgs[j])) + '" alt="Photo ' + (j + 1) + '"' + lazy;
         if (typeof antiTheftImageAttrs === 'function') h += antiTheftImageAttrs();
-        h += ' onerror="this.onerror=null;this.src=\'' + (typeof THUMB_FALLBACK_IMAGE !== 'undefined' ? THUMB_FALLBACK_IMAGE : '') + '\';"></button>';
+        h += imageDataAttrs(imgs[j], typeof THUMB_FALLBACK_IMAGE !== 'undefined' ? THUMB_FALLBACK_IMAGE : '') + '></button>';
       }
       h += '</div>';
     }
@@ -257,31 +280,27 @@
 
   function renderPricingBlock(p) {
     var retailPrice = parseFloat(p.price || p.retail || 0);
-    var wholesalePrice = parseFloat(p.wholesale || 0);
     var hasDiscount = p.discount && p.discount > 0;
     var salePrice = hasDiscount ? parseFloat(p.salePrice || retailPrice) : retailPrice;
-    var mode = typeof priceMode !== 'undefined' ? priceMode : 'retail';
-    var displayPrice = mode === 'wholesale' ? wholesalePrice : salePrice;
-    var h = '<div class="product-detail-pricing"><div class="product-prices">';
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.discount > 0) {
-      var dp = (displayPrice * (1 - currentUser.discount / 100)).toFixed(2);
-      if (hasDiscount) {
-        h += '<span class="price-original">£' + retailPrice.toFixed(2) + '</span><span class="price-sale">£' + salePrice.toFixed(2) + '</span>';
-        h += '<span class="price-secondary">Your price £' + dp + '</span>';
-      } else {
-        h += '<span class="price-main">£' + displayPrice.toFixed(2) + '</span><span class="price-secondary">Your price £' + dp + '</span>';
-      }
-    } else if (hasDiscount) {
+    var displayPrice = salePrice;
+    var cardBlock = typeof buildCardDiscountPriceHtml === 'function'
+      ? buildCardDiscountPriceHtml(displayPrice, p)
+      : '';
+    var h = '<div class="product-detail-pricing">';
+    if (cardBlock) {
+      h += cardBlock;
+    } else {
+      h += '<div class="product-prices">';
+    }
+    if (!cardBlock && hasDiscount) {
       h += '<span class="price-original">£' + retailPrice.toFixed(2) + '</span><span class="price-sale">£' + salePrice.toFixed(2) + '</span>';
       h += '<span class="price-badge-discount">-' + p.discount + '%</span>';
-    } else if (mode === 'wholesale' && wholesalePrice > 0) {
-      h += '<span class="price-main">£' + wholesalePrice.toFixed(2) + '</span>';
-      if (retailPrice > 0) h += '<span class="price-secondary">Retail £' + retailPrice.toFixed(2) + '</span>';
-    } else {
+    } else if (!cardBlock) {
       h += '<span class="price-main">£' + retailPrice.toFixed(2) + '</span>';
-      if (wholesalePrice > 0) h += '<span class="price-secondary">Wholesale £' + wholesalePrice.toFixed(2) + '</span>';
     }
-    h += '</div></div>';
+    if (!cardBlock) h += '</div>';
+    h += '</div>';
+    if (cardBlock && typeof setDiscountActiveUi === 'function') setDiscountActiveUi(true);
     return { html: h, displayPrice: displayPrice };
   }
 
@@ -331,8 +350,9 @@
     items.forEach(function(item) {
       var url = typeof productPageUrl === 'function' ? productPageUrl(item.id) : '/product.html?id=' + encodeURIComponent(item.id);
       var img = (item.images && item.images[0]) ? thumbUrl(item.images[0]) : (typeof PRODUCT_FALLBACK_IMAGE !== 'undefined' ? PRODUCT_FALLBACK_IMAGE : '');
+      var imgRaw = (item.images && item.images[0]) ? item.images[0] : '';
       h += '<a class="product-related-card" href="' + escapeHtml(url) + '">';
-      h += '<img src="' + escapeHtml(img) + '" alt="" loading="lazy" decoding="async">';
+      h += '<img src="' + escapeHtml(img) + '" alt="" loading="lazy" decoding="async"' + imageDataAttrs(imgRaw || PRODUCT_FALLBACK_IMAGE) + '>';
       h += '<span>' + escapeHtml(item.name || 'Product') + '</span></a>';
     });
     h += '</div></section>';

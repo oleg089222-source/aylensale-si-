@@ -1,0 +1,251 @@
+/* Collapsible storefront panels — all breakpoints */
+
+.storefront-extras-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px 12px 4px;
+  box-sizing: border-box;
+}
+
+.storefront-extras-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(12, 18, 32, 0.88);
+  color: #94a3b8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.storefront-extras-chip i {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.storefront-extras-chip:hover {
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(20, 28, 48, 0.95);
+}
+
+.storefront-extras-chip.is-active {
+  color: #fff;
+  border-color: rgba(233, 69, 96, 0.45);
+  background: rgba(233, 69, 96, 0.14);
+}
+
+.storefront-extras-chip.is-active i {
+  color: #ff6b8a;
+}
+
+.storefront-fold {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.storefront-fold--nav {
+  padding: 0 20px 0;
+}
+
+.storefront-fold--nav .storefront-fold__panel {
+  padding-bottom: 10px;
+}
+
+.storefront-fold--nav .header-nav {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 0;
+}
+
+.storefront-fold--trust {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.storefront-fold--stats {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.storefront-fold--price-list {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.storefront-fold--price-list .storefront-fold__panel .price-list-fold-root {
+  padding: 0;
+  margin: 0;
+}
+
+.storefront-fold--collapsed .storefront-fold__panel {
+  display: none !important;
+}
+
+.storefront-fold--stats .storefront-fold__panel #engagementBar.live-activity-bar {
+  margin: 8px 0 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+.storefront-fold--trust .storefront-fold__panel .hero-trust-strip {
+  display: flex !important;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  gap: 8px;
+}
+
+body.contact-float-hidden .contact-float,
+body.contact-float-hidden .contact-float-backdrop {
+  display: none !important;
+}
+
+/* Compact header — nav lives in fold, not always visible */
+.site-header .header-shell {
+  padding-bottom: 0;
+}
+
+.site-header:not(:has(.storefront-fold--expanded.storefront-fold--nav)) {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 768px) {
+  .storefront-extras-bar {
+    padding: 6px 12px 2px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .storefront-extras-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .storefront-extras-chip {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 11px;
+    flex: 0 0 auto;
+  }
+
+  .storefront-fold--ebay {
+    margin: 0 auto 8px;
+    padding: 0 12px;
+  }
+
+  .storefront-fold--filters {
+    margin-bottom: 8px;
+  }
+
+  .storefront-fold__toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    background: rgba(16, 23, 42, 0.82);
+    color: #e8eef8;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
+  .storefront-fold__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .storefront-fold__label i {
+    color: #ff6b8a;
+    font-size: 14px;
+  }
+
+  .storefront-fold__meta {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 42%;
+  }
+
+  .storefront-fold__chevron {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+    transition: transform 0.2s ease;
+  }
+
+  .storefront-fold--collapsed .storefront-fold__chevron {
+    transform: rotate(-90deg);
+  }
+
+  .storefront-fold--ebay .storefront-fold__panel #ebayPromoWrap {
+    display: block !important;
+    padding: 8px 0 0 !important;
+  }
+
+  .storefront-fold--filters .storefront-fold__panel {
+    padding-top: 8px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .storefront-extras-bar {
+    padding: 8px 16px 4px;
+  }
+}
+
+@media (min-width: 769px) {
+  .site-header > nav.header-nav,
+  .site-header .header-nav {
+    display: none;
+  }
+
+  .storefront-fold--nav .header-nav {
+    display: flex !important;
+  }
+
+  .storefront-extras-bar {
+    padding: 10px 20px 6px;
+  }
+}

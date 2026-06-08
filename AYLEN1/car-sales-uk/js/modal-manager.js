@@ -60,6 +60,9 @@
     } else {
       document.body.classList.add('storefront-modal-open');
     }
+    if (document.documentElement.classList.contains('admin-auth-busy')) {
+      return;
+    }
     document.body.style.position = 'fixed';
     document.body.style.top = '-' + state.scrollY + 'px';
     document.body.style.left = '0';
@@ -67,15 +70,31 @@
     document.body.style.width = '100%';
   }
 
+  function syncAdminShellClasses() {
+    var root = document.getElementById(ROOT_ID);
+    var modalOpen = !!(root && root.classList.contains('open'));
+    if (!modalOpen) {
+      document.body.classList.remove('admin-modal-open');
+    }
+  }
+
   function unlockScroll() {
     document.body.classList.remove('modal-locked', 'admin-modal-open', 'storefront-modal-open');
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.left = '';
-    document.body.style.right = '';
-    document.body.style.width = '';
-    if (!document.getElementById(ROOT_ID) || !document.getElementById(ROOT_ID).classList.contains('open')) {
-      window.scrollTo(0, state.scrollY || 0);
+    syncAdminShellClasses();
+    var root = document.getElementById(ROOT_ID);
+    var modalStillOpen = root && root.classList.contains('open');
+    if (!modalStillOpen) {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      if (!document.documentElement.classList.contains('admin-auth-busy')) {
+        window.scrollTo(0, state.scrollY || 0);
+      }
+    }
+    if (global.AYLEN_SCROLL && global.AYLEN_SCROLL.release) {
+      global.AYLEN_SCROLL.release();
     }
   }
 
@@ -268,9 +287,36 @@
     });
   }
 
+  function wireGlobalCloseButtons() {
+    if (document._aylenModalCloseBound) return;
+    document._aylenModalCloseBound = true;
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-aylen-close], [data-action="cancel"]');
+      if (!btn) return;
+      var root = document.getElementById(ROOT_ID);
+      var inDynamic = root && root.classList.contains('open') && root.contains(btn);
+      var staticOpen = STATIC_IDS.some(function(id) {
+        var el = document.getElementById(id);
+        return el && el.classList.contains('open') && el.contains(btn);
+      });
+      if (!inDynamic && !staticOpen) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (staticOpen && btn.getAttribute('data-action') === 'cancel') {
+        var cart = document.getElementById('cartModal');
+        if (cart && cart.classList.contains('open') && typeof global.closeCart === 'function') {
+          global.closeCart();
+          return;
+        }
+      }
+      close();
+    }, true);
+  }
+
   function init() {
     ensureRoot();
     wireStaticBackdrop();
+    wireGlobalCloseButtons();
     document.addEventListener('keydown', onKeydown);
     removeOrphanModals();
   }
@@ -279,6 +325,7 @@
     open: open,
     close: close,
     closeAll: closeAll,
+    syncAdminShellClasses: syncAdminShellClasses,
     openStatic: openStatic,
     closeStatic: closeStatic,
     cleanup: removeOrphanModals,

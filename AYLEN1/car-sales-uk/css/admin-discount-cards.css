@@ -1,0 +1,289 @@
+/**
+ * Admin — Discount Codes panel (loyalty jars + bulk generator)
+ */
+#aylenDiscountsMount .dc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#aylenDiscountsMount .dc-hero {
+  display: grid;
+  grid-template-columns: 1fr minmax(200px, 280px);
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 79, 131, 0.22);
+  background: linear-gradient(135deg, rgba(255, 79, 131, 0.1) 0%, rgba(0, 100, 210, 0.08) 100%);
+}
+
+@media (max-width: 760px) {
+  #aylenDiscountsMount .dc-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+#aylenDiscountsMount .dc-hero-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+#aylenDiscountsMount .dc-hero-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+#aylenDiscountsMount .dc-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+#aylenDiscountsMount .dc-stat {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#aylenDiscountsMount .dc-stat-val {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ff4f83;
+  line-height: 1.1;
+}
+
+#aylenDiscountsMount .dc-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+#aylenDiscountsMount .dc-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  #aylenDiscountsMount .dc-tier-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  #aylenDiscountsMount .dc-tier-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+#aylenDiscountsMount .dc-tier-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: center;
+}
+
+#aylenDiscountsMount .dc-tier-card--active {
+  border-color: rgba(255, 79, 131, 0.45);
+  box-shadow: 0 0 0 1px rgba(255, 79, 131, 0.2);
+}
+
+#aylenDiscountsMount .dc-jar {
+  position: relative;
+  width: 44px;
+  height: 56px;
+  border-radius: 8px 8px 12px 12px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+#aylenDiscountsMount .dc-jar::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 8px;
+  border-radius: 4px 4px 0 0;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-bottom: none;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+#aylenDiscountsMount .dc-jar-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, rgba(255, 79, 131, 0.95) 0%, rgba(233, 69, 96, 0.85) 100%);
+  transition: height 0.35s ease;
+}
+
+#aylenDiscountsMount .dc-jar-fill--t1 { background: linear-gradient(180deg, #f472b6, #e94560); }
+#aylenDiscountsMount .dc-jar-fill--t2 { background: linear-gradient(180deg, #fb923c, #ea580c); }
+#aylenDiscountsMount .dc-jar-fill--t3 { background: linear-gradient(180deg, #a78bfa, #7c3aed); }
+#aylenDiscountsMount .dc-jar-fill--t4 { background: linear-gradient(180deg, #facc15, #ca8a04); }
+
+#aylenDiscountsMount .dc-tier-pct {
+  font-size: 15px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+#aylenDiscountsMount .dc-tier-name {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+#aylenDiscountsMount .dc-tier-rule {
+  font-size: 9px;
+  line-height: 1.3;
+  color: #475569;
+}
+
+#aylenDiscountsMount .dc-bulk-card {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(15, 20, 30, 0.6);
+}
+
+#aylenDiscountsMount .dc-bulk-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+#aylenDiscountsMount .dc-bulk-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+@media (max-width: 760px) {
+  #aylenDiscountsMount .dc-bulk-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #aylenDiscountsMount .dc-bulk-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+#aylenDiscountsMount .dc-bulk-progress {
+  margin-top: 12px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  display: none;
+}
+
+#aylenDiscountsMount .dc-bulk-progress.is-visible {
+  display: block;
+}
+
+#aylenDiscountsMount .dc-bulk-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff4f83, #0064d2);
+  transition: width 0.2s ease;
+}
+
+#aylenDiscountsMount .dc-bulk-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+  min-height: 18px;
+}
+
+#aylenDiscountsMount .dc-loyalty-editor {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 79, 131, 0.2);
+  background: rgba(255, 79, 131, 0.06);
+}
+
+#aylenDiscountsMount .dc-loyalty-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+#aylenDiscountsMount .dc-loyalty-jar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 80px;
+}
+
+#aylenDiscountsMount .dc-loyalty-jar-wrap .dc-jar {
+  width: 52px;
+  height: 68px;
+}
+
+#aylenDiscountsMount .dc-tier-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 79, 131, 0.15);
+  color: #ff4f83;
+  border: 1px solid rgba(255, 79, 131, 0.35);
+}
+
+#aylenDiscountsMount .dc-tier-pill--suggest {
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+#aylenDiscountsMount .dc-list-jar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#aylenDiscountsMount .dc-list-jar .dc-jar {
+  width: 22px;
+  height: 28px;
+  border-width: 1px;
+}
+
+#aylenDiscountsMount .dc-list-jar .dc-jar::before {
+  width: 12px;
+  height: 4px;
+  top: -4px;
+}
+
+#aylenDiscountsMount .dc-list-jar-pct {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}

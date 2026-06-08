@@ -8,22 +8,92 @@ var isAdminMode = false;
 var adminLoggedIn = false;
 var uploadingFiles = {};
 var currentEditingProductId = null;
+var currentEditingAuctionId = null;
+var editAuctionDraft = {};
+var auctionSaveInFlight = false;
+var auctionPhotoThumbs = [];
+var pendingAuctionCreateId = null;
+var pendingProductCreateId = null;
 var notifyRequestsUnsubscribe = null;
 
 function syncAdminModeWithFirebaseAuth(user) {
   var allowed = Boolean(window.FBDB && window.FBDB.isAdmin && window.FBDB.isAdmin());
   adminLoggedIn = allowed;
-  if (!allowed && isAdminMode) {
-    isAdminMode = false;
-    window.isAdminMode = false;
-    removeAdminModeUI();
-    if (typeof renderProducts === 'function') renderProducts();
-    if (typeof renderAuctions === 'function') renderAuctions();
-    if (typeof renderLocations === 'function') renderLocations();
+  if (window.AYLEN_ADMIN_GATE && window.AYLEN_ADMIN_GATE.setGateLoggedIn) {
+    window.AYLEN_ADMIN_GATE.setGateLoggedIn(allowed);
   }
+  if (!allowed) {
+    if (isAdminMode || (window.AyelenAdminDashboard && window.AyelenAdminDashboard.isOpen && window.AyelenAdminDashboard.isOpen())) {
+      isAdminMode = false;
+      window.isAdminMode = false;
+      document.body.classList.remove('admin-mode-active');
+      removeAdminModeUI();
+      if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.close) {
+        window.AyelenAdminDashboard.close();
+      }
+      if (window.AYLEN_PERF && window.AYLEN_PERF.scheduleStorefrontRefresh) {
+        window.AYLEN_PERF.scheduleStorefrontRefresh();
+      }
+    }
+  } else {
+    removeAdminModeUI();
+  }
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.classList.toggle('firebase-admin-authed', allowed);
+  }
+  if (typeof renderLocations === 'function') renderLocations();
+  updateAdminAccessVisibility();
 }
 
 // ============ HELPER FUNCTIONS ============
+
+function notifyAdminError(action, error) {
+  if (typeof console !== 'undefined' && console.error) {
+    console.error('[AYLEN Admin]', action || 'error', error);
+  }
+  if (typeof notify === 'function') notify('Save failed. Please try again.', 'error');
+}
+
+function notifyAdminDeleteError(error) {
+  if (typeof console !== 'undefined' && console.error) {
+    console.error('[AYLEN Admin] delete', error);
+  }
+  if (typeof notify === 'function') notify('Could not complete this action. Please try again.', 'error');
+}
+
+function isMobileAdminLayout() {
+  try {
+    return window.matchMedia('(max-width: 640px)').matches;
+  } catch (e) {
+    return false;
+  }
+}
+
+function updateAdminAccessVisibility() {
+  var headerBtn = document.getElementById('headerAdminBtn');
+  var mobileBtn = document.getElementById('mobileAdminBtn');
+  var adminAccessDiv = document.getElementById('adminAccessDiv');
+  var footerLink = document.getElementById('footerAdminLink');
+  var isAdmin = !!(window.FBDB && window.FBDB.isAdmin && window.FBDB.isAdmin());
+  [headerBtn, mobileBtn, adminAccessDiv].forEach(function(el) {
+    if (!el) return;
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+  });
+  if (footerLink) {
+    footerLink.hidden = false;
+    footerLink.style.display = 'inline-block';
+    footerLink.textContent = isAdmin ? 'Admin panel' : 'Admin login';
+    if (!footerLink._aylenBound) {
+      footerLink._aylenBound = true;
+      footerLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (typeof showAdminLoginModal === 'function') showAdminLoginModal();
+      });
+    }
+  }
+}
+window.updateAdminAccessVisibility = updateAdminAccessVisibility;
 
 /**
  * Generate unique SKU/Card number
@@ -46,289 +116,36 @@ function calculateSalePrice(retailPrice, discountPercent) {
   return parseFloat((parseFloat(retailPrice) - discountAmount).toFixed(2));
 }
 
-// Initialize admin event listeners when document loads
-document.addEventListener('DOMContentLoaded', function() {
-  setupAdminAccessibility();
-});
-
-function setupAdminAccessibility() {
-  // Keyboard shortcuts for admin login
-  document.addEventListener('keydown', function(e) {
-    // Ctrl+Shift+A (Windows/Linux)
-    if (e.ctrlKey && e.shiftKey && e.code === 'KeyA') {
-      e.preventDefault();
-      showAdminLoginModal();
-      return;
-    }
-    
-    // Cmd+Shift+A (Mac) - metaKey is the Command key
-    if (e.metaKey && e.shiftKey && e.code === 'KeyA') {
-      e.preventDefault();
-      showAdminLoginModal();
-      return;
-    }
-    
-    // Alt+Shift+A (alternative)
-    if (e.altKey && e.shiftKey && e.code === 'KeyA') {
-      e.preventDefault();
-      showAdminLoginModal();
-      return;
-    }
-  });
-  
-  // Add visible admin button to header
-  addAdminAccessButton();
-  
-  // Mobile admin button - triple tap on logo
-  addMobileAdminButton();
-}
-
-/**
- * Add visible admin button to header
- */
-function addAdminAccessButton() {
-  var headerRight = document.querySelector('.header-right');
-  if (!headerRight) return;
-  
-  var adminAccessDiv = document.createElement('div');
-  adminAccessDiv.id = 'adminAccessDiv';
-  adminAccessDiv.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 10px;
-  `;
-  
-  // Admin button (hidden by default, visible when hovered/focused)
-  var adminBtn = document.createElement('button');
-  adminBtn.id = 'headerAdminBtn';
-  adminBtn.innerHTML = '🔑';
-  adminBtn.title = 'Admin Access (Cmd+Shift+A on Mac, Ctrl+Shift+A on Windows)';
-  adminBtn.style.cssText = `
-    background: rgba(233, 69, 96, 0.2);
-    border: 1px solid #e94560;
-    color: #e94560;
-    padding: 6px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s;
-    opacity: 0.6;
-  `;
-  
-  adminBtn.onmouseover = function() {
-    this.style.opacity = '1';
-    this.style.background = 'rgba(233, 69, 96, 0.5)';
-  };
-  
-  adminBtn.onmouseout = function() {
-    this.style.opacity = '0.6';
-    this.style.background = 'rgba(233, 69, 96, 0.2)';
-  };
-  
-  adminBtn.onclick = function(e) {
-    e.stopPropagation();
-    showAdminLoginModal();
-  };
-  
-  adminAccessDiv.appendChild(adminBtn);
-  headerRight.appendChild(adminAccessDiv);
-}
-
-function addMobileAdminButton() {
-  // Create hidden admin button in bottom-right corner
-  var adminBtn = document.createElement('button');
-  adminBtn.id = 'mobileAdminBtn';
-  adminBtn.innerHTML = '⚙️';
-  adminBtn.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(233, 69, 96, 0.3);
-    border: 2px solid #e94560;
-    color: #e94560;
-    font-size: 24px;
-    cursor: pointer;
-    z-index: 9999;
-    opacity: 0.5;
-    transition: all 0.3s;
-    display: none;
-  `;
-  
-  adminBtn.onmouseover = function() { this.style.opacity = '1'; this.style.background = 'rgba(233, 69, 96, 0.8)'; };
-  adminBtn.onmouseout = function() { this.style.opacity = '0.5'; this.style.background = 'rgba(233, 69, 96, 0.3)'; };
-  adminBtn.onclick = function(e) { 
-    e.stopPropagation();
-    showAdminLoginModal(); 
-  };
-  
-  document.body.appendChild(adminBtn);
-  
-  // Show admin button on triple-tap or long press on logo
-  var tapCount = 0;
-  var tapTimeout;
-  var logoArea = document.querySelector('header') || document.body;
-  
-  logoArea.addEventListener('click', function() {
-    tapCount++;
-    clearTimeout(tapTimeout);
-    
-    if (tapCount === 1) {
-      tapTimeout = setTimeout(function() { tapCount = 0; }, 500);
-    } else if (tapCount === 3) {
-      tapCount = 0;
-      document.getElementById('mobileAdminBtn').style.display = 'block';
-      showAdminLoginModal();
-    }
-  });
-}
-
-function showAdminLoginModal() {
-  // Check if admin mode is already enabled
-  if (adminLoggedIn) {
-    toggleAdminMode();
-    return;
-  }
-  
-  var loginHtml = `
-    <div id="adminLoginModal" class="modal" style="display:flex">
-      <div class="modal-content" style="width:380px">
-        <h2 style="color:#e94560;text-align:center">Admin Login</h2>
-        <p style="color:#888;font-size:12px;margin:0 0 10px;text-align:center">Use <b style="color:#ccc">admin</b> or <b style="color:#ccc">admin@aylensale.com</b> with your admin password</p>
-        <input type="text" id="adminUser" value="admin" autocomplete="username" placeholder="admin or admin@aylensale.com" style="width:100%;padding:12px;margin:10px 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="password" id="adminPass" autocomplete="current-password" placeholder="Password" style="width:100%;padding:12px;margin:10px 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <button onclick="verifyAdminLogin()" style="width:100%;padding:12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold;margin:10px 0">Login</button>
-        <button onclick="closeAdminLoginModal()" style="width:100%;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;margin:5px 0">Cancel</button>
-      </div>
-    </div>
-  `;
-  
-  if (window.AYLEN_MODAL) {
-    window.AYLEN_MODAL.open(loginHtml, { id: 'adminLoginModal' });
-    setTimeout(function() {
-      var u = document.getElementById('adminUser');
-      if (u) u.focus();
-    }, 60);
-    return;
-  }
-  document.body.insertAdjacentHTML('beforeend', loginHtml);
-  document.getElementById('adminUser').focus();
-}
-
-function closeAdminLoginModal() {
-  if (window.AYLEN_MODAL) window.AYLEN_MODAL.close('adminLoginModal');
-  else {
-    var modal = document.getElementById('adminLoginModal');
-    if (modal) modal.remove();
-  }
-}
-
-async function verifyAdminLogin() {
-  var user = (document.getElementById('adminUser').value || '').trim();
-  var pass = document.getElementById('adminPass').value;
-  
-  if (user !== 'admin') {
-    notify('Username must be: admin', 'error');
-    return;
-  }
-  if (!pass) {
-    notify('Enter your admin password', 'error');
-    return;
-  }
-  
-  try {
-    notify('Checking admin credentials...', 'info');
-    var response;
-    try {
-      response = await fetch('/api/admin-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pass })
-      });
-    } catch (netErr) {
-      throw new Error('Cannot reach /api/admin-auth. On localhost run: npx vercel dev (python server alone is not enough).');
-    }
-
-    var data = {};
-    try {
-      data = await response.json();
-    } catch (parseErr) {
-      if (response.status === 501 || response.status === 404) {
-        throw new Error('Admin API not available on this server. Use https://aylensale.com or run: npx vercel dev');
-      }
-      throw new Error('Invalid server response (status ' + response.status + ')');
-    }
-
-    if (response.status === 429) {
-      throw new Error('Too many attempts. Wait 15 minutes and try again.');
-    }
-    if (response.status === 500 && data.error && String(data.error).indexOf('not configured') !== -1) {
-      throw new Error('ADMIN_PASSWORD is not set in Vercel → Project → Settings → Environment Variables.');
-    }
-    if (!response.ok || !data.authenticated) {
-      if (response.status === 401) {
-        throw new Error('Wrong password for website API. Check Vercel env variable ADMIN_PASSWORD.');
-      }
-      throw new Error(data.error || 'Login failed (HTTP ' + response.status + ')');
-    }
-
-    notify('API OK — signing in to Firebase...', 'info');
-    if (!window.FBDB || !window.FBDB.signInAdmin) {
-      throw new Error('Firebase Auth is not ready. Hard refresh the page (Cmd+Shift+R).');
-    }
-    await window.FBDB.signInAdmin(pass);
-    adminLoggedIn = true;
-    try { sessionStorage.setItem('aylen_admin_key', pass); } catch (e) {}
-    closeAdminLoginModal();
-    if (!isAdminMode) toggleAdminMode();
-    notify('Admin mode enabled', 'success');
-  } catch (error) {
-    console.error('Admin login failed:', error);
-    notify(error.message || 'Authentication failed', 'error');
-  }
-}
-
 async function toggleAdminMode() {
-  if (!isAdminMode && (!window.FBDB || !window.FBDB.isAdmin || !window.FBDB.isAdmin())) {
+  if (!window.FBDB || !window.FBDB.isAdmin || !window.FBDB.isAdmin()) {
     showAdminLoginModal();
     return;
   }
 
-  if (isAdminMode && window.FBDB && window.FBDB.signOutAdmin) {
-    await window.FBDB.signOutAdmin();
-    try { sessionStorage.removeItem('aylen_admin_key'); } catch (e) {}
-  }
-  if (isAdminMode && window.AYLEN_MODAL && window.AYLEN_MODAL.closeAll) {
-    await window.AYLEN_MODAL.closeAll({ immediate: true });
+  if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.isOpen && window.AyelenAdminDashboard.isOpen()) {
+    if (window.AyelenAdminDashboard.exitCms) {
+      await window.AyelenAdminDashboard.exitCms();
+    } else {
+      await window.AyelenAdminDashboard.close();
+    }
+    isAdminMode = false;
+    window.isAdminMode = false;
+    document.body.classList.remove('admin-mode-active');
+    removeAdminModeUI();
+    updateAdminAccessVisibility();
+    return;
   }
 
-  isAdminMode = !isAdminMode;
-  window.isAdminMode = isAdminMode; // Make it global
-  
-  if (isAdminMode) {
-    addAdminModeUI();
-    if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.mount) {
-      window.AyelenAdminDashboard.mount();
-    }
-  } else {
+  if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.enterCms) {
+    window.AyelenAdminDashboard.enterCms('dashboard');
+  } else if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.open) {
+    isAdminMode = true;
+    window.isAdminMode = true;
+    document.body.classList.add('admin-mode-active');
     removeAdminModeUI();
-    if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.close) {
-      window.AyelenAdminDashboard.close();
-    }
+    window.AyelenAdminDashboard.open('dashboard');
   }
-  
-  // Re-render to show/hide admin controls
-  setTimeout(function() {
-    if (typeof renderProducts === 'function') renderProducts();
-    if (typeof renderAuctions === 'function') renderAuctions();
-    if (typeof renderLocations === 'function') renderLocations();
-    if (window.AYLEN_PERF && window.AYLEN_PERF.pauseEngagement && isAdminMode) {
-      window.AYLEN_PERF.pauseEngagement();
-    }
-  }, 0);
+  updateAdminAccessVisibility();
 }
 
 function addAdminModeUI() {
@@ -342,8 +159,11 @@ function addAdminModeUI() {
   
   adminToolbar.innerHTML = `
     <span style="color:#e94560;font-size:12px;font-weight:bold">ADMIN</span>
-    <button onclick="AyelenAdminDashboard.open()" style="padding:8px 14px;background:#1a1a2e;color:#fff;border:2px solid #e94560;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold"><i class="fas fa-table-columns"></i> Admin Panel</button>
+    <button onclick="AyelenAdminDashboard.open()" style="padding:8px 14px;background:#1a1a2e;color:#fff;border:2px solid #e94560;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold"><i class="fas fa-table-columns"></i> Panel</button>
+    <button onclick="AyelenAdminDashboard.open('orders')" style="padding:8px 12px;background:#fff;color:#0064d2;border:2px solid #0064d2;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold" title="Shop orders"><i class="fas fa-receipt"></i> Orders</button>
+    <button onclick="AyelenAdminDashboard.open('discounts')" style="padding:8px 12px;background:#fff;color:#e94560;border:2px solid #e94560;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold" title="Discount codes for visit cards"><i class="fas fa-ticket"></i> Codes</button>
     <button onclick="openAddProductModal()" style="padding:8px 12px;background:#00cc66;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold">+ Product</button>
+    <button onclick="openAddLocationModal()" style="padding:8px 12px;background:#00ff88;color:#1a1a2e;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold">+ Location</button>
     <button id="notifyRequestsBtn" onclick="openNotifyRequestsModal()" style="position:relative;padding:8px 12px;background:#16a085;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold">
       <i class="fas fa-bell"></i> <span id="notifyRequestsBadge" style="display:none;position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#e94560;color:#fff;font-size:11px;line-height:20px;text-align:center;border:2px solid #1a1a2e">0</span>
     </button>
@@ -352,7 +172,14 @@ function addAdminModeUI() {
   `;
   
   headerRight.appendChild(adminToolbar);
-  startNotifyRequestsWatch();
+  var startNotify = function() {
+    if (typeof startNotifyRequestsWatch === 'function') startNotifyRequestsWatch();
+  };
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(startNotify, { timeout: 3000 });
+  } else {
+    setTimeout(startNotify, 1200);
+  }
 }
 
 function removeAdminModeUI() {
@@ -377,6 +204,8 @@ function queryInAdminModal(selector) {
 
 function clearProductUploadState() {
   uploadingFiles['product'] = [];
+  productPhotoThumbs = [];
+  editPendingPhotos = {};
   Object.keys(uploadingFiles).forEach(function(key) {
     if (key.indexOf('editProduct_') === 0) delete uploadingFiles[key];
   });
@@ -385,6 +214,14 @@ function clearProductUploadState() {
 function onAdminModalClosed() {
   currentEditingProductId = null;
   window.currentEditingProductId = null;
+  currentEditingAuctionId = null;
+  window.currentEditingAuctionId = null;
+  pendingAuctionCreateId = null;
+  pendingProductCreateId = null;
+  editAuctionDraft = {};
+  auctionSaveInFlight = false;
+  auctionPhotoThumbs = [];
+  uploadingFiles['auction'] = [];
   clearProductUploadState();
   productSaveInFlight = false;
 }
@@ -394,6 +231,225 @@ function adminMsg(message, type) {
   if (type === 'error') notify(text || 'Something went wrong. Please try again.', 'error');
   else if (type === 'success') notify(text || 'Saved successfully.', 'success');
   else notify(text, type || 'info');
+}
+
+function normalizeDuplicateKey(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function productIdsMatch(a, b) {
+  if (!a || !b) return false;
+  if (sameId(a, b)) return true;
+  if (window.AYLEN_PRODUCTION && window.AYLEN_PRODUCTION.resolveProductDocId) {
+    var resolvedA = window.AYLEN_PRODUCTION.resolveProductDocId({ id: a });
+    var resolvedB = window.AYLEN_PRODUCTION.resolveProductDocId({ id: b });
+    if (resolvedA && resolvedA === resolvedB) return true;
+  }
+  var na = String(a).replace(/^prod_/, '');
+  var nb = String(b).replace(/^prod_/, '');
+  return !!(na && nb && na === nb);
+}
+
+function findPotentialDuplicateProduct(draft, excludeId) {
+  var list = Array.isArray(products) ? products : [];
+  var draftName = normalizeDuplicateKey(draft && draft.name);
+  var draftSku = normalizeDuplicateKey(draft && draft.sku);
+  var draftCategory = normalizeDuplicateKey(draft && draft.category);
+  var draftPrice = Number(draft && draft.price);
+  for (var i = 0; i < list.length; i++) {
+    var p = list[i] || {};
+    if (excludeId && (productIdsMatch(p.id, excludeId) || (p.legacyId && productIdsMatch(p.legacyId, excludeId)))) continue;
+    var productName = normalizeDuplicateKey(p.name || p.title);
+    var productSku = normalizeDuplicateKey(p.sku);
+    if (draftSku && productSku && draftSku === productSku) return { product: p, reason: 'same SKU' };
+    if (draftName && productName && draftName === productName) return { product: p, reason: 'same name' };
+    if (
+      draftName && productName &&
+      draftCategory && draftCategory === normalizeDuplicateKey(p.category) &&
+      Number.isFinite(draftPrice) &&
+      Math.abs(draftPrice - Number(p.price || p.retail || p.retailPrice || 0)) < 0.01
+    ) {
+      return { product: p, reason: 'similar name/category/price' };
+    }
+  }
+  return null;
+}
+
+function showAdminInlineConfirm(title, detail, okLabel, cancelLabel) {
+  return new Promise(function(resolve) {
+    var panel = getAdminModalPanel();
+    if (!panel) {
+      resolve(window.confirm(title + '\n\n' + detail));
+      return;
+    }
+    var existing = panel.querySelector('.aylen-inline-confirm');
+    if (existing) existing.remove();
+    var box = document.createElement('div');
+    box.className = 'aylen-inline-confirm';
+    box.setAttribute('role', 'alertdialog');
+    box.innerHTML =
+      '<p class="aylen-inline-confirm__title"></p>' +
+      '<p class="aylen-inline-confirm__detail"></p>' +
+      '<div class="aylen-inline-confirm__actions">' +
+      '<button type="button" class="aylen-btn aylen-btn-secondary" data-confirm-cancel></button>' +
+      '<button type="button" class="aylen-btn aylen-btn-primary" data-confirm-ok></button>' +
+      '</div>';
+    box.querySelector('.aylen-inline-confirm__title').textContent = title;
+    box.querySelector('.aylen-inline-confirm__detail').textContent = detail;
+    box.querySelector('[data-confirm-cancel]').textContent = cancelLabel || 'Cancel';
+    box.querySelector('[data-confirm-ok]').textContent = okLabel || 'Continue';
+    var actions = panel.querySelector('.aylen-form-actions');
+    if (actions) panel.insertBefore(box, actions);
+    else panel.appendChild(box);
+    box.querySelector('[data-confirm-ok]').onclick = function() {
+      box.remove();
+      resolve(true);
+    };
+    box.querySelector('[data-confirm-cancel]').onclick = function() {
+      box.remove();
+      resolve(false);
+    };
+    try {
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {}
+  });
+}
+
+function confirmPotentialDuplicateProduct(draft, excludeId) {
+  var match = findPotentialDuplicateProduct(draft, excludeId);
+  if (!match) return Promise.resolve(true);
+  var p = match.product || {};
+  var reasonLabels = {
+    'same SKU': 'same SKU / card number',
+    'same name': 'same product name',
+    'similar name/category/price': 'similar name, category and price'
+  };
+  var reasonText = reasonLabels[match.reason] || match.reason;
+  var productLabel = p.name || p.title || p.id || 'Existing product';
+  return showAdminInlineConfirm(
+    'Similar product already listed (' + reasonText + ')',
+    productLabel + '\n\nSave anyway?',
+    'Save anyway',
+    'Cancel'
+  );
+}
+
+var productPhotoThumbs = [];
+var editPendingPhotos = {};
+
+function photoUploadStatusEl(previewEl) {
+  if (!previewEl) return null;
+  var section = previewEl.closest('.aylen-form-section') || previewEl.parentElement;
+  if (!section) return null;
+  var status = section.querySelector('.aylen-photo-upload-status');
+  if (!status) {
+    status = document.createElement('div');
+    status.className = 'aylen-photo-upload-status';
+    status.hidden = true;
+    status.innerHTML =
+      '<div class="aylen-photo-upload-status__track"><div class="aylen-photo-upload-status__fill"></div></div>' +
+      '<span class="aylen-photo-upload-status__text"></span>';
+    previewEl.parentNode.insertBefore(status, previewEl);
+  }
+  return status;
+}
+
+function setPhotoUploadStatus(previewEl, options) {
+  var status = photoUploadStatusEl(previewEl);
+  if (!status) return;
+  if (!options || options.hidden) {
+    status.hidden = true;
+    return;
+  }
+  status.hidden = false;
+  var fill = status.querySelector('.aylen-photo-upload-status__fill');
+  var text = status.querySelector('.aylen-photo-upload-status__text');
+  var total = options.total || 1;
+  var current = options.current || 0;
+  if (fill) fill.style.width = Math.min(100, Math.round((current / total) * 100)) + '%';
+  if (text) text.textContent = options.message || '';
+}
+
+function createLoadingPhotoThumb(label) {
+  var div = document.createElement('div');
+  div.className = 'aylen-photo-thumb aylen-photo-thumb--loading';
+  div.innerHTML =
+    '<div class="aylen-photo-thumb__spinner" aria-hidden="true"></div>' +
+    '<span class="aylen-photo-thumb__label">' + (label || 'Loading…') + '</span>';
+  return div;
+}
+
+function createPhotoPreviewThumb(src, onRemove) {
+  var div = document.createElement('div');
+  div.className = 'aylen-photo-thumb aylen-photo-thumb--loading';
+  var img = document.createElement('img');
+  img.alt = '';
+  var displaySrc = src;
+  if (src && String(src).indexOf('data:') !== 0 && window.AYLEN_IMAGES && window.AYLEN_IMAGES.productThumbUrl) {
+    displaySrc = window.AYLEN_IMAGES.productThumbUrl(src, 120);
+  }
+  img.onload = function() {
+    div.classList.remove('aylen-photo-thumb--loading');
+  };
+  img.onerror = function() {
+    div.classList.remove('aylen-photo-thumb--loading');
+  };
+  img.src = displaySrc;
+  div.appendChild(img);
+  if (typeof onRemove === 'function') {
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.innerHTML = '×';
+    removeBtn.setAttribute('aria-label', 'Remove photo');
+    removeBtn.onclick = function(e) {
+      e.preventDefault();
+      onRemove();
+    };
+    div.appendChild(removeBtn);
+  }
+  return div;
+}
+
+function markPhotoThumbUploading(thumbEl, uploading) {
+  if (!thumbEl) return;
+  thumbEl.classList.toggle('aylen-photo-thumb--uploading', !!uploading);
+}
+
+window.AYLEN_ADMIN_PHOTOS = {
+  setStatus: setPhotoUploadStatus,
+  loadingThumb: createLoadingPhotoThumb,
+  previewThumb: createPhotoPreviewThumb,
+  markUploading: markPhotoThumbUploading
+};
+
+async function uploadFilesWithProgress(files, previewEl, thumbElements) {
+  var urls = [];
+  var total = files.length;
+  if (!total) return urls;
+  setPhotoUploadStatus(previewEl, {
+    current: 0,
+    total: total,
+    message: 'Uploading photo 1 of ' + total + '…'
+  });
+  for (var i = 0; i < files.length; i++) {
+    markPhotoThumbUploading(thumbElements && thumbElements[i], true);
+    var result = await uploadImageToCloudinary(files[i]);
+    markPhotoThumbUploading(thumbElements && thumbElements[i], false);
+    if (!result.success) {
+      setPhotoUploadStatus(previewEl, { hidden: true });
+      throw new Error(result.error || 'Photo upload failed');
+    }
+    urls.push(result.url);
+    setPhotoUploadStatus(previewEl, {
+      current: i + 1,
+      total: total,
+      message: 'Uploaded ' + (i + 1) + ' of ' + total
+    });
+  }
+  setTimeout(function() {
+    setPhotoUploadStatus(previewEl, { hidden: true });
+  }, 1200);
+  return urls;
 }
 
 function openAdminModal(html, modalId, afterOpen) {
@@ -408,6 +464,10 @@ function openAdminModal(html, modalId, afterOpen) {
   }
   document.body.insertAdjacentHTML('beforeend', html);
   var el = document.getElementById(modalId);
+  if (el) {
+    el.classList.add('open');
+    el.style.display = 'flex';
+  }
   if (typeof afterOpen === 'function' && el) {
     try { afterOpen(el.querySelector('.modal-content') || el, modalId); } catch (e) { console.warn(e); }
   }
@@ -438,7 +498,7 @@ function renderEditProductPhotoPreview(product, productId, modalId) {
   }
   preview.innerHTML = html;
   var fileInput = queryInAdminModal('#eprodPhotoInput');
-  if (fileInput) fileInput.disabled = images.length >= 10;
+  if (fileInput) fileInput.disabled = images.length >= 20;
 }
 
 async function ensureAdminCanWrite() {
@@ -471,6 +531,12 @@ function refreshCatalogAfterProductChange(saved) {
 
 async function openAddProductModal() {
   if (!(await ensureAdminCanWrite())) return;
+  pendingProductCreateId = 'prod_' + Date.now();
+  currentEditingProductId = pendingProductCreateId;
+  window.currentEditingProductId = pendingProductCreateId;
+  currentEditingAuctionId = null;
+  window.currentEditingAuctionId = null;
+  pendingAuctionCreateId = null;
   if (window.FBDB && window.FBDB.loadListingPolicies && (!listingPolicies || !listingPolicies.length)) {
     try {
       await window.FBDB.loadListingPolicies();
@@ -526,15 +592,22 @@ async function openAddProductModal() {
           <label class="aylen-label" for="prodPolicyId">Listing policy *</label>
           <select id="prodPolicyId">${(window.AYLEN_LISTING_POLICIES && window.AYLEN_LISTING_POLICIES.optionsHtml) ? window.AYLEN_LISTING_POLICIES.optionsHtml('') : '<option value="">— Select listing policy —</option>'}</select>
         </div>
-        <button type="button" class="aylen-btn aylen-btn-ai aylen-ai-trigger" data-aylen-ai="trigger" onclick="openAiAdminAssistant({ autoApply: true, fromProductForm: true })"><i class="fas fa-robot"></i> AI Assistant</button>
+        <button type="button" class="aylen-btn aylen-btn-ai aylen-ai-trigger" data-aylen-ai="trigger" onclick="openAiAdminAssistantSafe({ autoApply: true, fromProductForm: true })"><i class="fas fa-robot"></i> AI Assistant</button>
         <div class="aylen-form-section">
-          <h3><i class="fas fa-images"></i> Photos (max 10)</h3>
+          <h3><i class="fas fa-video"></i> Product video (optional)</h3>
+          <label class="aylen-label" for="prodVideoUrl">Video URL (MP4)</label>
+          <input type="url" id="prodVideoUrl" placeholder="https://.../video.mp4">
+          <label class="aylen-label" for="prodVideoInput" style="margin-top:8px">Or upload video</label>
+          <input type="file" id="prodVideoInput" accept="video/mp4,video/webm,video/quicktime">
+        </div>
+        <div class="aylen-form-section">
+          <h3><i class="fas fa-images"></i> Photos (max 20)</h3>
           <input type="file" id="prodPhotoInput" accept="image/*" multiple>
           <p class="aylen-hint-box">JPG, PNG, GIF, WebP — up to 5MB each</p>
           <div id="prodPhotoPreview" class="aylen-photo-preview"><span class="aylen-photo-empty">No photos yet</span></div>
         </div>
         <div class="aylen-form-actions">
-          <button type="button" class="aylen-btn aylen-btn-primary" onclick="addProductWithUpload('${modalId}')"><i class="fas fa-save"></i> Save product</button>
+          <button type="button" class="aylen-btn aylen-btn-primary" id="prodCreateBtn" onclick="addProductWithUpload('${modalId}')"><i class="fas fa-save"></i> Save product</button>
           <button type="button" class="aylen-btn aylen-btn-secondary" data-aylen-close>Cancel</button>
         </div>
       </div>
@@ -556,58 +629,91 @@ async function openAddProductModal() {
 function handleProductPhotoUpload(e, modalId) {
   var files = e.target.files;
   if (!files || files.length === 0) return;
-  
-  var maxFiles = 10;
+
+  var maxFiles = 20;
   if (files.length > maxFiles) {
     notify('Maximum ' + maxFiles + ' photos allowed!', 'error');
     e.target.value = '';
     return;
   }
-  
-  // Store files in global object
+
   uploadingFiles['product'] = Array.from(files);
-  
-  // Show preview
+  productPhotoThumbs = [];
+
   var preview = queryInAdminModal('#prodPhotoPreview');
+  if (!preview) return;
   preview.innerHTML = '';
-  
+  setPhotoUploadStatus(preview, {
+    current: 0,
+    total: files.length,
+    message: 'Preparing ' + files.length + ' photo(s)…'
+  });
+
+  var loadedCount = 0;
   for (var i = 0; i < files.length; i++) {
-    var file = files[i];
-    var reader = new FileReader();
-    
-    reader.onload = (function(index, fname) {
-      return function(event) {
-        var div = document.createElement('div');
-        div.style.cssText = 'position:relative;width:80px;height:80px;border:1px solid #444;border-radius:5px;overflow:hidden;background:#1a1f2e';
-        div.innerHTML = '<img src="' + event.target.result + '" style="width:100%;height:100%;object-fit:cover">';
-        
-        var removeBtn = document.createElement('button');
-        removeBtn.innerHTML = '×';
-        removeBtn.style.cssText = 'position:absolute;top:-5px;right:-5px;width:24px;height:24px;background:#e94560;color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:18px;line-height:1';
-        removeBtn.onclick = function(e) {
-          e.preventDefault();
-          // Remove from files
+    (function(index, file) {
+      var loadingThumb = createLoadingPhotoThumb('Loading…');
+      preview.appendChild(loadingThumb);
+      productPhotoThumbs[index] = loadingThumb;
+
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var previewThumb = createPhotoPreviewThumb(event.target.result, function() {
           var arr = Array.from(uploadingFiles['product'] || []);
           arr.splice(index, 1);
           uploadingFiles['product'] = arr;
-          
-          // Update preview
-          e.target.closest('div').remove();
-          if (!preview.querySelector('div')) {
-            preview.innerHTML = '<span class="aylen-photo-empty">No photos</span>';
+          productPhotoThumbs.splice(index, 1);
+          previewThumb.remove();
+          if (!preview.querySelector('.aylen-photo-thumb')) {
+            preview.innerHTML = '<span class="aylen-photo-empty">No photos yet</span>';
+            setPhotoUploadStatus(preview, { hidden: true });
           }
-        };
-        div.appendChild(removeBtn);
-        preview.appendChild(div);
+        });
+        loadingThumb.replaceWith(previewThumb);
+        productPhotoThumbs[index] = previewThumb;
+        loadedCount++;
+        setPhotoUploadStatus(preview, {
+          current: loadedCount,
+          total: files.length,
+          message: loadedCount === files.length
+            ? files.length + ' photo(s) ready — click Save to upload'
+            : 'Loading preview ' + loadedCount + ' of ' + files.length + '…'
+        });
+        if (loadedCount === files.length) {
+          setTimeout(function() {
+            setPhotoUploadStatus(preview, { hidden: true });
+          }, 1500);
+        }
       };
-    })(i, file.name);
-    
-    reader.readAsDataURL(file);
+      reader.onerror = function() {
+        loadingThumb.classList.add('aylen-photo-thumb--error');
+        var label = loadingThumb.querySelector('.aylen-photo-thumb__label');
+        if (label) label.textContent = 'Failed';
+        notify('Could not read photo ' + (index + 1), 'error');
+      };
+      reader.readAsDataURL(file);
+    })(i, files[i]);
   }
 }
 
+async function resolveListingVideoUrl(entityId, urlFieldId, fileFieldId, storageFolder) {
+  var urlEl = queryInAdminModal('#' + urlFieldId);
+  var url = urlEl ? String(urlEl.value || '').trim() : '';
+  var fileEl = queryInAdminModal('#' + fileFieldId);
+  if (fileEl && fileEl.files && fileEl.files[0]) {
+    if (!window.FBDB || !window.FBDB.uploadImage) throw new Error('Upload not available');
+    var res = await window.FBDB.uploadImage(fileEl.files[0], entityId, storageFolder || 'products');
+    if (!res.success) throw new Error(res.error || 'Video upload failed');
+    return res.url;
+  }
+  return url ? url.slice(0, 500) : '';
+}
+
 async function addProductWithUpload(modalId) {
-  if (productSaveInFlight) return;
+  if (productSaveInFlight) {
+    notify('Save already in progress…', 'info');
+    return;
+  }
   if (!(await ensureAdminCanWrite())) return;
   if (typeof confirmAylenProductionWrite === 'function' && !confirmAylenProductionWrite('add product')) return;
   var nameEl = queryInAdminModal('#prodName');
@@ -635,37 +741,61 @@ async function addProductWithUpload(modalId) {
     adminMsg('Create a listing policy first (Admin → Policies).', 'error');
     return;
   }
+  if (!(await confirmPotentialDuplicateProduct({
+    name: name,
+    category: category,
+    price: retailPrice
+  }))) return;
+
+  var createBtn = queryInAdminModal('#prodCreateBtn');
+  var productId = pendingProductCreateId || currentEditingProductId || ('prod_' + Date.now());
+  pendingProductCreateId = productId;
+  currentEditingProductId = productId;
+  window.currentEditingProductId = productId;
 
   productSaveInFlight = true;
+  if (createBtn) createBtn.disabled = true;
   try {
     adminMsg('Saving product…', 'info');
     var imageUrls = [];
+    var previewEl = queryInAdminModal('#prodPhotoPreview');
     if (uploadingFiles['product'] && uploadingFiles['product'].length > 0) {
       var files = uploadingFiles['product'];
-      if (files.length > 10) {
-        adminMsg('Maximum 10 photos per product.', 'error');
+      if (files.length > 20) {
+        adminMsg('Maximum 20 photos per product.', 'error');
         return;
       }
-      for (var i = 0; i < files.length; i++) {
-        var result = await uploadImageToCloudinary(files[i]);
-        if (result.success) {
-          imageUrls.push(result.url);
-          adminMsg('Uploading photo ' + (i + 1) + ' of ' + files.length + '…', 'info');
-        } else {
-          adminMsg('Photo ' + (i + 1) + ' upload failed. Try again.', 'error');
-          return;
-        }
+      try {
+        imageUrls = await uploadFilesWithProgress(files, previewEl, productPhotoThumbs);
+      } catch (uploadErr) {
+        adminMsg('Photo upload failed. Check connection and try again.', 'error');
+        console.error('addProductWithUpload photos', uploadErr);
+        return;
       }
     }
-    var product = await addProductWithPhotos(name, desc, retailPrice, category, imageUrls, stock, wholesalePrice, policyId);
+    var product = await addProductWithPhotos(name, desc, retailPrice, category, imageUrls, stock, wholesalePrice, policyId, productId);
+    try {
+      var videoUrl = await resolveListingVideoUrl(product.id, 'prodVideoUrl', 'prodVideoInput', 'products');
+      if (videoUrl) {
+        product.videoUrl = videoUrl;
+        if (window.FBDB && window.FBDB.updateProduct) {
+          await window.FBDB.updateProduct(product.id, Object.assign({}, product, { videoUrl: videoUrl }));
+        }
+      }
+    } catch (videoErr) {
+      console.warn('Product video upload:', videoErr.message);
+    }
+    uploadingFiles['product'] = [];
+    productPhotoThumbs = [];
     adminMsg('Product saved.', 'success');
     await closeAdminModal(modalId);
     refreshCatalogAfterProductChange(product);
   } catch (error) {
-    adminMsg('Could not save product. Try again.', 'error');
+    adminMsg('Could not save product. Sign in again and retry.', 'error');
     console.error('addProductWithUpload', error);
   } finally {
     productSaveInFlight = false;
+    if (createBtn) createBtn.disabled = false;
   }
 }
 
@@ -731,6 +861,8 @@ function editProduct(id) {
                 <option value="homeware" ${product.category === 'homeware' ? 'selected' : ''}>Homeware</option>
                 <option value="clothing" ${product.category === 'clothing' ? 'selected' : ''}>Clothing</option>
                 <option value="accessories" ${product.category === 'accessories' ? 'selected' : ''}>Accessories</option>
+                <option value="job-lots" ${product.category === 'job-lots' ? 'selected' : ''}>Job lots / Mixed</option>
+                <option value="cables" ${product.category === 'cables' ? 'selected' : ''}>Cables</option>
                 <option value="general" ${product.category === 'general' ? 'selected' : ''}>General</option>
               </select>
             </div>
@@ -796,10 +928,18 @@ function editProduct(id) {
           <p class="aylen-hint-box">Format: AYLE-PREFIX-XXX</p>
         </div>
         <div class="aylen-form-section">
-          <h3><i class="fas fa-images"></i> Photos (${(product.images || []).length}/10)</h3>
+          <h3><i class="fas fa-video"></i> Product video (optional)</h3>
+          <label class="aylen-label" for="eprodVideoUrl">Video URL (MP4) or upload below</label>
+          <input type="url" id="eprodVideoUrl" class="aylen-input" value="${product.videoUrl || ''}" placeholder="https://.../video.mp4">
+          <label class="aylen-label" for="eprodVideoInput" style="margin-top:8px">Upload video file</label>
+          <input type="file" id="eprodVideoInput" accept="video/mp4,video/webm,video/quicktime">
+          <p class="aylen-hint-box">Shown on product page gallery. Max ~50MB recommended.</p>
+        </div>
+        <div class="aylen-form-section">
+          <h3><i class="fas fa-images"></i> Photos (${(product.images || []).length}/20)</h3>
           <div id="eprodPhotoPreview" class="aylen-photo-preview">${photoHTML}</div>
           <label class="aylen-label" for="eprodPhotoInput">Add more photos</label>
-          <input type="file" id="eprodPhotoInput" accept="image/*" multiple ${(product.images && product.images.length >= 10) ? 'disabled' : ''}>
+          <input type="file" id="eprodPhotoInput" accept="image/*" multiple ${(product.images && product.images.length >= 20) ? 'disabled' : ''}>
         </div>
         <div class="aylen-form-actions">
           <button type="button" class="aylen-btn aylen-btn-primary" onclick="saveEditProduct('${id}','${modalId}')"><i class="fas fa-save"></i> Save changes</button>
@@ -873,22 +1013,95 @@ function generateNewSKU(productName) {
 function handleEditProductPhotoUpload(e, productId, modalId) {
   var files = e.target.files;
   if (!files || files.length === 0) return;
-  
-  var product = products.find(function(p) { return p.id === productId; });
+
+  var productIdx = window.AYLEN_PRODUCTION
+    ? window.AYLEN_PRODUCTION.findProductIndexById(products, productId)
+    : products.findIndex(function(p) { return productIdsMatch(p.id, productId); });
+  var product = productIdx === -1 ? null : products[productIdx];
   if (!product) return;
-  
-  var currentCount = (product.images || []).length;
-  var maxFiles = 10;
+  productId = product.id;
+
+  var pendingCount = (editPendingPhotos[productId] && editPendingPhotos[productId].files.length) || 0;
+  var currentCount = (product.images || []).length + pendingCount;
+  var maxFiles = 20;
   var availableSlots = maxFiles - currentCount;
-  
+
   if (files.length > availableSlots) {
-    notify('Only ' + availableSlots + ' photos can be added (max 10 total)', 'error');
+    notify('Only ' + availableSlots + ' photos can be added (max 20 total)', 'error');
     e.target.value = '';
     return;
   }
-  
-  // Upload files
-  uploadingFiles['editProduct_' + productId] = Array.from(files);
+
+  if (!editPendingPhotos[productId]) {
+    editPendingPhotos[productId] = { files: [], thumbs: [] };
+  }
+  var pending = editPendingPhotos[productId];
+  uploadingFiles['editProduct_' + productId] = pending.files;
+
+  var preview = queryInAdminModal('#eprodPhotoPreview');
+  if (!preview) return;
+  var empty = preview.querySelector('.aylen-photo-empty');
+  if (empty) empty.remove();
+
+  setPhotoUploadStatus(preview, {
+    current: 0,
+    total: files.length,
+    message: 'Preparing ' + files.length + ' new photo(s)…'
+  });
+
+  var loadedCount = 0;
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var loadingThumb = createLoadingPhotoThumb('Loading…');
+      preview.appendChild(loadingThumb);
+      pending.thumbs.push(loadingThumb);
+      pending.files.push(file);
+
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var previewThumb = createPhotoPreviewThumb(event.target.result, function() {
+          var thumbIdx = pending.thumbs.indexOf(previewThumb);
+          if (thumbIdx >= 0) {
+            pending.thumbs.splice(thumbIdx, 1);
+            pending.files.splice(thumbIdx, 1);
+          }
+          previewThumb.remove();
+          uploadingFiles['editProduct_' + productId] = pending.files;
+          if (!preview.querySelector('.aylen-photo-thumb')) {
+            preview.innerHTML = '<span class="aylen-photo-empty">No photos yet</span>';
+            setPhotoUploadStatus(preview, { hidden: true });
+          }
+        });
+        var loadingIdx = pending.thumbs.indexOf(loadingThumb);
+        loadingThumb.replaceWith(previewThumb);
+        if (loadingIdx >= 0) pending.thumbs[loadingIdx] = previewThumb;
+        loadedCount++;
+        setPhotoUploadStatus(preview, {
+          current: loadedCount,
+          total: files.length,
+          message: loadedCount === files.length
+            ? loadedCount + ' new photo(s) ready — click Save to upload'
+            : 'Loading preview ' + loadedCount + ' of ' + files.length + '…'
+        });
+        if (loadedCount === files.length) {
+          setTimeout(function() {
+            setPhotoUploadStatus(preview, { hidden: true });
+          }, 1500);
+        }
+      };
+      reader.onerror = function() {
+        var errIdx = pending.thumbs.indexOf(loadingThumb);
+        if (errIdx >= 0) {
+          pending.thumbs.splice(errIdx, 1);
+          pending.files.splice(errIdx, 1);
+        }
+        loadingThumb.remove();
+        notify('Could not read selected photo', 'error');
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
+  e.target.value = '';
 }
 
 async function saveEditProduct(productId, modalId) {
@@ -953,31 +1166,47 @@ async function saveEditProduct(productId, modalId) {
     if (!policyId) policyId = product.policyId || product.listingPolicyId || '';
     productId = product.id;
     var previousStock = Number(product.stock || 0);
-    
+    if (!(await confirmPotentialDuplicateProduct({
+      name: name,
+      sku: sku,
+      category: category,
+      price: retailPrice
+    }, productId))) {
+      productSaveInFlight = false;
+      return;
+    }
+
     var imageUrls = (product.images || product.photos || []).slice();
-    
-    // Upload new files if any
-    var fileInputId = 'eprodPhotoInput';
-    var fileInput = queryInAdminModal('#' + fileInputId);
-    if (fileInput && fileInput.files && fileInput.files.length > 0) {
-      if (imageUrls.length + fileInput.files.length > 10) {
-        adminMsg('Maximum 10 photos per product.', 'error');
+    var previewEl = queryInAdminModal('#eprodPhotoPreview');
+    var pending = editPendingPhotos[productId];
+    if (pending && pending.files.length > 0) {
+      if (imageUrls.length + pending.files.length > 20) {
+        adminMsg('Maximum 20 photos per product.', 'error');
         productSaveInFlight = false;
         return;
       }
-      for (var i = 0; i < fileInput.files.length; i++) {
-        var result = await uploadImageToCloudinary(fileInput.files[i]);
-        if (result.success) {
-          imageUrls.push(result.url);
-          adminMsg('Uploading photo ' + (i + 1) + ' of ' + fileInput.files.length + '…', 'info');
-        } else {
-          adminMsg('Photo upload failed. Try again.', 'error');
-          productSaveInFlight = false;
-          return;
-        }
+      try {
+        var newUrls = await uploadFilesWithProgress(pending.files, previewEl, pending.thumbs);
+        imageUrls = imageUrls.concat(newUrls);
+        editPendingPhotos[productId] = { files: [], thumbs: [] };
+        uploadingFiles['editProduct_' + productId] = [];
+      } catch (uploadErr) {
+        adminMsg('Photo upload failed. Try again.', 'error');
+        console.error('saveEditProduct photos', uploadErr);
+        productSaveInFlight = false;
+        return;
       }
     }
     
+    var videoUrl = product.videoUrl || '';
+    try {
+      videoUrl = await resolveListingVideoUrl(productId, 'eprodVideoUrl', 'eprodVideoInput', 'products');
+    } catch (videoErr) {
+      adminMsg('Video upload failed: ' + (videoErr.message || videoErr), 'error');
+      productSaveInFlight = false;
+      return;
+    }
+
     Object.assign(product, {
       name: name,
       title: name,
@@ -992,6 +1221,7 @@ async function saveEditProduct(productId, modalId) {
       stock: stock,
       images: imageUrls,
       photos: imageUrls,
+      videoUrl: videoUrl,
       badge: badge,
       active: active,
       status: active ? 'active' : 'hidden',
@@ -1032,6 +1262,7 @@ async function removeProductPhoto(productId, photoIndex, modalId) {
   
   if (!confirm('Remove this photo?')) return;
   try {
+    var removedUrl = product.images[photoIndex];
     product.images.splice(photoIndex, 1);
     product.photos = product.images;
     if (!window.FBDB || !window.FBDB.updateProduct) {
@@ -1039,6 +1270,11 @@ async function removeProductPhoto(productId, photoIndex, modalId) {
     }
     var saved = await window.FBDB.updateProduct(product.id, product);
     products[idx] = saved;
+    if (removedUrl && window.FBDB.deleteImage) {
+      window.FBDB.deleteImage(removedUrl).catch(function(e) {
+        console.warn('Storage photo delete:', e.message);
+      });
+    }
     if (window.AYLEN_MODAL && window.AYLEN_MODAL.getCurrentId() === modalId) {
       renderEditProductPhotoPreview(saved, productId, modalId);
     } else {
@@ -1069,135 +1305,596 @@ async function deleteProductConfirm(id) {
       else onAdminModalClosed();
       refreshCatalogAfterProductChange();
     } catch (error) {
-      notify('Delete failed: ' + (error.message || error), 'error');
+      notifyAdminDeleteError(error);
     }
   }
 }
 
 // ============ AUCTION MANAGEMENT ============
 
-function openAddAuctionModal() {
+async function openAddAuctionModal() {
+  if (!(await ensureAdminCanWrite())) return;
+  pendingAuctionCreateId = typeof generateAuctionId === 'function'
+    ? generateAuctionId()
+    : ('auction_' + Date.now());
+  currentEditingAuctionId = pendingAuctionCreateId;
+  window.currentEditingAuctionId = pendingAuctionCreateId;
+  currentEditingProductId = null;
+  window.currentEditingProductId = null;
+
   var modalId = 'auctionModal_' + Date.now();
   var html = `
-    <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:550px;max-height:85vh;overflow-y:auto">
-        <span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#e94560;margin-bottom:20px"><i class="fas fa-gavel"></i> Add Auction</h2>
-        
-        <input type="text" id="auctName" placeholder="Item Name *" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <textarea id="auctDesc" placeholder="Description" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;height:60px;resize:vertical"></textarea>
-        <input type="number" id="auctStartPrice" placeholder="Starting Price £ *" step="0.01" min="0" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <select id="auctCategory" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-          <option value="">Select Category *</option>
-          <option value="electronics">Electronics</option>
-          <option value="collectibles">Collectibles</option>
-          <option value="homeware">Homeware</option>
-        </select>
-        <input type="number" id="auctDuration" placeholder="Duration (hours)" value="24" min="1" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="file" id="auctPhotoInput" accept="image/*" multiple style="width:100%;padding:10px;margin:5px 0 10px;border:1px dashed #e94560;background:#1a1f2e;color:#e0e0e0;border-radius:5px;cursor:pointer">
-        
-        <div id="auctPhotoPreview" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;min-height:60px;border:1px solid #333;border-radius:5px;padding:10px;background:#0f1419">
-          <span style="color:#666;width:100%;text-align:center;line-height:60px">No photos</span>
+    <div id="${modalId}" class="modal">
+      <div class="modal-content">
+        <span class="close" data-aylen-close>&times;</span>
+        <h2 class="aylen-modal-title"><i class="fas fa-gavel"></i> Add Auction</h2>
+        <div class="aylen-form-section">
+          <h3>Listing details</h3>
+          <label class="aylen-label" for="auctName">Item name *</label>
+          <input type="text" id="auctName" placeholder="Enter item name">
+          <label class="aylen-label" for="auctDesc">Description</label>
+          <textarea id="auctDesc" placeholder="Description"></textarea>
+          <div class="aylen-form-row">
+            <div class="aylen-field">
+              <label class="aylen-label" for="auctStartPrice">Starting price £ *</label>
+              <input type="number" id="auctStartPrice" placeholder="0.00" step="0.01" min="0">
+            </div>
+            <div class="aylen-field">
+              <label class="aylen-label" for="auctDuration">Duration (hours)</label>
+              <input type="number" id="auctDuration" value="24" min="1">
+            </div>
+          </div>
+          <label class="aylen-label" for="auctCategory">Category *</label>
+          <select id="auctCategory">
+            <option value="">Select category</option>
+            <option value="electronics">Electronics</option>
+            <option value="collectibles">Collectibles</option>
+            <option value="homeware">Homeware</option>
+          </select>
         </div>
-        
-        <div style="display:flex;gap:10px">
-          <button onclick="addAuctionWithUpload('${modalId}')" style="flex:1;padding:12px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold"><i class="fas fa-save"></i> Create</button>
-          <button onclick="AYLEN_MODAL.close()" style="flex:1;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer">Cancel</button>
+        <div class="aylen-form-section">
+          <h3><i class="fas fa-images"></i> Photos (max 10)</h3>
+          <input type="file" id="auctPhotoInput" accept="image/*" multiple>
+          <p class="aylen-hint-box">JPG, PNG, WebP — upload progress shows below</p>
+          <div id="auctPhotoPreview" class="aylen-photo-preview"><span class="aylen-photo-empty">No photos yet</span></div>
+        </div>
+        <div class="aylen-form-actions">
+          <button type="button" class="aylen-btn aylen-btn-primary" id="auctCreateBtn" onclick="addAuctionWithUpload('${modalId}')"><i class="fas fa-save"></i> Create auction</button>
+          <button type="button" class="aylen-btn aylen-btn-secondary" data-aylen-close>Cancel</button>
         </div>
       </div>
     </div>
   `;
-  
-  if (window.AYLEN_MODAL) window.AYLEN_MODAL.open(html, { id: modalId });
-  else document.body.insertAdjacentHTML('beforeend', html);
-  document.getElementById('auctPhotoInput').addEventListener('change', function(e) {
-    handleAuctionPhotoUpload(e, modalId);
+
+  openAdminModal(html, modalId, function(panel) {
+    var fileInput = panel.querySelector('#auctPhotoInput');
+    if (fileInput) {
+      fileInput.addEventListener('change', function(e) {
+        handleAuctionPhotoUpload(e, modalId);
+      });
+    }
+    var nameInput = panel.querySelector('#auctName');
+    if (nameInput) nameInput.focus();
   });
-  document.getElementById('auctName').focus();
 }
 
 function handleAuctionPhotoUpload(e, modalId) {
   var files = e.target.files;
   if (!files || files.length === 0) return;
-  
+
+  var maxFiles = 10;
+  if (files.length > maxFiles) {
+    notify('Maximum ' + maxFiles + ' photos per auction.', 'error');
+    e.target.value = '';
+    return;
+  }
+
   uploadingFiles['auction'] = Array.from(files);
-  var preview = document.getElementById('auctPhotoPreview');
+  auctionPhotoThumbs = [];
+
+  var preview = queryInAdminModal('#auctPhotoPreview');
+  if (!preview) return;
   preview.innerHTML = '';
-  
+  setPhotoUploadStatus(preview, {
+    current: 0,
+    total: files.length,
+    message: 'Preparing ' + files.length + ' photo(s)…'
+  });
+
+  var loadedCount = 0;
   for (var i = 0; i < files.length; i++) {
-    var file = files[i];
-    var reader = new FileReader();
-    
-    reader.onload = (function(index) {
-      return function(event) {
-        var div = document.createElement('div');
-        div.style.cssText = 'position:relative;width:70px;height:70px;border:1px solid #444;border-radius:5px;overflow:hidden;background:#1a1f2e';
-        div.innerHTML = '<img src="' + event.target.result + '" style="width:100%;height:100%;object-fit:cover">';
-        
-        var removeBtn = document.createElement('button');
-        removeBtn.innerHTML = '×';
-        removeBtn.style.cssText = 'position:absolute;top:-5px;right:-5px;width:24px;height:24px;background:#e94560;color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:18px;line-height:1';
-        removeBtn.onclick = function(e) {
-          e.preventDefault();
+    (function(index, file) {
+      var loadingThumb = createLoadingPhotoThumb('Loading…');
+      preview.appendChild(loadingThumb);
+      auctionPhotoThumbs[index] = loadingThumb;
+
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var previewThumb = createPhotoPreviewThumb(event.target.result, function() {
           var arr = Array.from(uploadingFiles['auction'] || []);
           arr.splice(index, 1);
           uploadingFiles['auction'] = arr;
-          e.target.closest('div').remove();
-          if (!preview.querySelector('div')) preview.innerHTML = '<span style="color:#666;width:100%;text-align:center;line-height:60px">No photos</span>';
-        };
-        div.appendChild(removeBtn);
-        preview.appendChild(div);
+          auctionPhotoThumbs.splice(index, 1);
+          previewThumb.remove();
+          if (!preview.querySelector('.aylen-photo-thumb')) {
+            preview.innerHTML = '<span class="aylen-photo-empty">No photos yet</span>';
+            setPhotoUploadStatus(preview, { hidden: true });
+          }
+        });
+        loadingThumb.replaceWith(previewThumb);
+        auctionPhotoThumbs[index] = previewThumb;
+        loadedCount++;
+        setPhotoUploadStatus(preview, {
+          current: loadedCount,
+          total: files.length,
+          message: loadedCount === files.length
+            ? files.length + ' photo(s) ready — tap Create to upload'
+            : 'Loading preview ' + loadedCount + ' of ' + files.length + '…'
+        });
+        if (loadedCount === files.length) {
+          setTimeout(function() {
+            setPhotoUploadStatus(preview, { hidden: true });
+          }, 1500);
+        }
       };
-    })(i);
-    
-    reader.readAsDataURL(file);
+      reader.onerror = function() {
+        loadingThumb.classList.add('aylen-photo-thumb--error');
+        var label = loadingThumb.querySelector('.aylen-photo-thumb__label');
+        if (label) label.textContent = 'Failed';
+        notify('Could not read photo ' + (index + 1), 'error');
+      };
+      reader.readAsDataURL(file);
+    })(i, files[i]);
   }
 }
 
 async function addAuctionWithUpload(modalId) {
-  var name = document.getElementById('auctName').value.trim();
-  var desc = document.getElementById('auctDesc').value.trim();
-  var startPrice = parseFloat(document.getElementById('auctStartPrice').value) || 0;
-  var category = document.getElementById('auctCategory').value;
-  var duration = parseInt(document.getElementById('auctDuration').value) || 24;
-  
-  if (!name || !category || startPrice <= 0) {
-    notify('Fill all required fields!', 'error');
+  if (auctionSaveInFlight) {
+    notify('Create already in progress…', 'info');
     return;
   }
-  
-  var imageUrls = [];
-  
-  if (uploadingFiles['auction'] && uploadingFiles['auction'].length > 0) {
-    var files = uploadingFiles['auction'];
-    for (var i = 0; i < Math.min(files.length, 10); i++) {
-      var result = await uploadImageToCloudinary(files[i]);
-      if (result.success) {
-        imageUrls.push(result.url);
-      } else {
-        notify('Error uploading photo ' + (i + 1), 'error');
+  if (!(await ensureAdminCanWrite())) return;
+
+  var nameEl = queryInAdminModal('#auctName');
+  if (!nameEl) {
+    notify('Auction form not found. Close and reopen the dialog.', 'error');
+    return;
+  }
+  var name = nameEl.value.trim();
+  var descEl = queryInAdminModal('#auctDesc');
+  var desc = descEl ? descEl.value.trim() : '';
+  var startPrice = parseFloat((queryInAdminModal('#auctStartPrice') || {}).value) || 0;
+  var category = (queryInAdminModal('#auctCategory') || {}).value || '';
+  var duration = parseInt((queryInAdminModal('#auctDuration') || {}).value, 10) || 24;
+
+  if (!name || !category || startPrice <= 0) {
+    adminMsg('Fill name, category and starting price.', 'error');
+    return;
+  }
+
+  var createBtn = queryInAdminModal('#auctCreateBtn');
+  var auctionId = pendingAuctionCreateId || currentEditingAuctionId;
+  if (!auctionId) {
+    auctionId = typeof generateAuctionId === 'function' ? generateAuctionId() : ('auction_' + Date.now());
+    pendingAuctionCreateId = auctionId;
+    currentEditingAuctionId = auctionId;
+    window.currentEditingAuctionId = auctionId;
+  }
+
+  auctionSaveInFlight = true;
+  if (createBtn) createBtn.disabled = true;
+  try {
+    adminMsg('Creating auction…', 'info');
+    var imageUrls = [];
+    var previewEl = queryInAdminModal('#auctPhotoPreview');
+    if (uploadingFiles['auction'] && uploadingFiles['auction'].length > 0) {
+      var files = uploadingFiles['auction'];
+      if (files.length > 10) {
+        adminMsg('Maximum 10 photos per auction.', 'error');
+        return;
+      }
+      try {
+        imageUrls = await uploadFilesWithProgress(files, previewEl, auctionPhotoThumbs);
+      } catch (uploadErr) {
+        adminMsg('Photo upload failed. Check connection and try again.', 'error');
+        console.error('addAuctionWithUpload photos', uploadErr);
         return;
       }
     }
-  }
-  
-  var auction = addAuctionWithPhotos(name, desc, startPrice, category, imageUrls, duration);
-  if (auction) {
-    notify('Auction created!', 'success');
+
+    if (!window.FBDB || !window.FBDB.saveAuction) {
+      throw new Error('Firebase is not ready.');
+    }
+    var auction = await addAuctionWithPhotos(name, desc, startPrice, category, imageUrls, duration, auctionId);
+    if (!auction || !auction.id) {
+      throw new Error('Auction was not saved.');
+    }
+    adminMsg('Auction created!', 'success');
     uploadingFiles['auction'] = [];
-    if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
-    else document.getElementById(modalId).remove();
-    renderAuctions();
-  } else {
-    notify('Failed to create auction', 'error');
+    auctionPhotoThumbs = [];
+    await closeAdminModal(modalId);
+    if (typeof renderAuctions === 'function') renderAuctions();
+    if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.refreshAuctionsPanel) {
+      window.AyelenAdminDashboard.refreshAuctionsPanel().catch(function() {});
+    }
+  } catch (error) {
+    console.error('addAuctionWithUpload', error);
+    adminMsg('Could not create auction. Sign in again and retry.', 'error');
+  } finally {
+    auctionSaveInFlight = false;
+    if (createBtn) createBtn.disabled = false;
   }
 }
 
-function editAuction(id) {
-  var auction = auctions.find(function(a) { return sameId(a.id, id); });
-  if (!auction) return;
-  notify('Edit functionality coming soon', 'info');
+function toDatetimeLocalValue(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' +
+    pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
+
+function getAuctionBidCount(auction) {
+  if (!auction) return 0;
+  var bids = auctionBids[String(auction.id)] || auction.bids || [];
+  return Math.max(Number(auction.bidsCount || 0), Array.isArray(bids) ? bids.length : 0);
+}
+
+function updateEditAuctionPhotoInput(auctionId) {
+  var draft = editAuctionDraft[auctionId];
+  var input = queryInAdminModal('#eauctPhotoInput');
+  if (!input || !draft) return;
+  var total = (draft.imageUrls || []).length + (draft.pending.files || []).length;
+  input.disabled = total >= 20;
+}
+
+function renderEditAuctionPhotoPreview(auctionId) {
+  var preview = queryInAdminModal('#eauctPhotoPreview');
+  var draft = editAuctionDraft[auctionId];
+  if (!preview || !draft) return;
+
+  var pendingNodes = (draft.pending.thumbs || []).filter(function(node) {
+    return node && node.parentNode === preview;
+  });
+
+  preview.innerHTML = '';
+  var urls = draft.imageUrls || [];
+  if (!urls.length && !(draft.pending.files && draft.pending.files.length)) {
+    preview.innerHTML = '<span class="aylen-photo-empty">No photos yet</span>';
+    updateEditAuctionPhotoInput(auctionId);
+    return;
+  }
+
+  for (var i = 0; i < urls.length; i++) {
+    (function(index, url) {
+      preview.appendChild(createPhotoPreviewThumb(url, function() {
+        draft.imageUrls.splice(index, 1);
+        renderEditAuctionPhotoPreview(auctionId);
+      }));
+    })(i, urls[i]);
+  }
+
+  pendingNodes.forEach(function(node) {
+    preview.appendChild(node);
+  });
+  updateEditAuctionPhotoInput(auctionId);
+}
+
+function handleEditAuctionPhotoUpload(e, auctionId) {
+  var files = e.target.files;
+  if (!files || !files.length) return;
+
+  var draft = editAuctionDraft[auctionId];
+  if (!draft) return;
+
+  var total = (draft.imageUrls || []).length + (draft.pending.files || []).length;
+  var available = 10 - total;
+  if (files.length > available) {
+    notify('Only ' + available + ' more photo(s) allowed (max 20)', 'error');
+    e.target.value = '';
+    return;
+  }
+
+  if (!draft.pending) draft.pending = { files: [], thumbs: [] };
+  var preview = queryInAdminModal('#eauctPhotoPreview');
+  if (!preview) return;
+  var empty = preview.querySelector('.aylen-photo-empty');
+  if (empty) empty.remove();
+
+  setPhotoUploadStatus(preview, {
+    current: 0,
+    total: files.length,
+    message: 'Preparing ' + files.length + ' new photo(s)…'
+  });
+
+  var loadedCount = 0;
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var loadingThumb = createLoadingPhotoThumb('Loading…');
+      preview.appendChild(loadingThumb);
+      draft.pending.thumbs.push(loadingThumb);
+      draft.pending.files.push(file);
+
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var previewThumb = createPhotoPreviewThumb(event.target.result, function() {
+          var thumbIdx = draft.pending.thumbs.indexOf(previewThumb);
+          if (thumbIdx >= 0) {
+            draft.pending.thumbs.splice(thumbIdx, 1);
+            draft.pending.files.splice(thumbIdx, 1);
+          }
+          previewThumb.remove();
+          if (!preview.querySelector('.aylen-photo-thumb')) {
+            preview.innerHTML = '<span class="aylen-photo-empty">No photos yet</span>';
+          }
+          updateEditAuctionPhotoInput(auctionId);
+        });
+        var loadingIdx = draft.pending.thumbs.indexOf(loadingThumb);
+        loadingThumb.replaceWith(previewThumb);
+        if (loadingIdx >= 0) draft.pending.thumbs[loadingIdx] = previewThumb;
+        loadedCount++;
+        setPhotoUploadStatus(preview, {
+          current: loadedCount,
+          total: files.length,
+          message: loadedCount === files.length
+            ? loadedCount + ' new photo(s) ready — click Save'
+            : 'Loading preview ' + loadedCount + ' of ' + files.length + '…'
+        });
+        if (loadedCount === files.length) {
+          setTimeout(function() { setPhotoUploadStatus(preview, { hidden: true }); }, 1500);
+        }
+        updateEditAuctionPhotoInput(auctionId);
+      };
+      reader.onerror = function() {
+        var errIdx = draft.pending.thumbs.indexOf(loadingThumb);
+        if (errIdx >= 0) {
+          draft.pending.thumbs.splice(errIdx, 1);
+          draft.pending.files.splice(errIdx, 1);
+        }
+        loadingThumb.remove();
+        notify('Could not read selected photo', 'error');
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
+  e.target.value = '';
+}
+
+function editAuction(id) {
+  (async function() {
+    if (!(await ensureAdminCanWrite())) return;
+
+    var auction = auctions.find(function(a) { return sameId(a.id, id); });
+    if (!auction) {
+      notify('Auction not found', 'error');
+      return;
+    }
+    id = auction.id;
+    currentEditingAuctionId = id;
+
+    var bidCount = getAuctionBidCount(auction);
+    var hasBids = bidCount > 0;
+    var status = typeof getAuctionStatus === 'function' ? getAuctionStatus(auction) : (auction.status || 'active');
+    var images = (auction.images || auction.photos || []).slice();
+
+    editAuctionDraft[id] = {
+      imageUrls: images.slice(),
+      pending: { files: [], thumbs: [] }
+    };
+
+    var modalId = 'auctionEditModal_' + Date.now();
+    var safeName = typeof escapeHtml === 'function' ? escapeHtml(auction.name || '') : (auction.name || '');
+    var safeDesc = typeof escapeHtml === 'function' ? escapeHtml(auction.desc || '') : (auction.desc || '');
+    var cat = auction.category || '';
+    var startPrice = Number(auction.startingPrice || auction.currentPrice || 0);
+    var endLocal = toDatetimeLocalValue(auction.endTime);
+
+    var html = `
+    <div id="${modalId}" class="modal">
+      <div class="modal-content">
+        <span class="close" data-aylen-close>&times;</span>
+        <h2 class="aylen-modal-title"><i class="fas fa-gavel"></i> Edit auction</h2>
+        <p class="aylen-hint-box">Status: <strong>${status}</strong> · Bids: <strong>${bidCount}</strong> · Current: <strong>£${Number(auction.currentPrice || startPrice).toFixed(2)}</strong></p>
+        <div class="aylen-form-section">
+          <h3>Details</h3>
+          <label class="aylen-label" for="eauctName">Item name *</label>
+          <input type="text" id="eauctName" value="${safeName}">
+          <label class="aylen-label" for="eauctDesc">Description</label>
+          <textarea id="eauctDesc">${safeDesc}</textarea>
+          <div class="aylen-form-row">
+            <div class="aylen-field">
+              <label class="aylen-label" for="eauctStartPrice">Starting price £ *</label>
+              <input type="number" id="eauctStartPrice" value="${startPrice}" step="0.01" min="0" ${hasBids ? 'disabled' : ''}>
+            </div>
+            <div class="aylen-field">
+              <label class="aylen-label" for="eauctCategory">Category *</label>
+              <select id="eauctCategory">
+                <option value="">Select category</option>
+                <option value="electronics" ${cat === 'electronics' ? 'selected' : ''}>Electronics</option>
+                <option value="collectibles" ${cat === 'collectibles' ? 'selected' : ''}>Collectibles</option>
+                <option value="homeware" ${cat === 'homeware' ? 'selected' : ''}>Homeware</option>
+                <option value="clothing" ${cat === 'clothing' ? 'selected' : ''}>Clothing</option>
+                <option value="job-lots" ${cat === 'job-lots' ? 'selected' : ''}>Job lots / Mixed</option>
+                <option value="general" ${cat === 'general' ? 'selected' : ''}>General</option>
+              </select>
+            </div>
+          </div>
+          <label class="aylen-label" for="eauctEndTime">Ends at (local time)</label>
+          <input type="datetime-local" id="eauctEndTime" value="${endLocal}" step="60" min="${toDatetimeLocalValue(new Date().toISOString())}">
+          ${status !== 'active' ? '<p class="aylen-hint-box">This lot is <strong>' + status + '</strong>. Set a future end time and save — or tap Restart 24h below.</p>' : ''}
+          ${hasBids ? '<p class="aylen-hint-box">Starting price is locked after the first bid.</p>' : ''}
+        </div>
+        <div class="aylen-form-section">
+          <h3><i class="fas fa-images"></i> Photos (${images.length}/10)</h3>
+          <div id="eauctPhotoPreview" class="aylen-photo-preview"></div>
+          <label class="aylen-label" for="eauctPhotoInput">Add photos</label>
+          <input type="file" id="eauctPhotoInput" accept="image/*" multiple ${images.length >= 20 ? 'disabled' : ''}>
+          <p class="aylen-hint-box">JPG, PNG, GIF, WebP — up to 5MB each</p>
+        </div>
+        <div class="aylen-form-actions">
+          ${status !== 'active' ? '<button type="button" class="aylen-btn aylen-btn-quiet" onclick="restartEditAuction(' + jsInlineArg(id) + ',' + jsInlineArg(modalId) + ')"><i class="fas fa-redo"></i> Restart 24h</button>' : ''}
+          <button type="button" class="aylen-btn aylen-btn-primary" id="eauctSaveBtn" onclick="saveEditAuction(${jsInlineArg(id)},${jsInlineArg(modalId)})"><i class="fas fa-save"></i> Save changes</button>
+          <button type="button" class="aylen-btn aylen-btn-secondary" data-aylen-close>Cancel</button>
+        </div>
+      </div>
+    </div>`;
+
+    openAdminModal(html, modalId, function(panel) {
+      renderEditAuctionPhotoPreview(id);
+      var fileInput = panel.querySelector('#eauctPhotoInput');
+      if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+          handleEditAuctionPhotoUpload(e, id);
+        });
+      }
+      var nameInput = panel.querySelector('#eauctName');
+      if (nameInput) nameInput.focus();
+    });
+  })();
+}
+
+async function saveEditAuction(auctionId, modalId) {
+  if (auctionSaveInFlight) {
+    notify('Save already in progress…', 'info');
+    return;
+  }
+  if (!(await ensureAdminCanWrite())) return;
+  if (typeof confirmAylenProductionWrite === 'function' && !confirmAylenProductionWrite('save auction')) return;
+
+  var draft = editAuctionDraft[auctionId];
+  var auction = auctions.find(function(a) { return sameId(a.id, auctionId); });
+  if (!auction || !draft) {
+    notify('Auction not found. Close and reopen the dialog.', 'error');
+    return;
+  }
+
+  var prevStatus = typeof getAuctionStatus === 'function' ? getAuctionStatus(auction) : String(auction.status || 'active');
+
+  var name = ((queryInAdminModal('#eauctName') || {}).value || '').trim();
+  var descEl = queryInAdminModal('#eauctDesc');
+  var desc = descEl ? descEl.value.trim() : '';
+  var category = (queryInAdminModal('#eauctCategory') || {}).value || '';
+  var startPriceEl = queryInAdminModal('#eauctStartPrice');
+  var startPrice = parseFloat(startPriceEl && !startPriceEl.disabled ? startPriceEl.value : auction.startingPrice) || 0;
+  var endInput = (queryInAdminModal('#eauctEndTime') || {}).value;
+  var bidCount = getAuctionBidCount(auction);
+
+  if (!name || !category || startPrice <= 0) {
+    notify('Fill name, category and starting price.', 'error');
+    return;
+  }
+  if (!endInput) {
+    notify('Tap the date field and pick end date & time.', 'error');
+    var endElMissing = queryInAdminModal('#eauctEndTime');
+    if (endElMissing) {
+      try { endElMissing.focus(); } catch (e) {}
+      try { if (typeof endElMissing.showPicker === 'function') endElMissing.showPicker(); } catch (e2) {}
+    }
+    return;
+  }
+  var endTime = new Date(endInput);
+  if (isNaN(endTime.getTime())) {
+    notify('Invalid end date.', 'error');
+    return;
+  }
+  if (endTime.getTime() <= Date.now() && prevStatus === 'active') {
+    notify('End time must be in the future for an active auction.', 'error');
+    var endElPast = queryInAdminModal('#eauctEndTime');
+    if (endElPast) {
+      try { endElPast.focus(); } catch (e3) {}
+    }
+    return;
+  }
+
+  var saveBtn = queryInAdminModal('#eauctSaveBtn');
+  auctionSaveInFlight = true;
+  if (saveBtn) saveBtn.disabled = true;
+  try {
+    adminMsg('Saving auction…', 'info');
+    var imageUrls = (draft.imageUrls || []).slice();
+    var previewEl = queryInAdminModal('#eauctPhotoPreview');
+
+    if (draft.pending && draft.pending.files.length) {
+      if (imageUrls.length + draft.pending.files.length > 20) {
+        adminMsg('Maximum 10 photos per auction.', 'error');
+        return;
+      }
+      var newUrls = await uploadFilesWithProgress(draft.pending.files, previewEl, draft.pending.thumbs);
+      imageUrls = imageUrls.concat(newUrls);
+      draft.pending = { files: [], thumbs: [] };
+    }
+
+    auction.name = name;
+    auction.desc = desc;
+    auction.category = category;
+    auction.startingPrice = startPrice;
+    auction.images = imageUrls;
+    auction.photos = imageUrls;
+    auction.endTime = endTime.toISOString();
+    auction.updatedAt = new Date().toISOString();
+
+    if (bidCount === 0) {
+      auction.currentPrice = startPrice;
+    } else if (startPrice > Number(auction.currentPrice || 0)) {
+      notify('Starting price cannot be higher than current bid (£' + Number(auction.currentPrice).toFixed(2) + ').', 'error');
+      return;
+    }
+
+    if (endTime.getTime() > Date.now()) {
+      var terminal = prevStatus === 'ended' || prevStatus === 'winner_pending' ||
+        prevStatus === 'order_sent' || prevStatus === 'completed' ||
+        auction.status === 'winner_pending' || auction.status === 'completed' ||
+        auction.status === 'order_sent';
+      auction.status = 'active';
+      if (terminal) {
+        auction.winner = null;
+        auction.winnerOrder = null;
+        auction.finalizedAt = null;
+        auction.orderSentAt = null;
+        auction.completedAt = null;
+      }
+    }
+
+    if (!window.FBDB || !window.FBDB.saveAuction) {
+      throw new Error('Firebase is not ready.');
+    }
+    var saved = await window.FBDB.saveAuction(auction);
+    var idx = auctions.findIndex(function(a) { return sameId(a.id, auctionId); });
+    if (idx >= 0) auctions[idx] = saved;
+    else auctions.push(saved);
+
+    var wasRestart = endTime.getTime() > Date.now() && (
+      prevStatus === 'ended' || prevStatus === 'winner_pending' ||
+      prevStatus === 'order_sent' || prevStatus === 'completed'
+    );
+    adminMsg(wasRestart ? 'Auction restarted.' : 'Auction saved.', 'success');
+    await closeAdminModal(modalId);
+    if (typeof renderAuctions === 'function') renderAuctions();
+    if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.refreshAuctionsPanel) {
+      global.AyelenAdminDashboard.refreshAuctionsPanel().catch(function() {});
+    }
+  } catch (error) {
+    console.error('saveEditAuction', error);
+    adminMsg('Could not save auction. Try again.', 'error');
+  } finally {
+    auctionSaveInFlight = false;
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function restartEditAuction(auctionId, modalId) {
+  var endEl = queryInAdminModal('#eauctEndTime');
+  if (endEl) {
+    endEl.value = toDatetimeLocalValue(new Date(Date.now() + 24 * 3600000).toISOString());
+  }
+  await saveEditAuction(auctionId, modalId);
+}
+
+window.saveEditAuction = saveEditAuction;
+window.restartEditAuction = restartEditAuction;
+window.editAuction = editAuction;
+window.deleteAuctionConfirm = deleteAuctionConfirm;
 
 function deleteAuctionConfirm(id) {
   var auction = auctions.find(function(a) { return sameId(a.id, id); });
@@ -1275,6 +1972,21 @@ async function adminMarkAuctionCompleted(id) {
   }
 }
 
+async function adminDuplicateAuction(id) {
+  if (!confirm('Create a copy of this auction as a new listing?')) return;
+  try {
+    var copy = await duplicateAuctionById(id);
+    if (copy) {
+      notify('Auction duplicated — new listing created', 'success');
+      renderAuctions();
+    } else {
+      notify('Could not duplicate auction', 'error');
+    }
+  } catch (error) {
+    notify('Duplicate failed: ' + error.message, 'error');
+  }
+}
+
 async function adminReopenAuction(id) {
   if (!confirm('Reopen this auction for 24 hours?')) return;
   try {
@@ -1289,7 +2001,84 @@ async function adminReopenAuction(id) {
 
 // ============ LOCATION MANAGEMENT ============
 
+var PICKUP_FIELD_STYLE = 'width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px';
+
+function pickupStatusOptionsHtml(selected) {
+  var s = 'not_confirmed';
+  if (window.AYLEN_PICKUP && window.AYLEN_PICKUP.normalizePickupStatus) {
+    s = window.AYLEN_PICKUP.normalizePickupStatus({ status: selected });
+  } else if (selected === 'going' || selected === 'possible') {
+    s = selected;
+  }
+  var opts = [
+    ['going', 'We are going this weekend'],
+    ['possible', 'Possible this weekend'],
+    ['not_confirmed', 'Not confirmed yet']
+  ];
+  return opts.map(function(pair) {
+    return '<option value="' + pair[0] + '"' + (s === pair[0] ? ' selected' : '') + '>' + pair[1] + '</option>';
+  }).join('');
+}
+
+function readPickupFormFields(prefix) {
+  var isEdit = prefix === 'e';
+  var id = function(name) { return (isEdit ? 'e' : '') + name; };
+  var name = (document.getElementById(id('locName')) || {}).value || '';
+  var address = (document.getElementById(id('locAddress')) || {}).value || '';
+  var postcode = (document.getElementById(id('locPostcode')) || {}).value || '';
+  var city = (document.getElementById(id('locCity')) || {}).value || '';
+  var weatherPostcode = (document.getElementById(id('locWeatherPostcode')) || {}).value || '';
+  var day = (document.getElementById(id('locDay')) || {}).value || '';
+  var openingTime = (document.getElementById(id('locOpeningTime')) || {}).value || '';
+  var mapLink = (document.getElementById(id('locMapLink')) || {}).value || '';
+  var note = (document.getElementById(id('locNote')) || {}).value || '';
+  var sortOrder = parseInt((document.getElementById(id('locSortOrder')) || {}).value, 10) || 0;
+  var status = (document.getElementById(id('locStatus')) || {}).value || 'not_confirmed';
+  var showEl = document.getElementById(id('locShowOnWebsite'));
+  var showOnWebsite = showEl ? showEl.checked : true;
+  var pinned = (document.getElementById(id('locPinned')) || {}).checked === true;
+  postcode = postcode.trim().toUpperCase();
+  weatherPostcode = (weatherPostcode.trim() || postcode).toUpperCase();
+  if (window.AYLEN_PICKUP && window.AYLEN_PICKUP.normalizeUKPostcode) {
+    postcode = window.AYLEN_PICKUP.normalizeUKPostcode(postcode) || postcode;
+    weatherPostcode = window.AYLEN_PICKUP.normalizeUKPostcode(weatherPostcode) || weatherPostcode;
+  }
+  var data = {
+    name: name.trim(),
+    address: address.trim(),
+    postcode: postcode,
+    city: city.trim(),
+    weatherPostcode: weatherPostcode,
+    day: day.trim(),
+    days: day.trim(),
+    openingTime: openingTime.trim(),
+    time: openingTime.trim(),
+    mapLink: mapLink.trim(),
+    note: note.trim(),
+    sortOrder: sortOrder,
+    status: status,
+    showOnWebsite: showOnWebsite,
+    pinned: pinned
+  };
+  if (window.AYLEN_PICKUP && window.AYLEN_PICKUP.syncPickupStatusFields) {
+    window.AYLEN_PICKUP.syncPickupStatusFields(data);
+  } else {
+    data.active = status === 'going';
+    data.goingThisWeekend = status === 'going';
+  }
+  if (!data.mapLink) {
+    data.mapLink = data.postcode
+      ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(data.postcode)
+      : 'https://maps.google.com?q=' + encodeURIComponent(data.address);
+  }
+  return data;
+}
+
 async function geocodePostcodeForPickup(postcode) {
+  if (window.AYLEN_PICKUP && window.AYLEN_PICKUP.geocodeUKPostcode) {
+    var geo = await window.AYLEN_PICKUP.geocodeUKPostcode(postcode);
+    if (geo) return { lat: geo.lat, lng: geo.lng };
+  }
   var clean = String(postcode || '').trim().toUpperCase();
   if (!clean) return null;
   try {
@@ -1307,10 +2096,16 @@ async function geocodePostcodeForPickup(postcode) {
   }
 }
 
-function locationWeatherStatus(satRain, sunRain) {
+function locationWeatherStatus(satRain, sunRain, satCode, sunCode) {
+  if (window.AYLEN_WEATHER && window.AYLEN_WEATHER.worstTripStatus) {
+    return window.AYLEN_WEATHER.worstTripStatus([
+      { rain: satRain, code: satCode },
+      { rain: sunRain, code: sunCode }
+    ]).key;
+  }
   var maxRain = Math.max(Number(satRain || 0), Number(sunRain || 0));
-  if (maxRain >= 55) return 'BAD';
-  if (maxRain >= 25) return 'OK';
+  if (maxRain >= 56) return 'BAD';
+  if (maxRain >= 26) return 'POSSIBLE';
   return 'GOOD';
 }
 
@@ -1322,58 +2117,35 @@ function pickupWeatherDays(value) {
   return { saturday: hasSat, sunday: hasSun };
 }
 
-function selectedWeatherStatus(days, saturdayRainPct, sundayRainPct) {
-  var values = [];
-  if (days.saturday) values.push(Number(saturdayRainPct || 0));
-  if (days.sunday) values.push(Number(sundayRainPct || 0));
-  var maxRain = values.length ? Math.max.apply(Math, values) : 0;
-  if (maxRain >= 55) return 'BAD';
-  if (maxRain >= 25) return 'OK';
-  return 'GOOD';
-}
-
 async function fetchWeekendForecastForPickup(lat, lng, selectedDays) {
   if (!lat || !lng) return {};
-  try {
-    var dates = nextWeekendDates();
-    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + encodeURIComponent(lat) +
-      '&longitude=' + encodeURIComponent(lng) +
-      '&daily=precipitation_probability_max,weather_code,temperature_2m_max' +
-      '&timezone=Europe%2FLondon&start_date=' + dates.saturday + '&end_date=' + dates.sunday;
-    var response = await fetch(url);
-    if (!response.ok) return {};
-    var data = await response.json();
-    var daily = data.daily || {};
-    var rain = daily.precipitation_probability_max || [];
-    var temps = daily.temperature_2m_max || [];
-    var saturdayRainPct = Math.round(Number(rain[0] || 0));
-    var sundayRainPct = Math.round(Number(rain[1] || 0));
-    var days = selectedDays || { saturday: true, sunday: true };
-    return {
-      saturdayTemp: Math.round(Number(temps[0] || 0)),
-      sundayTemp: Math.round(Number(temps[1] || temps[0] || 0)),
-      saturdayRainPct: saturdayRainPct,
-      sundayRainPct: sundayRainPct,
-      weatherDays: days,
-      weatherStatus: selectedWeatherStatus(days, saturdayRainPct, sundayRainPct),
-      lastWeatherUpdate: new Date().toISOString(),
-      weatherSource: 'open-meteo'
-    };
-  } catch (error) {
-    console.warn('Weekend forecast fetch failed:', error.message || error);
-    return {};
+  if (window.AYLEN_WEATHER && window.AYLEN_WEATHER.fetchLiveForecast) {
+    try {
+      var forecast = await window.AYLEN_WEATHER.fetchLiveForecast(lat, lng, selectedDays);
+      return window.AYLEN_WEATHER.weatherUpdatePayload(forecast);
+    } catch (error) {
+      console.warn('Weekend forecast fetch failed:', error.message || error);
+      return {};
+    }
   }
+  return {};
 }
 
 async function enrichPickupLocationWeather(location) {
-  var postcode = String(location.postcode || '').trim().toUpperCase();
+  var postcode = String(location.weatherPostcode || location.postcode || '').trim();
+  if (window.AYLEN_PICKUP && window.AYLEN_PICKUP.normalizeUKPostcode) {
+    postcode = window.AYLEN_PICKUP.normalizeUKPostcode(postcode) || postcode.toUpperCase();
+  } else {
+    postcode = postcode.toUpperCase();
+  }
+  if (postcode) location.weatherPostcode = postcode;
   var coords = null;
   if (postcode) {
     coords = await geocodePostcodeForPickup(postcode);
     if (!coords) {
-      location.weatherError = 'Invalid postcode / Weather unavailable';
+      location.weatherError = 'Weather unavailable';
       location.weatherStatus = '';
-      throw new Error('Invalid postcode / Weather unavailable');
+      return location;
     }
   }
   if (!coords && location.lat && location.lng) {
@@ -1391,234 +2163,26 @@ async function enrichPickupLocationWeather(location) {
   return location;
 }
 
-function openAddLocationModal() {
-  var modalId = 'locationModal_' + Date.now();
-  var html = `
-    <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:500px">
-        <span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#e94560;margin-bottom:20px"><i class="fas fa-map-marker-alt"></i> Add Location</h2>
-        
-        <input type="text" id="locName" placeholder="Location Name *" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="text" id="locAddress" placeholder="Address *" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="text" id="locPostcode" placeholder="Postcode for automatic weather, e.g. CM12 9TZ" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <select id="locDay" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-          <option value="Saturday">Saturday</option>
-          <option value="Sunday">Sunday</option>
-          <option value="Saturday and Sunday">Saturday and Sunday</option>
-        </select>
-        <input type="text" id="locTime" placeholder="Time (e.g. 8:00-14:00) *" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="text" id="locNote" placeholder="Optional note for customers" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="number" id="locSortOrder" placeholder="Manual order (0 = default)" step="1" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <div style="font-size:12px;color:#999;margin:-4px 0 10px">Latitude/longitude and weekend forecast are fetched automatically from postcode.</div>
-        <label style="display:block;color:#e0e0e0;font-weight:bold;margin-top:5px"><i class="fas fa-image"></i> Location photo</label>
-        <input type="file" id="locPhoto" accept="image/*" style="width:100%;padding:10px;margin:5px 0 10px;border:1px dashed #e94560;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        
-        <div style="margin-bottom:15px">
-          <label style="color:#e0e0e0"><input type="checkbox" id="locActive" style="cursor:pointer"> Active this week</label>
-          <label style="color:#e0e0e0;margin-left:12px"><input type="checkbox" id="locPinned" style="cursor:pointer"> Pin to top</label>
-        </div>
-        
-        <div style="display:flex;gap:10px">
-          <button onclick="addLocationWithData('${modalId}')" style="flex:1;padding:12px;background:#f39c12;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold"><i class="fas fa-save"></i> Add</button>
-          <button onclick="AYLEN_MODAL.close()" style="flex:1;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer">Cancel</button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  if (window.AYLEN_MODAL) window.AYLEN_MODAL.open(html, { id: modalId });
-  else document.body.insertAdjacentHTML('beforeend', html);
-  document.getElementById('locName').focus();
-}
-
-async function addLocationWithData(modalId) {
-  var name = document.getElementById('locName').value.trim();
-  var address = document.getElementById('locAddress').value.trim();
-  var postcode = document.getElementById('locPostcode').value.trim().toUpperCase();
-  var day = document.getElementById('locDay').value.trim();
-  var time = document.getElementById('locTime').value.trim();
-  var note = document.getElementById('locNote').value.trim();
-  var sortOrder = parseInt(document.getElementById('locSortOrder').value, 10) || 0;
-  var active = document.getElementById('locActive').checked;
-  var pinned = document.getElementById('locPinned').checked;
-  
-  if (!name || !address || !day || !time) {
-    notify('Fill all required fields!', 'error');
+async function openAddLocationModal() {
+  if (!(await ensureAdminCanWrite())) return;
+  if (window.AYLEN_PICKUP_ADMIN && window.AYLEN_PICKUP_ADMIN.openAdd) {
+    window.AYLEN_PICKUP_ADMIN.openAdd();
     return;
   }
-  
-  var newId = 'loc_' + Date.now();
-
-  var photoUrl = '';
-  var photoInput = document.getElementById('locPhoto');
-  if (photoInput && photoInput.files && photoInput.files[0]) {
-    currentEditingProductId = 'location_' + newId;
-    window.currentEditingProductId = currentEditingProductId;
-    var upload = await uploadImageToCloudinary(photoInput.files[0]);
-    if (upload.success) {
-      photoUrl = upload.url;
-    } else {
-      notify('Location photo upload failed', 'error');
-      return;
-    }
-  }
-  
-  var location = {
-    id: newId,
-    name: name,
-    address: address,
-    postcode: postcode,
-    day: day,
-    days: day,
-    time: time,
-    lat: 0,
-    lng: 0,
-    lon: 0,
-    active: active,
-    goingThisWeekend: active,
-    pinned: pinned,
-    sortOrder: sortOrder,
-    note: note,
-    useCount: 0,
-    photoUrl: photoUrl,
-    mapLink: 'https://maps.google.com?q=' + encodeURIComponent(postcode || address)
-  };
-  
-  try {
-    if (!window.FBDB || !window.FBDB.saveLocation) {
-      throw new Error('Firebase is not ready. Location was not saved.');
-    }
-    notify('Saving location and loading weather...', 'info');
-    location = await enrichPickupLocationWeather(location);
-    var saved = await window.FBDB.saveLocation(location);
-    locations.push(saved);
-    notify('Location added!', 'success');
-    if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
-    else document.getElementById(modalId).remove();
-    renderLocations();
-    fillPickup();
-  } catch (error) {
-    console.error('Location add failed:', error);
-    notify('Save failed: ' + (error.message || error), 'error');
-  }
+  notify('Pickup form is loading. Refresh the page.', 'error');
 }
 
-function editLocation(id) {
-  var loc = locations.find(function(l) { return sameId(l.id, id); });
-  if (!loc) return;
-
-  var modalId = 'editLocationModal_' + Date.now();
-  var html = `
-    <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:520px;max-height:90vh;overflow-y:auto">
-        <span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#e94560;margin-bottom:20px"><i class="fas fa-map-marker-alt"></i> Edit Location</h2>
-
-        <input type="text" id="elocName" value="${escapeHtml(loc.name)}" placeholder="Location Name *" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="text" id="elocAddress" value="${escapeHtml(loc.address)}" placeholder="Address *" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="text" id="elocPostcode" value="${escapeHtml(loc.postcode || '')}" placeholder="Postcode for automatic weather" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <select id="elocDay" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-          <option value="Saturday" ${String(loc.days || loc.day || '').toLowerCase().indexOf('sat') !== -1 && String(loc.days || loc.day || '').toLowerCase().indexOf('sun') === -1 ? 'selected' : ''}>Saturday</option>
-          <option value="Sunday" ${String(loc.days || loc.day || '').toLowerCase().indexOf('sun') !== -1 && String(loc.days || loc.day || '').toLowerCase().indexOf('sat') === -1 ? 'selected' : ''}>Sunday</option>
-          <option value="Saturday and Sunday" ${String(loc.days || loc.day || '').toLowerCase().indexOf('sat') !== -1 && String(loc.days || loc.day || '').toLowerCase().indexOf('sun') !== -1 ? 'selected' : ''}>Saturday and Sunday</option>
-        </select>
-        <input type="text" id="elocTime" value="${escapeHtml(loc.time || '')}" placeholder="Time" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="text" id="elocNote" value="${escapeHtml(loc.note || '')}" placeholder="Optional note for customers" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <input type="number" id="elocSortOrder" value="${Number(loc.sortOrder || 0)}" placeholder="Manual order (0 = default)" step="1" style="width:100%;padding:10px;margin:5px 0 10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-        <div style="font-size:12px;color:#999;margin:-4px 0 10px">Coordinates and weekend forecast refresh automatically from postcode when you save.</div>
-
-        ${loc.photoUrl ? `<img src="${escapeHtml(loc.photoUrl)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:6px;margin:5px 0 10px">` : ''}
-        <label style="display:block;color:#e0e0e0;font-weight:bold;margin-top:5px"><i class="fas fa-image"></i> Replace location photo</label>
-        <input type="file" id="elocPhoto" accept="image/*" style="width:100%;padding:10px;margin:5px 0 10px;border:1px dashed #e94560;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-
-        <div style="margin-bottom:15px">
-          <label style="color:#e0e0e0"><input type="checkbox" id="elocActive" ${loc.active ? 'checked' : ''} style="cursor:pointer"> Active / going this weekend</label>
-          <label style="color:#e0e0e0;margin-left:12px"><input type="checkbox" id="elocPinned" ${loc.pinned ? 'checked' : ''} style="cursor:pointer"> Pin to top</label>
-        </div>
-
-        <div style="display:flex;gap:10px">
-          <button onclick="saveEditLocation('${id}','${modalId}')" style="flex:1;padding:12px;background:#f39c12;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold"><i class="fas fa-save"></i> Save</button>
-          <button onclick="AYLEN_MODAL.close()" style="flex:1;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer">Cancel</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  if (window.AYLEN_MODAL) window.AYLEN_MODAL.open(html, { id: modalId });
-  else document.body.insertAdjacentHTML('beforeend', html);
-}
-
-async function saveEditLocation(id, modalId) {
-  try {
-    var loc = locations.find(function(l) { return sameId(l.id, id); });
-    if (!loc) {
-      notify('Location not found. Refresh page and try again.', 'error');
-      return;
-    }
-
-    var name = document.getElementById('elocName').value.trim();
-    var address = document.getElementById('elocAddress').value.trim();
-    var postcode = document.getElementById('elocPostcode').value.trim().toUpperCase();
-    var day = document.getElementById('elocDay').value.trim();
-    var time = document.getElementById('elocTime').value.trim();
-    var note = document.getElementById('elocNote').value.trim();
-    var sortOrder = parseInt(document.getElementById('elocSortOrder').value, 10) || 0;
-
-    if (!name || !address || !day || !time) {
-      notify('Fill all required fields!', 'error');
-      return;
-    }
-
-    var photoUrl = loc.photoUrl || '';
-    var photoInput = document.getElementById('elocPhoto');
-    if (photoInput && photoInput.files && photoInput.files[0]) {
-      currentEditingProductId = 'location_' + id;
-      window.currentEditingProductId = currentEditingProductId;
-      var upload = await uploadImageToCloudinary(photoInput.files[0]);
-      if (upload.success) {
-        photoUrl = upload.url;
-      } else {
-        notify('Location photo upload failed: ' + (upload.error || 'upload failed'), 'error');
-        return;
-      }
-    }
-
-    Object.assign(loc, {
-      name: name,
-      address: address,
-      postcode: postcode,
-      day: day,
-      days: day,
-      time: time,
-      active: document.getElementById('elocActive').checked,
-      goingThisWeekend: document.getElementById('elocActive').checked,
-      pinned: document.getElementById('elocPinned').checked,
-      sortOrder: sortOrder,
-      note: note,
-      photoUrl: photoUrl,
-      mapLink: 'https://maps.google.com?q=' + encodeURIComponent(postcode || address),
-      updatedAt: new Date().toISOString()
-    });
-
-    if (!window.FBDB || !window.FBDB.saveLocation) {
-      throw new Error('Firebase is not ready. Location was not saved.');
-    }
-    notify('Saving location and refreshing weather...', 'info');
-    loc = await enrichPickupLocationWeather(loc);
-    await window.FBDB.saveLocation(loc);
-    notify('Location saved!', 'success');
-    if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
-    else document.getElementById(modalId).remove();
-    renderLocations();
-    fillPickup();
-  } catch (error) {
-    console.error('Location save failed:', error);
-    notify('Save failed: ' + (error.message || error), 'error');
+async function editLocation(id) {
+  if (!(await ensureAdminCanWrite())) return;
+  if (window.AYLEN_PICKUP_ADMIN && window.AYLEN_PICKUP_ADMIN.openEdit) {
+    window.AYLEN_PICKUP_ADMIN.openEdit(id);
+    return;
   }
+  notify('Pickup form is loading. Refresh the page.', 'error');
 }
 
 async function deleteLocationConfirm(id) {
+  if (!(await ensureAdminCanWrite())) return;
   var loc = locations.find(function(l) { return sameId(l.id, id); });
   if (!loc) return;
   
@@ -1633,8 +2197,11 @@ async function deleteLocationConfirm(id) {
       notify('Location deleted', 'success');
       renderLocations();
       fillPickup();
+      if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.refreshLocations) {
+        window.AyelenAdminDashboard.refreshLocations();
+      }
     } catch (error) {
-      notify('Delete failed: ' + (error.message || error), 'error');
+      notifyAdminDeleteError(error);
     }
   }
 }
@@ -2043,6 +2610,11 @@ async function loadPrivateCardNotes() {
 }
 
 function openCardsModal() {
+  if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.open) {
+    window.AyelenAdminDashboard.open();
+    window.AyelenAdminDashboard.go('discounts');
+    return;
+  }
   var modalId = 'cardsModal_' + Date.now();
   var html = `
     <div id="${modalId}" class="modal" style="display:flex">
@@ -2180,7 +2752,7 @@ async function createClientCards(modalId) {
   var discount = parseFloat(document.getElementById('newCardDiscount').value) || 0;
   var status = document.getElementById('newCardStatus').value || 'unused';
 
-  if (!codes.length || discount < 0 || discount > 100) {
+  if (!codes.length || discount < 0 || discount > 200) {
     notify('Enter at least one unique code and discount 0-100%', 'error');
     return;
   }
@@ -2220,7 +2792,7 @@ async function saveClientCard(code, modalId) {
     var discount = parseFloat(document.getElementById('cardDiscount_' + modalId + '_' + id).value) || 0;
     var status = document.getElementById('cardStatus_' + modalId + '_' + id).value || 'unused';
     var note = document.getElementById('cardNote_' + modalId + '_' + id).value.trim();
-    if (discount < 0 || discount > 100) {
+    if (discount < 0 || discount > 200) {
       notify('Discount must be 0-100%', 'error');
       return;
     }
@@ -2237,7 +2809,7 @@ async function saveClientCard(code, modalId) {
     renderCart();
     notify('Client card saved', 'success');
   } catch (error) {
-    notify('Save failed: ' + (error.message || error), 'error');
+    notifyAdminError('save', error);
   }
 }
 
@@ -2304,7 +2876,10 @@ function priceListItemFormHtml(prefix, item) {
       '<input id="' + prefix + 'Wholesale" type="number" step="0.01" min="0" value="' + Number(item.wholesalePrice || 0) + '" placeholder="Wholesale £" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
       '<input id="' + prefix + 'MinQty" type="number" step="1" min="1" value="' + Number(item.minQty || 1) + '" placeholder="Min qty" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
     '</div>' +
-    '<div style="display:grid;grid-template-columns:1fr 100px 120px;gap:8px">' +
+    '<label class="aylen-label" style="color:#b8c4dc;font-size:12px">Category</label>' +
+    '<input id="' + prefix + 'Category" value="' + escapeHtml(item.category || '') + '" placeholder="Category" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' +
+      '<input id="' + prefix + 'Bulk" type="number" step="0.01" min="0" value="' + Number(item.bulkPrice || 0) + '" placeholder="Bulk £" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
       '<input id="' + prefix + 'Status" value="' + escapeHtml(item.stockStatus || 'available') + '" placeholder="Stock/status" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
       '<input id="' + prefix + 'Order" type="number" step="1" value="' + Number(item.sortOrder || 0) + '" placeholder="Order" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
       '<label style="color:#e0e0e0;display:flex;align-items:center;gap:6px"><input id="' + prefix + 'Visible" type="checkbox" ' + (item.visible === false ? '' : 'checked') + '> Show</label>' +
@@ -2320,8 +2895,10 @@ function readPriceListItemForm(prefix, existing) {
     sourceProductId: existing.sourceProductId || '',
     name: document.getElementById(prefix + 'Name').value.trim(),
     desc: document.getElementById(prefix + 'Desc').value.trim(),
+    category: (document.getElementById(prefix + 'Category') || {}).value.trim() || '',
     retailPrice: parseFloat(document.getElementById(prefix + 'Retail').value) || 0,
     wholesalePrice: parseFloat(document.getElementById(prefix + 'Wholesale').value) || 0,
+    bulkPrice: parseFloat((document.getElementById(prefix + 'Bulk') || {}).value) || 0,
     minQty: parseInt(document.getElementById(prefix + 'MinQty').value, 10) || 1,
     stockStatus: document.getElementById(prefix + 'Status').value.trim() || 'available',
     sortOrder: parseInt(document.getElementById(prefix + 'Order').value, 10) || 0,
@@ -2333,6 +2910,11 @@ function readPriceListItemForm(prefix, existing) {
 }
 
 function openPriceListAdminModal() {
+  if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.open) {
+    window.AyelenAdminDashboard.open();
+    window.AyelenAdminDashboard.go('pricelist');
+    return;
+  }
   var modalId = 'priceListAdmin_' + Date.now();
   var options = products.map(function(p) {
     return '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(p.name || 'Product') + '</option>';
@@ -2515,7 +3097,7 @@ async function saveEbaySettings(modalId) {
     else document.getElementById(modalId).remove();
     notify('eBay settings saved', 'success');
   } catch (error) {
-    notify('Save failed: ' + (error.message || error), 'error');
+    notifyAdminError('save', error);
   }
 }
 
@@ -2578,7 +3160,7 @@ async function saveMarketplaceSettings(modalId) {
     else document.getElementById(modalId).remove();
     notify('Marketplace style saved', 'success');
   } catch (error) {
-    notify('Save failed: ' + (error.message || error), 'error');
+    notifyAdminError('save', error);
   }
 }
 
@@ -2744,8 +3326,14 @@ async function downloadProductionBackup() {
 // This function uploads only to Firebase Storage and returns a public URL.
 async function uploadImageToCloudinary(file) {
   if (window.FBDB && window.FBDB.uploadImage) {
-    var productId = currentEditingProductId || Date.now();
-    var result = await window.FBDB.uploadImage(file, productId);
+    var storageFolder = 'products';
+    var entityId = currentEditingProductId || pendingProductCreateId;
+    if (currentEditingAuctionId || pendingAuctionCreateId) {
+      storageFolder = 'auctions';
+      entityId = currentEditingAuctionId || pendingAuctionCreateId;
+    }
+    if (!entityId) entityId = 'draft_' + Date.now();
+    var result = await window.FBDB.uploadImage(file, entityId, storageFolder);
     var isFirebaseUrl = result.url &&
       result.url.indexOf('data:') !== 0 &&
       (
@@ -2760,3 +3348,21 @@ async function uploadImageToCloudinary(file) {
 
   return { success: false, error: 'Firebase Storage is not ready. Please refresh and try again.' };
 }
+
+window.__aylenToggleAdminMode = toggleAdminMode;
+
+function openAiAdminAssistantSafe(opts) {
+  var run = function() {
+    if (typeof openAiAdminAssistant === 'function') {
+      openAiAdminAssistant(opts);
+      return;
+    }
+    notify('AI module is still loading. Try again in a few seconds.', 'info');
+  };
+  if (window.AYLEN_ADMIN_LOADER && window.AYLEN_ADMIN_LOADER.loadExtras) {
+    window.AYLEN_ADMIN_LOADER.loadExtras().then(run).catch(run);
+  } else {
+    run();
+  }
+}
+window.openAiAdminAssistantSafe = openAiAdminAssistantSafe;

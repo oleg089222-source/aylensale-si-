@@ -1,0 +1,35 @@
+{
+  "name": "aylensale-car-sales-uk",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "node scripts/smoke-check.mjs",
+    "verify:vip": "node scripts/verify-vip.mjs",
+    "seed:vip": "node scripts/seed-vip-data.mjs",
+    "icons:from-source": "node scripts/apply-brand-source.mjs",
+    "icons:push-pwa": "node scripts/push-pwa-branding.mjs",
+    "build": "node scripts/bundle-qrcode.mjs && node scripts/bundle-storefront-css.mjs && node scripts/bundle-storefront-js.mjs && node scripts/vercel-build.mjs && node scripts/inline-catalog-bootstrap.mjs && node scripts/smoke-check.mjs",
+    "perf": "node scripts/perf-audit.mjs",
+    "verify:storefront": "node scripts/verify-storefront.mjs",
+    "verify:admin": "node scripts/verify-admin-auction.mjs",
+    "storage:resize": "node scripts/bulk-resize-storage.mjs --remote",
+    "storage:resize:apply": "node scripts/bulk-resize-storage.mjs --remote --apply",
+    "storage:resize:local": "node scripts/bulk-resize-storage.mjs",
+    "storage:orphans": "node scripts/storage-orphan-cleanup.mjs --remote",
+    "storage:orphans:apply": "node scripts/storage-orphan-cleanup.mjs --remote --apply",
+    "serve": "node scripts/local-preview.mjs",
+    "serve:static": "python3 -m http.server 8888 --bind 127.0.0.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "sharp": "^0.33.5",
+    "stripe": "^17.7.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "qrcode": "^1.5.4"
+  }
+}

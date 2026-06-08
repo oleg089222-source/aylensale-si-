@@ -1,8 +1,9 @@
 /**
  * AI Admin Assistant API — product listing drafts, image hints, stock commands.
- * Requires ADMIN_PASSWORD via x-admin-key header (set after admin login).
+ * Requires admin password via x-admin-key header (set after admin login).
  * Set OPENAI_API_KEY and optional OPENAI_MODEL on Vercel.
  */
+import { verifyAdminPassword } from './lib/admin-password.mjs';
 
 const rateLimits = new Map();
 
@@ -29,11 +30,10 @@ function checkRateLimit(ip, maxPerMinute) {
   return true;
 }
 
-function isAdminRequest(req) {
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) return false;
+async function isAdminRequest(req) {
   const key = req.headers['x-admin-key'] || req.body?.adminKey;
-  return key && String(key) === String(adminPassword);
+  if (!key) return false;
+  return verifyAdminPassword(key);
 }
 
 function cleanString(value, max) {
@@ -351,7 +351,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Too many AI requests. Please wait a minute.' });
   }
 
-  if (!isAdminRequest(req)) {
+  if (!(await isAdminRequest(req))) {
     return res.status(401).json({ error: 'Admin authentication required' });
   }
 

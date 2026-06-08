@@ -190,9 +190,14 @@
 }
 
 @media (max-width: 768px) {
+  body.hero-contact-via-hub .contact-float.contact-float--support {
+    right: auto !important;
+    bottom: auto !important;
+  }
+
   .contact-float.contact-float--support {
     right: 12px !important;
-    bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(var(--aylen-bottom-nav, 58px) + 12px + env(safe-area-inset-bottom, 0px)) !important;
     z-index: 330 !important;
   }
 

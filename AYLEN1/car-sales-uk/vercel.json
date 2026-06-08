@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
   "headers": [
     {
       "source": "/(.*)",
@@ -17,16 +19,145 @@
       ]
     },
     {
+      "source": "/css/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
       "source": "/js/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/api/image-thumb",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ],
+  "rewrites": [
+    { "source": "/vip-stock", "destination": "/vip-stock.html" },
+    { "source": "/vip-member-preview", "destination": "/vip-member-preview.html" },
+    { "source": "/vip-live-preview", "destination": "/vip-live-preview.html" }
+  ],
   "routes": [
+    {
+      "src": "/api/stripe-webhook",
+      "dest": "/api/vip?action=webhook"
+    },
+    {
+      "src": "/api/stripe-create-checkout",
+      "dest": "/api/vip?action=checkout"
+    },
+    {
+      "src": "/api/vip-config",
+      "dest": "/api/vip?action=config"
+    },
+    {
+      "src": "/api/vip-admin-panel",
+      "dest": "/api/vip?action=admin-panel"
+    },
+    {
+      "src": "/api/vip-admin-member-preview",
+      "dest": "/api/vip?action=admin-member-preview"
+    },
+    {
+      "src": "/api/vip-status",
+      "dest": "/api/vip?action=status"
+    },
+    {
+      "src": "/api/vip-portal",
+      "dest": "/api/vip?action=portal"
+    },
+    {
+      "src": "/api/vip-verify-checkout",
+      "dest": "/api/vip?action=verify"
+    },
+    {
+      "src": "/api/vip-order",
+      "dest": "/api/vip?action=create-order"
+    },
+    {
+      "src": "/api/vip-orders",
+      "dest": "/api/vip?action=member-orders"
+    },
+    {
+      "src": "/api/vip-admin-order",
+      "dest": "/api/vip?action=admin-order-update"
+    },
+    {
+      "src": "/api/vip-admin-stock",
+      "dest": "/api/vip?action=admin-stock"
+    },
+    {
+      "src": "/api/admin-media-upload",
+      "dest": "/api/vip?action=admin-media-upload"
+    },
+    {
+      "src": "/api/vip-magic-link",
+      "dest": "/api/vip?action=magic-link-request"
+    },
+    {
+      "src": "/api/vip-magic-redeem",
+      "dest": "/api/vip?action=magic-link-redeem"
+    },
+    {
+      "src": "/api/vip-item-checkout",
+      "dest": "/api/vip?action=vip-item-checkout"
+    },
+    {
+      "src": "/api/vip-item-verify",
+      "dest": "/api/vip?action=vip-item-verify"
+    },
+    {
+      "src": "/api/vip-item-view",
+      "dest": "/api/vip?action=vip-item-view"
+    },
+    {
+      "src": "/api/vip-auction-bid",
+      "dest": "/api/vip?action=vip-auction-bid"
+    },
+    {
+      "src": "/api/spam-config",
+      "dest": "/api/spam?action=config"
+    },
+    {
+      "src": "/api/notify-request",
+      "dest": "/api/spam?action=notify-request"
+    },
+    {
+      "src": "/api/auction-bid",
+      "dest": "/api/spam?action=auction-bid"
+    },
+    {
+      "src": "/api/loyalty",
+      "dest": "/api/spam?action=loyalty"
+    },
+    {
+      "src": "/api/auction-engine",
+      "dest": "/api/spam?action=auction-engine"
+    },
+    {
+      "src": "/api/auction-tick",
+      "dest": "/api/spam?action=auction-engine&sub=tick"
+    },
+    {
+      "src": "/api/storage-resize",
+      "dest": "/api/spam?action=storage-resize"
+    },
+    {
+      "src": "/api/storage-orphans",
+      "dest": "/api/spam?action=storage-orphans"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"
+    },
+    {
+      "src": "/vip-stock",
+      "dest": "/vip-stock.html"
     },
     {
       "src": "/(.*\\..*)",

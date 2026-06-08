@@ -182,7 +182,8 @@
   background: #0a0e17;
 }
 
-.aylen-admin-form .aylen-photo-preview > div {
+.aylen-admin-form .aylen-photo-preview > div,
+.aylen-admin-form .aylen-photo-preview .aylen-photo-thumb {
   position: relative;
   width: 80px;
   height: 80px;
@@ -190,6 +191,114 @@
   border-radius: 8px;
   overflow: hidden;
   background: #1a2438;
+}
+
+.aylen-admin-form .aylen-photo-upload-status {
+  margin-bottom: 10px;
+}
+
+.aylen-admin-form .aylen-photo-upload-status__track {
+  height: 6px;
+  background: #1a2438;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.aylen-admin-form .aylen-photo-upload-status__fill {
+  height: 100%;
+  width: 0;
+  background: #00cc66;
+  transition: width 0.25s ease;
+}
+
+.aylen-admin-form .aylen-photo-upload-status__text {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.aylen-admin-form .aylen-photo-thumb--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.aylen-admin-form .aylen-photo-thumb__spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #475569;
+  border-top-color: #00cc66;
+  border-radius: 50%;
+  animation: aylen-photo-spin 0.75s linear infinite;
+}
+
+.aylen-admin-form .aylen-photo-thumb__label {
+  font-size: 9px;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.2;
+  padding: 0 4px;
+}
+
+.aylen-admin-form .aylen-photo-thumb--uploading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1;
+}
+
+.aylen-admin-form .aylen-photo-thumb--uploading .aylen-photo-thumb__spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -11px 0 0 -11px;
+  z-index: 2;
+}
+
+.aylen-admin-form .aylen-photo-thumb--error {
+  border-color: #e94560;
+}
+
+.aylen-admin-form .aylen-inline-confirm {
+  margin: 12px 0;
+  padding: 14px;
+  background: #1e293b;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+}
+
+.aylen-admin-form .aylen-inline-confirm__title {
+  margin: 0 0 8px;
+  font-weight: 800;
+  color: #fbbf24;
+  font-size: 14px;
+}
+
+.aylen-admin-form .aylen-inline-confirm__detail {
+  margin: 0 0 12px;
+  color: #cbd5e1;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.aylen-admin-form .aylen-inline-confirm__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.aylen-admin-form .aylen-inline-confirm__actions .aylen-btn {
+  flex: 1;
+  min-width: 120px;
+}
+
+@keyframes aylen-photo-spin {
+  to { transform: rotate(360deg); }
 }
 
 .aylen-admin-form .aylen-photo-preview img {
@@ -222,4 +331,37 @@
   .aylen-admin-form .aylen-form-row {
     flex-direction: column;
   }
+}
+
+.aylen-admin-form .aylen-vip-save-status {
+  min-height: 1.2em;
+  font-weight: 700;
+}
+
+.aylen-admin-form .aylen-vip-save-status--info {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.aylen-admin-form .aylen-vip-save-status--success {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.aylen-admin-form .aylen-vip-save-status--error {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.aylen-admin-form .aylen-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }

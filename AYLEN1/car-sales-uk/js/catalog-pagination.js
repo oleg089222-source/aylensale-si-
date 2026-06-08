@@ -100,9 +100,52 @@
     state.visibleLimit = PAGE_SIZE;
   }
 
+  function mergeCatalogItems(items) {
+    if (typeof applyCatalogSnapshot === 'function') {
+      applyCatalogSnapshot('products', items || [], { fromServer: true, merge: true });
+      return;
+    }
+    if (typeof products === 'undefined') return;
+    (items || []).forEach(function(item) {
+      var idx = products.findIndex(function(p) { return String(p.id) === String(item.id); });
+      if (idx === -1) products.push(item);
+    });
+    if (typeof renderProducts === 'function') renderProducts();
+  }
+
+  async function loadMoreFromApi() {
+    var api = global.AYLEN_STOREFRONT_CATALOG_API;
+    if (!api || !global.AYLEN_CATALOG_HAS_MORE) return false;
+    try {
+      global.AYLEN_CATALOG_LOADING = true;
+      var payload = await api.fetchCatalog({
+        limit: PAGE_SIZE,
+        after: global.AYLEN_CATALOG_LAST_ID || null
+      });
+      var block = payload.products || {};
+      global.AYLEN_CATALOG_LAST_ID = block.lastId || null;
+      global.AYLEN_CATALOG_HAS_MORE = !!block.hasMore;
+      var items = block.items || [];
+      if (global.AYLEN_PRODUCTION && global.AYLEN_PRODUCTION.filterProductionProducts) {
+        items = global.AYLEN_PRODUCTION.filterProductionProducts(items);
+      }
+      mergeCatalogItems(items);
+      return true;
+    } catch (e) {
+      console.warn('Load more (API) failed', e);
+      return false;
+    } finally {
+      global.AYLEN_CATALOG_LOADING = false;
+    }
+  }
+
   async function loadMore() {
     if (global.AYLEN_CATALOG_LOADING) return;
-    if (global.FBDB && global.FBDB.loadProductsPage && global.AYLEN_CATALOG_LAST_DOC !== undefined) {
+
+    var firestoreReady = global.FBDB && global.FBDB.loadProductsPage && global.isFirebaseReady;
+    var firestoreCursorReady = global.AYLEN_CATALOG_LAST_DOC !== undefined && global.AYLEN_CATALOG_LAST_DOC !== null;
+
+    if (firestoreReady && (firestoreCursorReady || !global.AYLEN_CATALOG_FROM_API)) {
       try {
         global.AYLEN_CATALOG_LOADING = true;
         var page = await global.FBDB.loadProductsPage({
@@ -111,15 +154,7 @@
         });
         global.AYLEN_CATALOG_LAST_DOC = page.lastDoc;
         global.AYLEN_CATALOG_HAS_MORE = page.hasMore;
-        if (typeof applyCatalogSnapshot === 'function') {
-          applyCatalogSnapshot('products', page.items || [], { fromServer: true, merge: true });
-        } else if (typeof products !== 'undefined') {
-          (page.items || []).forEach(function(item) {
-            var idx = products.findIndex(function(p) { return String(p.id) === String(item.id); });
-            if (idx === -1) products.push(item);
-          });
-          if (typeof renderProducts === 'function') renderProducts();
-        }
+        mergeCatalogItems(page.items || []);
       } catch (e) {
         console.warn('Load more failed', e);
       } finally {
@@ -127,6 +162,12 @@
       }
       return;
     }
+
+    if (global.AYLEN_CATALOG_FROM_API && global.AYLEN_STOREFRONT_CATALOG_API && global.AYLEN_CATALOG_HAS_MORE) {
+      var loaded = await loadMoreFromApi();
+      if (loaded) return;
+    }
+
     state.visibleLimit += PAGE_SIZE;
     if (typeof renderProducts === 'function') renderProducts();
   }
@@ -137,18 +178,8 @@
     if (typeof renderProducts === 'function') renderProducts();
   }
 
-  function ensureToolbar() {
-    var section = document.getElementById('products');
-    if (!section || document.getElementById('catalogToolbar')) return;
-    var cats = getCatalogCategories();
-    var catOpts = '<option value="">All categories</option>';
-    cats.forEach(function(c) {
-      catOpts += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>';
-    });
-    var bar = document.createElement('div');
-    bar.id = 'catalogToolbar';
-    bar.className = 'catalog-toolbar';
-    bar.innerHTML =
+  function buildCatalogToolbarHtml(catOpts) {
+    return (
       '<div class="catalog-toolbar-row">' +
       '<input type="search" id="catalogSearch" class="catalog-search" placeholder="Search products…" aria-label="Search products">' +
       '<select id="catalogCategory" class="catalog-select" aria-label="Category">' + catOpts + '</select>' +
@@ -166,13 +197,14 @@
       '<button type="button" class="catalog-chip" data-quick="sale">On sale</button>' +
       '<button type="button" class="catalog-chip" data-quick="new">New this week</button>' +
       '</div>' +
-      '<p id="catalogResultMeta" class="catalog-meta"></p>';
-    var grid = document.getElementById('productsGrid');
-    if (grid && grid.parentNode) {
-      grid.parentNode.insertBefore(bar, grid);
-    } else {
-      section.appendChild(bar);
-    }
+      '<p id="catalogResultMeta" class="catalog-meta" aria-live="polite"></p>'
+    );
+  }
+
+  function wireCatalogToolbar(bar) {
+    if (!bar || bar.getAttribute('data-catalog-wired') === '1') return;
+    bar.setAttribute('data-catalog-wired', '1');
+
     var searchEl = document.getElementById('catalogSearch');
     var catEl = document.getElementById('catalogCategory');
     var sortEl = document.getElementById('catalogSort');
@@ -207,7 +239,36 @@
         if (typeof renderProducts === 'function') renderProducts();
       });
     });
-    if (chips[0]) chips[0].classList.add('is-active');
+    if (chips.length && !bar.querySelector('.catalog-chip.is-active')) {
+      chips[0].classList.add('is-active');
+    }
+  }
+
+  function ensureToolbar() {
+    var section = document.getElementById('products');
+    if (!section) return;
+
+    var bar = document.getElementById('catalogToolbar');
+    if (!bar) {
+      var cats = getCatalogCategories();
+      var catOpts = '<option value="">All categories</option>';
+      cats.forEach(function(c) {
+        catOpts += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>';
+      });
+      bar = document.createElement('div');
+      bar.id = 'catalogToolbar';
+      bar.className = 'catalog-toolbar';
+      bar.innerHTML = buildCatalogToolbarHtml(catOpts);
+      var grid = document.getElementById('productsGrid');
+      if (grid && grid.parentNode) {
+        grid.parentNode.insertBefore(bar, grid);
+      } else {
+        section.appendChild(bar);
+      }
+    }
+
+    refreshCategories();
+    wireCatalogToolbar(bar);
   }
 
   function renderFooter(slice) {
@@ -225,10 +286,15 @@
         ? 'Showing ' + slice.showing + ' of ' + slice.total + ' products'
         : 'No products match your filters';
     }
+    if (global.AYLEN_STOREFRONT_FOLDS && global.AYLEN_STOREFRONT_FOLDS.syncCatalogFoldMeta) {
+      global.AYLEN_STOREFRONT_FOLDS.syncCatalogFoldMeta();
+    }
     if (!slice.total) {
       host.innerHTML = '';
+      host.setAttribute('aria-hidden', 'true');
       return;
     }
+    host.removeAttribute('aria-hidden');
     var html = '';
     if (slice.hasMore) {
       var remain = slice.total - slice.showing;

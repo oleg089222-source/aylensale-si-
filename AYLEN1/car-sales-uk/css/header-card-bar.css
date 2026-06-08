@@ -1,0 +1,511 @@
+/**
+ * Unified header bar — logo → Card # → Price list → cart on one row.
+ * Pink shimmer near AYLENSALE, smooth fade to green toward Price list.
+ */
+
+.site-header #headerEbayBtn {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.site-header .header-shell {
+  padding-bottom: 8px !important;
+}
+
+/* —— One cohesive glass strip —— */
+.site-header .header-top.header-top--unified {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  min-height: 52px !important;
+  padding: 5px 8px 5px 12px !important;
+  margin: 8px 0 4px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(255, 79, 131, 0.14) 0%,
+      rgba(255, 214, 226, 0.06) 14%,
+      rgba(255, 255, 255, 0.02) 32%,
+      rgba(7, 10, 20, 0.15) 48%,
+      rgba(16, 185, 129, 0.07) 68%,
+      rgba(16, 185, 129, 0.16) 88%,
+      rgba(5, 150, 105, 0.12) 100%
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 10px 28px rgba(0, 0, 0, 0.22) !important;
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+  overflow: hidden !important;
+}
+
+.site-header .header-top.header-top--unified::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 38%,
+    transparent 62%,
+    rgba(52, 211, 153, 0.06) 100%
+  ) !important;
+  opacity: 0.9 !important;
+}
+
+.site-header .header-top.header-top--unified > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.site-header .header-top.header-top--unified .logo {
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  padding-right: 6px !important;
+  font-size: clamp(17px, 2.6vw, 22px) !important;
+  letter-spacing: 0.08em !important;
+}
+
+/* —— Card field (transparent, sits in gradient) —— */
+.site-header .header-card-bar {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.site-header .header-card-access.login-box {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.site-header .header-card-access.login-box:focus-within {
+  box-shadow: none !important;
+}
+
+.site-header .header-card-access__icon-inline {
+  flex: 0 0 auto !important;
+  font-size: 15px !important;
+  color: #86efac !important;
+  opacity: 0.92 !important;
+  transform: rotate(-10deg);
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.35));
+}
+
+body:not(.aylen-discount-active) .site-header .header-card-access__icon-inline {
+  animation: headerCardIconPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes headerCardIconPulse {
+  0%, 100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.25));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.5));
+  }
+}
+
+.site-header .header-card-access__field {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: block !important;
+}
+
+.site-header .header-card-access__label {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.site-header .login-box input#cardNumber {
+  width: 100% !important;
+  max-width: none !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px !important;
+  background: rgba(7, 10, 20, 0.35) !important;
+  color: #f8fafc !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.18) !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+}
+
+.site-header .login-box input#cardNumber::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+.site-header .login-box input#cardNumber:focus {
+  border-color: rgba(52, 211, 153, 0.5) !important;
+  background: rgba(7, 10, 20, 0.5) !important;
+  box-shadow:
+    0 0 0 2px rgba(52, 211, 153, 0.14),
+    inset 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.aylen-discount-active .site-header .header-top.header-top--unified {
+  border-color: rgba(52, 211, 153, 0.35) !important;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(255, 79, 131, 0.1) 0%,
+      rgba(255, 214, 226, 0.04) 12%,
+      rgba(16, 185, 129, 0.1) 55%,
+      rgba(16, 185, 129, 0.22) 100%
+    ) !important;
+}
+
+body.aylen-discount-active .site-header .login-box input#cardNumber.card-applied {
+  color: #6ee7b7 !important;
+  border-color: rgba(52, 211, 153, 0.55) !important;
+  background: rgba(6, 78, 59, 0.28) !important;
+  font-weight: 800 !important;
+}
+
+.site-header .login-box .header-card-access__apply,
+.site-header .login-box .login-code-btn {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 12px !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #34d399, #059669) !important;
+  color: #052e16 !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.32) !important;
+  cursor: pointer !important;
+}
+
+.site-header .login-box .header-card-access__exit {
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.site-header .login-box .header-card-access__exit.is-visible {
+  display: inline-flex !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.header-card-access__exit-x {
+  display: none;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.header-card-access__exit-label {
+  display: inline;
+}
+
+.site-header .login-box .header-card-access__exit:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.site-header .login-box .header-card-access__apply i,
+.site-header .login-box .login-code-btn i {
+  font-size: 13px !important;
+  margin: 0 !important;
+}
+
+.site-header .login-box .login-code-label {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: nowrap !important;
+}
+
+/* —— Tools (Price list + cart) —— */
+.site-header .header-tools {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+}
+
+.site-header .cart-btn.cart-btn--dock {
+  position: relative !important;
+  flex: 0 0 auto !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(135deg, #e94560, #c73659) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(233, 69, 96, 0.35) !important;
+  cursor: pointer !important;
+}
+
+.site-header .cart-btn.cart-btn--dock i {
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+.site-header .cart-btn__badge,
+.site-header .cart-btn #cartCount {
+  position: absolute !important;
+  top: -4px !important;
+  right: -4px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 5px !important;
+  border-radius: 999px !important;
+  background: #00ff88 !important;
+  color: #052e16 !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  line-height: 18px !important;
+  text-align: center !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  border: 2px solid rgba(7, 10, 20, 0.9) !important;
+}
+
+.site-header .cart-btn.cart-btn--empty .cart-btn__badge,
+.site-header .cart-btn.cart-btn--empty #cartCount {
+  display: none !important;
+}
+
+.site-header #adminAccessDiv {
+  display: flex !important;
+  align-items: center !important;
+  flex: 0 0 auto !important;
+}
+
+.site-header #headerAdminBtn {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  border-radius: 10px !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+@media (max-width: 900px) {
+  .site-header .login-box .login-code-label {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  .site-header .login-box .header-card-access__apply,
+  .site-header .login-box .header-card-access__exit,
+  .site-header .login-box .login-code-btn {
+    padding: 0 !important;
+    width: 40px !important;
+    min-width: 40px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body.aylen-discount-active .site-header .header-top.header-top--unified {
+    overflow: visible !important;
+  }
+
+  body.aylen-discount-active .site-header .header-card-access__icon-inline {
+    display: none !important;
+  }
+
+  body.aylen-discount-active .header-card-access__field {
+    display: none !important;
+  }
+
+  body.aylen-discount-active .loyalty-portal-chip {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: calc(100% - 48px) !important;
+    justify-content: center !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    margin-left: 0 !important;
+    padding: 0 12px !important;
+    font-size: 13px !important;
+    order: 2 !important;
+  }
+
+  body.aylen-discount-active .loyalty-portal-chip__text {
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  body.aylen-discount-active .header-card-access.login-box {
+    gap: 6px !important;
+  }
+
+  body.aylen-discount-active .header-card-access__exit.is-visible {
+    flex-shrink: 0 !important;
+    order: 3 !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+  }
+
+  body.aylen-discount-active .header-card-access__exit-x {
+    display: block !important;
+  }
+
+  body.aylen-discount-active .header-card-access__exit-label {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-header .header-top.header-top--unified {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    margin: 6px 0 4px !important;
+    min-height: 0 !important;
+  }
+
+  .site-header .header-top.header-top--unified .logo {
+    order: 1 !important;
+    font-size: 16px !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .site-header .header-tools {
+    order: 2 !important;
+    margin-left: auto !important;
+  }
+
+  .site-header .header-card-bar {
+    order: 3 !important;
+    flex: 1 1 100% !important;
+  }
+
+  .site-header .login-box input#cardNumber {
+    font-size: 16px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+  }
+
+  .site-header .login-box .header-card-access__apply,
+  .site-header .login-box .header-card-access__exit,
+  .site-header .login-box .login-code-btn {
+    height: 42px !important;
+    min-height: 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+  }
+
+  .site-header .cart-btn.cart-btn--dock,
+  .site-header .header-price-list-btn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .site-header .logo-bolt-btn {
+    display: inline-flex !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-radius: 9px !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .site-header .logo-bolt-btn i {
+    display: inline-block !important;
+    font-size: 20px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    -webkit-text-fill-color: #ff4f83 !important;
+    text-shadow: 0 0 9px rgba(255, 79, 131, 0.4) !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .site-header .header-shell {
+    padding: 0 20px 8px !important;
+  }
+}
