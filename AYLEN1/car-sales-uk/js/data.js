@@ -765,10 +765,10 @@ async function saveAuctionState(auction) {
 
 async function placeBid(auctionId, bidAmount, bidderInfo, meta) {
   var auction = auctions.find(function(a) { return sameId(a.id, auctionId); });
-  if (!auction) return false;
-  if (getAuctionStatus(auction) !== 'active') return false;
+  if (!auction) return { success: false, error: 'Auction not found' };
+  if (getAuctionStatus(auction) !== 'active') return { success: false, error: 'Auction is not active' };
   var currentPrice = Number(auction.currentPrice || auction.startingPrice || 0);
-  if (bidAmount <= currentPrice) return false;
+  if (bidAmount <= currentPrice) return { success: false, error: 'Bid too low' };
   var contact = typeof bidderInfo === 'object' && bidderInfo ? bidderInfo : { name: bidderInfo || 'Anonymous' };
   meta = meta || {};
 
@@ -791,7 +791,11 @@ async function placeBid(auctionId, bidAmount, bidderInfo, meta) {
     });
     var data = await response.json();
     if (!response.ok || !data.success) {
-      return false;
+      return {
+        success: false,
+        code: data.code || '',
+        error: data.error || 'Bid could not be saved'
+      };
     }
 
     if (data.endTimeExtended && typeof notify === 'function') {
@@ -821,10 +825,10 @@ async function placeBid(auctionId, bidAmount, bidderInfo, meta) {
     if (window.AYLEN_AUCTION_HUB && window.AYLEN_AUCTION_HUB.onBidPlaced) {
       window.AYLEN_AUCTION_HUB.onBidPlaced(auction.id, bidAmount);
     }
-    return true;
+    return { success: true };
   } catch (e) {
     console.warn('Auction bid API failed:', e.message || e);
-    return false;
+    return { success: false, error: e.message || 'Network error' };
   }
 }
 

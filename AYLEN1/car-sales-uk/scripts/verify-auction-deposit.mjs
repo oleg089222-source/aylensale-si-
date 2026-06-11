@@ -45,6 +45,13 @@ record('deposit-enforcement-off', config.data.depositEnforcement === false,
   'depositEnforcement must stay false on production until sign-off');
 record('production-locked', config.data.productionLocked === true,
   'source=' + (config.data.depositEnforcementSource || 'n/a') + ' env=' + (config.data.deployEnvironment || 'n/a'));
+
+const homeRes = await fetch(BASE + '/');
+const homeHtml = await homeRes.text();
+record('client-deposit-config-loader', homeHtml.indexOf('loadAuctionDepositConfig') !== -1 || homeHtml.indexOf('AYLEN_AUCTION_DEPOSIT') !== -1,
+  'client bid gate helpers in bundle');
+record('client-deposit-gate-label', homeHtml.indexOf('Deposit First') !== -1 || homeHtml.indexOf('isAuctionBidGated') !== -1,
+  'gated bid UI strings/helpers present');
 record('deposits-enabled', config.data.depositsEnabled === true, 'checkout available');
 record('stripe-configured', config.data.stripeConfigured === true, 'STRIPE_SECRET_KEY');
 record('webhook-configured', config.data.webhookConfigured === true, 'STRIPE_WEBHOOK_SECRET');

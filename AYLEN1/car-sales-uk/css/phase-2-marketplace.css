@@ -589,6 +589,13 @@
   background: linear-gradient(135deg, #e94560, #b91645);
 }
 
+.auction-card .auction-btn--bid-gated {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .auction-card .auction-btn--deposit {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
 }

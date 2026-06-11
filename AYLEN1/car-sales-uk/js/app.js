@@ -1656,6 +1656,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
   var runStorefrontBoot = async function() {
   await loadAllData();
+  await loadAuctionDepositConfig();
   applyCardFromUrl();
   await handleAuctionDepositReturn();
   prefetchLoyaltyPortalIfNeeded();
@@ -2041,6 +2042,7 @@ function clearAuctionDepositHash() {
 }
 
 async function reloadAuctionCatalogAfterDeposit(auctionId) {
+  await loadAuctionDepositConfig(true);
   if (typeof loadAllData === 'function') {
     try { await loadAllData(); } catch (e) {}
   }
@@ -3614,6 +3616,76 @@ function formatAuctionBidTime(timestamp) {
 }
 
 var AUCTION_DEPOSIT_GBP = 50;
+var auctionDepositConfigCache = null;
+var auctionDepositConfigPromise = null;
+
+async function loadAuctionDepositConfig(force) {
+  if (!force && auctionDepositConfigCache) return auctionDepositConfigCache;
+  if (!force && auctionDepositConfigPromise) return auctionDepositConfigPromise;
+  auctionDepositConfigPromise = fetch('/api/auction-deposit-config')
+    .then(function(res) { return res.json().catch(function() { return {}; }); })
+    .then(function(data) {
+      auctionDepositConfigCache = data && data.ok ? data : {
+        ok: true,
+        depositEnforcement: false,
+        depositAmountGbp: AUCTION_DEPOSIT_GBP,
+        depositsEnabled: true
+      };
+      if (Number(auctionDepositConfigCache.depositAmountGbp) > 0) {
+        AUCTION_DEPOSIT_GBP = Number(auctionDepositConfigCache.depositAmountGbp);
+      }
+      return auctionDepositConfigCache;
+    })
+    .catch(function() {
+      auctionDepositConfigCache = {
+        ok: true,
+        depositEnforcement: false,
+        depositAmountGbp: AUCTION_DEPOSIT_GBP,
+        depositsEnabled: true
+      };
+      return auctionDepositConfigCache;
+    })
+    .finally(function() { auctionDepositConfigPromise = null; });
+  return auctionDepositConfigPromise;
+}
+
+function getAuctionDepositConfig() {
+  return auctionDepositConfigCache || {
+    ok: true,
+    depositEnforcement: false,
+    depositAmountGbp: AUCTION_DEPOSIT_GBP,
+    depositsEnabled: true
+  };
+}
+
+function isAuctionDepositEnforcementActive() {
+  try {
+    if (sessionStorage.getItem('aylen_deposit_gate_preview') === '1') return true;
+  } catch (e) {}
+  var cfg = getAuctionDepositConfig();
+  return cfg.depositEnforcement === true;
+}
+
+function getAuctionDepositAmountGbp() {
+  var cfg = getAuctionDepositConfig();
+  var amount = Number(cfg.depositAmountGbp || AUCTION_DEPOSIT_GBP);
+  return Number.isFinite(amount) && amount > 0 ? amount : AUCTION_DEPOSIT_GBP;
+}
+
+function isAuctionBidGated(auction) {
+  return isAuctionDepositEnforcementActive() && !hasAuctionDepositPaid(auction);
+}
+
+function auctionDepositFirstLabel() {
+  return 'Pay £' + getAuctionDepositAmountGbp().toFixed(0) + ' Deposit First';
+}
+
+function promptAuctionDepositRequired(auctionId, message) {
+  if (typeof notify === 'function') {
+    notify(message || auctionDepositFirstLabel(), 'error');
+  }
+  openAuctionDepositModal(auctionId);
+}
 
 function auctionBuyNowPrice(auction) {
   var price = Number(auction && auction.buyNowPrice || 0);
@@ -3703,6 +3775,8 @@ function buildAuctionMarketHtml(a, domKey, ctx) {
   var isActive = getAuctionStatus(a) === 'active' && !isEnded;
   var buyNow = auctionBuyNowPrice(a);
   var depositPaid = hasAuctionDepositPaid(a);
+  var bidGated = isAuctionBidGated(a);
+  var depositAmount = getAuctionDepositAmountGbp();
   var h = '';
 
   h += '<div class="auction-price-section">';
@@ -3731,14 +3805,22 @@ function buildAuctionMarketHtml(a, domKey, ctx) {
     h += '<div class="auction-card-actions">';
     h += '<div class="bid-input-section">';
     h += '<input type="number" id="bid-amount-' + domKey + '" inputmode="decimal" placeholder="Min £' +
-      (Number(a.currentPrice || 0) + 1).toFixed(2) + '" min="' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" step="0.01">';
-    h += '<button type="button" class="auction-btn auction-btn--bid" data-action="open-bid" data-auction-id="' +
-      escapeHtml(String(a.id)) + '"><i class="fas fa-gavel"></i> Place Bid</button>';
+      (Number(a.currentPrice || 0) + 1).toFixed(2) + '" min="' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" step="0.01"' +
+      (bidGated ? ' disabled aria-disabled="true"' : '') + '>';
+    if (bidGated) {
+      h += '<button type="button" class="auction-btn auction-btn--bid auction-btn--bid-gated" data-action="auction-deposit" data-auction-id="' +
+        escapeHtml(String(a.id)) + '"><i class="fas fa-credit-card"></i> ' + escapeHtml(auctionDepositFirstLabel()) + '</button>';
+    } else {
+      h += '<button type="button" class="auction-btn auction-btn--bid" data-action="open-bid" data-auction-id="' +
+        escapeHtml(String(a.id)) + '"><i class="fas fa-gavel"></i> Place Bid</button>';
+    }
     h += '</div>';
-    h += '<button type="button" class="auction-btn auction-btn--deposit' + (depositPaid ? ' is-done' : '') +
-      '" data-action="auction-deposit" data-auction-id="' + escapeHtml(String(a.id)) + '"' +
-      (depositPaid ? ' disabled' : '') + '><i class="fas fa-credit-card"></i> ' +
-      (depositPaid ? 'Deposit paid' : 'Pay £' + AUCTION_DEPOSIT_GBP + ' Deposit') + '</button>';
+    if (!bidGated) {
+      h += '<button type="button" class="auction-btn auction-btn--deposit' + (depositPaid ? ' is-done' : '') +
+        '" data-action="auction-deposit" data-auction-id="' + escapeHtml(String(a.id)) + '"' +
+        (depositPaid ? ' disabled' : '') + '><i class="fas fa-credit-card"></i> ' +
+        (depositPaid ? 'Deposit paid' : 'Pay £' + depositAmount.toFixed(0) + ' Deposit') + '</button>';
+    }
     if (buyNow > 0) {
       h += '<button type="button" class="auction-btn auction-btn--buynow" data-action="auction-buy-now" data-auction-id="' +
         escapeHtml(String(a.id)) + '"><i class="fas fa-bolt"></i> Buy Now · £' + buyNow.toFixed(2) + '</button>';
@@ -3835,20 +3917,32 @@ function buildAuctionModalInfoHtml(a) {
 
   if (getAuctionStatus(a) === 'active' && !isEnded) {
     var depositPaidModal = hasAuctionDepositPaid(a);
+    var bidGatedModal = isAuctionBidGated(a);
+    var depositAmountModal = getAuctionDepositAmountGbp();
     var buyNowModal = auctionBuyNowPrice(a);
-    html += '<div class="pdp-auction-bid">' +
+    if (bidGatedModal) {
+      html += '<p class="pdp-auction-deposit-gate"><i class="fas fa-lock"></i> ' +
+        escapeHtml(auctionDepositFirstLabel()) + ' to place bids on this lot.</p>';
+    }
+    html += '<div class="pdp-auction-bid' + (bidGatedModal ? ' pdp-auction-bid--gated' : '') + '">' +
       '<label class="pdp-auction-bid__label" for="bid-amount-modal-' + domKey + '">Your bid (£)</label>' +
       '<div class="pdp-auction-bid__row">' +
         '<input type="number" class="pdp-auction-bid__input" id="bid-amount-modal-' + domKey + '" ' +
           'placeholder="Min £' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" ' +
-          'min="' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" step="0.01" inputmode="decimal">' +
-        '<button type="button" class="pdp-modal__btn pdp-modal__btn--bid" data-auction-bid="' + escapeHtml(String(a.id)) + '">' +
-          '<i class="fas fa-gavel"></i> Place Bid</button>' +
+          'min="' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" step="0.01" inputmode="decimal"' +
+          (bidGatedModal ? ' disabled aria-disabled="true"' : '') + '>' +
+        '<button type="button" class="pdp-modal__btn ' + (bidGatedModal ? 'pdp-modal__btn--deposit' : 'pdp-modal__btn--bid') +
+          (bidGatedModal ? ' pdp-modal__btn--bid-gated' : '') + '" data-auction-bid="' + escapeHtml(String(a.id)) + '"' +
+          (bidGatedModal ? ' data-auction-deposit="' + escapeHtml(String(a.id)) + '"' : '') + '>' +
+          '<i class="fas fa-' + (bidGatedModal ? 'credit-card' : 'gavel') + '"></i> ' +
+          (bidGatedModal ? escapeHtml(auctionDepositFirstLabel()) : 'Place Bid') + '</button>' +
       '</div></div>';
     html += '<div class="pdp-auction-pay-row">';
-    html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--deposit" data-auction-deposit="' +
-      escapeHtml(String(a.id)) + '"' + (depositPaidModal ? ' disabled' : '') + '>' +
-      '<i class="fas fa-credit-card"></i> ' + (depositPaidModal ? 'Deposit paid' : 'Pay £' + AUCTION_DEPOSIT_GBP + ' Deposit') + '</button>';
+    if (!bidGatedModal) {
+      html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--deposit" data-auction-deposit="' +
+        escapeHtml(String(a.id)) + '"' + (depositPaidModal ? ' disabled' : '') + '>' +
+        '<i class="fas fa-credit-card"></i> ' + (depositPaidModal ? 'Deposit paid' : 'Pay £' + depositAmountModal.toFixed(0) + ' Deposit') + '</button>';
+    }
     if (buyNowModal > 0) {
       html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--buynow" data-auction-buy-now="' +
         escapeHtml(String(a.id)) + '"><i class="fas fa-bolt"></i> Buy Now · £' + buyNowModal.toFixed(2) + '</button>';
@@ -3881,6 +3975,10 @@ function bindAuctionModalActions(modal, auction) {
   var bidBtn = modal.querySelector('[data-auction-bid]');
   if (bidBtn) {
     bidBtn.addEventListener('click', function() {
+      if (isAuctionBidGated(auction)) {
+        promptAuctionDepositRequired(auction.id);
+        return;
+      }
       openBidModal(auction.id);
     });
   }
@@ -3893,7 +3991,7 @@ function bindAuctionModalActions(modal, auction) {
   var depositBtn = modal.querySelector('[data-auction-deposit]');
   if (depositBtn) {
     depositBtn.addEventListener('click', function() {
-      startAuctionDepositCheckout(auction.id);
+      openAuctionDepositModal(auction.id);
     });
   }
   var buyNowBtn = modal.querySelector('[data-auction-buy-now]');
@@ -4801,6 +4899,10 @@ function openBidModal(auctionId) {
   }
   var a = auctions.find(function(item) { return sameId(item.id, auctionId); });
   if (!a) { notify('Auction not found!', 'error'); return; }
+  if (isAuctionBidGated(a)) {
+    promptAuctionDepositRequired(auctionId);
+    return;
+  }
   var domKey = auctionDomKey(auctionId);
   var inputEl = document.getElementById('bid-amount-' + domKey) ||
     document.getElementById('bid-amount-modal-' + domKey);
@@ -4847,7 +4949,7 @@ function openAuctionDepositModal(auctionId) {
   var html = '<div id="' + modalId + '" class="modal" style="display:flex">' +
     '<div class="modal-content">' +
       '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
-      '<h2><i class="fas fa-credit-card"></i> Pay £' + AUCTION_DEPOSIT_GBP + ' Deposit</h2>' +
+      '<h2><i class="fas fa-credit-card"></i> Pay £' + getAuctionDepositAmountGbp().toFixed(0) + ' Deposit</h2>' +
       '<p style="margin-bottom:12px;color:#666">Refundable deposit to bid on <b>' + escapeHtml(a.name || 'this lot') + '</b>. Card payment via Stripe.</p>' +
       '<input type="text" id="depName_' + modalId + '" placeholder="Your Name *" value="' + escapeHtml(stored.name || '') + '">' +
       '<input type="tel" id="depPhone_' + modalId + '" placeholder="Phone *" value="' + escapeHtml(stored.phone || '') + '">' +
@@ -4973,10 +5075,11 @@ async function submitBid(auctionId, bidAmount, modalId) {
   }
 
   notify('Saving bid...', 'info');
-  if (await placeBid(auctionId, bidAmount, { name: name, phone: phone, contact: contact }, {
+  var bidResult = await placeBid(auctionId, bidAmount, { name: name, phone: phone, contact: contact }, {
     startedAt: startedAt,
     honeypot: honeypot
-  })) {
+  });
+  if (bidResult && bidResult.success) {
     notify('✓ Bid placed! £' + bidAmount.toFixed(2) + ' by ' + name, 'success');
     if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
     else {
@@ -4985,10 +5088,23 @@ async function submitBid(auctionId, bidAmount, modalId) {
     }
     renderAuctions();
     refreshAuctionModalContent(auctionId);
+  } else if (bidResult && bidResult.code === 'DEPOSIT_REQUIRED') {
+    if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
+    promptAuctionDepositRequired(auctionId, bidResult.error || auctionDepositFirstLabel());
   } else {
-    notify('Error placing bid', 'error');
+    notify((bidResult && bidResult.error) || 'Error placing bid', 'error');
   }
 }
+
+window.isAuctionBidGated = isAuctionBidGated;
+window.promptAuctionDepositRequired = promptAuctionDepositRequired;
+window.AYLEN_AUCTION_DEPOSIT = {
+  load: loadAuctionDepositConfig,
+  getConfig: getAuctionDepositConfig,
+  isEnforcementActive: isAuctionDepositEnforcementActive,
+  isBidGated: isAuctionBidGated,
+  depositFirstLabel: auctionDepositFirstLabel
+};
 
 function auctionPickupOptions() {
   var html = '<option value="">-- Select Pickup Point --</option>';

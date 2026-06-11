@@ -460,6 +460,29 @@ body.pdp-scroll-locked {
   min-width: 120px;
 }
 
+.pdp-auction-deposit-gate {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.12);
+  color: #bfdbfe;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pdp-auction-bid--gated .pdp-auction-bid__input {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pdp-modal__btn--bid-gated {
+  width: 100%;
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+}
+
 .pdp-modal__actions--stack {
   margin-top: 4px;
 }
