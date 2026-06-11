@@ -43,6 +43,8 @@ record('deposit-config', config.status === 200 && config.data.ok === true,
   'enabled=' + config.data.depositsEnabled + ' enforcement=' + config.data.depositEnforcement);
 record('deposit-enforcement-off', config.data.depositEnforcement === false,
   'depositEnforcement must stay false on production until sign-off');
+record('production-locked', config.data.productionLocked === true,
+  'source=' + (config.data.depositEnforcementSource || 'n/a') + ' env=' + (config.data.deployEnvironment || 'n/a'));
 record('deposits-enabled', config.data.depositsEnabled === true, 'checkout available');
 record('stripe-configured', config.data.stripeConfigured === true, 'STRIPE_SECRET_KEY');
 record('webhook-configured', config.data.webhookConfigured === true, 'STRIPE_WEBHOOK_SECRET');

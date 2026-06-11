@@ -34,23 +34,59 @@ function isTruthy(v) {
   return v === true || v === 'true' || v === '1' || v === 'yes';
 }
 
+/** True on Vercel production (or unknown host without preview env). */
+export function isProductionDeploy() {
+  const vercelEnv = String(process.env.VERCEL_ENV || '').trim().toLowerCase();
+  if (vercelEnv === 'production') return true;
+  if (vercelEnv === 'preview' || vercelEnv === 'development') return false;
+  // Local / custom host: lock enforcement unless explicitly staging.
+  return !isTruthy(process.env.AUCTION_DEPOSIT_ENFORCEMENT);
+}
+
 /** Resolve deposit-related flags from auctionSettings/global. */
 export function resolveDepositFlags(settings) {
   const s = settings || {};
   const amount = Number(s.depositAmountGbp || AUCTION_DEPOSIT_GBP);
-  const envEnforcement = isTruthy(process.env.AUCTION_DEPOSIT_ENFORCEMENT);
   const envDepositsOff = process.env.AUCTION_DEPOSITS_ENABLED === 'false'
     || process.env.AUCTION_DEPOSITS_ENABLED === '0';
+  const production = isProductionDeploy();
+  const vercelEnv = String(process.env.VERCEL_ENV || '').trim().toLowerCase() || 'unknown';
+  const stagingEnvEnforcement = !production && isTruthy(process.env.AUCTION_DEPOSIT_ENFORCEMENT);
   const settingsEnforcement = s.depositEnforcement === true || s.depositEnforcementEnabled === true;
+  // Production: enforcement always OFF (Firestore flag ignored for bids).
+  // Preview/local: ON when AUCTION_DEPOSIT_ENFORCEMENT=true or Firestore flag true.
+  const depositEnforcement = production ? false : (stagingEnvEnforcement || settingsEnforcement);
+
   return {
     depositsEnabled: !envDepositsOff && s.depositsEnabled !== false,
     depositAmountGbp: Number.isFinite(amount) && amount > 0 ? amount : AUCTION_DEPOSIT_GBP,
-    depositEnforcement: envEnforcement && settingsEnforcement,
+    depositEnforcement: depositEnforcement,
+    depositEnforcementSource: production
+      ? 'production_locked'
+      : (stagingEnvEnforcement ? 'env' : (settingsEnforcement ? 'settings' : 'off')),
+    productionLocked: production,
+    deployEnvironment: vercelEnv,
     depositWebhookEnabled: s.depositWebhookEnabled !== false,
     depositVerifyFallbackEnabled: s.depositVerifyFallbackEnabled !== false,
     stripeConfigured: stripeConfigured(),
     webhookConfigured: webhookConfigured()
   };
+}
+
+/**
+ * Server-side bid gate — throws with code DEPOSIT_REQUIRED when enforcement is on.
+ * Buy Now must NOT call this (bids only).
+ */
+export function requirePaidDepositForBid(deposits, phoneKeyValue, depositFlags) {
+  const flags = depositFlags || {};
+  if (!flags.depositEnforcement) return;
+  const pKey = String(phoneKeyValue || '').trim();
+  if (hasPaidDeposit(deposits, pKey)) return;
+  const amount = Number(flags.depositAmountGbp || AUCTION_DEPOSIT_GBP);
+  const err = new Error('Pay the £' + amount.toFixed(2) + ' deposit before bidding');
+  err.code = 'DEPOSIT_REQUIRED';
+  err.depositAmountGbp = amount;
+  throw err;
 }
 
 /** Public config for storefront (no secrets). */
@@ -62,6 +98,9 @@ export function publicDepositConfig(settings) {
     depositsEnabled: flags.depositsEnabled,
     depositAmountGbp: flags.depositAmountGbp,
     depositEnforcement: flags.depositEnforcement,
+    depositEnforcementSource: flags.depositEnforcementSource,
+    productionLocked: flags.productionLocked,
+    deployEnvironment: flags.deployEnvironment,
     depositWebhookEnabled: flags.depositWebhookEnabled,
     depositVerifyFallbackEnabled: flags.depositVerifyFallbackEnabled,
     stripeConfigured: flags.stripeConfigured,

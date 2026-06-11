@@ -25,6 +25,7 @@ import {
   hasPaidDeposit,
   markAuctionDepositPaidFromSession,
   publicDepositConfig,
+  requirePaidDepositForBid,
   resolveDepositFlags
 } from './auction-deposit.mjs';
 
@@ -195,12 +196,7 @@ export async function handleAuctionBid(req, res) {
       }
 
       const depositFlags = resolveDepositFlags(settings);
-      if (depositFlags.depositEnforcement) {
-        const bidderKey = phoneKey(safePhone);
-        if (!hasPaidDeposit(data.deposits, bidderKey)) {
-          throw new Error('Pay the £' + depositFlags.depositAmountGbp.toFixed(2) + ' deposit before bidding');
-        }
-      }
+      requirePaidDepositForBid(data.deposits, phoneKey(safePhone), depositFlags);
 
       const currentPrice = Number(data.currentPrice || data.startingPrice || data.startPrice || 0);
       if (amount <= currentPrice) {
@@ -290,8 +286,12 @@ export async function handleAuctionBid(req, res) {
     });
   } catch (err) {
     const msg = String(err.message || err);
-    if (msg.includes('deposit before bidding')) {
-      return res.status(403).json({ error: msg, code: 'DEPOSIT_REQUIRED' });
+    if (err.code === 'DEPOSIT_REQUIRED' || msg.includes('deposit before bidding')) {
+      return res.status(403).json({
+        error: msg,
+        code: 'DEPOSIT_REQUIRED',
+        depositAmountGbp: Number(err.depositAmountGbp || 0) || undefined
+      });
     }
     if (msg.includes('not found') || msg.includes('ended') || msg.includes('closed') || msg.includes('higher')) {
       return res.status(400).json({ error: msg });
