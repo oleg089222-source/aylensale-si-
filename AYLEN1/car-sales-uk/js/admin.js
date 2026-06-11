@@ -422,6 +422,34 @@ window.AYLEN_ADMIN_PHOTOS = {
   markUploading: markPhotoThumbUploading
 };
 
+async function uploadSinglePhotoWithRetry(file, fileIndex, total, previewEl, onByteProgress) {
+  var attempts = 0;
+  var lastError = '';
+  while (attempts < 3) {
+    attempts += 1;
+    if (attempts > 1) {
+      setPhotoUploadStatus(previewEl, {
+        current: fileIndex,
+        total: total,
+        message: 'Retry ' + attempts + '/3 for photo ' + (fileIndex + 1) + ' of ' + total + '…'
+      });
+    }
+    var result = await uploadImageToCloudinary(file, function(pct) {
+      var filePct = Math.max(0, Math.min(100, Number(pct) || 0));
+      var overall = Math.round(((fileIndex + filePct / 100) / total) * 100);
+      if (typeof onByteProgress === 'function') onByteProgress(overall, fileIndex, total, filePct);
+      setPhotoUploadStatus(previewEl, {
+        current: fileIndex + filePct / 100,
+        total: total,
+        message: 'Photo ' + (fileIndex + 1) + ' of ' + total + ' — ' + Math.round(filePct) + '%'
+      });
+    });
+    if (result.success && result.url) return result.url;
+    lastError = result.error || 'Photo upload failed';
+  }
+  throw new Error(lastError || 'Photo upload failed');
+}
+
 async function uploadFilesWithProgress(files, previewEl, thumbElements) {
   var urls = [];
   var total = files.length;
@@ -433,18 +461,17 @@ async function uploadFilesWithProgress(files, previewEl, thumbElements) {
   });
   for (var i = 0; i < files.length; i++) {
     markPhotoThumbUploading(thumbElements && thumbElements[i], true);
-    var result = await uploadImageToCloudinary(files[i]);
-    markPhotoThumbUploading(thumbElements && thumbElements[i], false);
-    if (!result.success) {
-      setPhotoUploadStatus(previewEl, { hidden: true });
-      throw new Error(result.error || 'Photo upload failed');
+    try {
+      var url = await uploadSinglePhotoWithRetry(files[i], i, total, previewEl);
+      urls.push(url);
+      setPhotoUploadStatus(previewEl, {
+        current: i + 1,
+        total: total,
+        message: 'Uploaded ' + (i + 1) + ' of ' + total + ' (' + Math.round(((i + 1) / total) * 100) + '%)'
+      });
+    } finally {
+      markPhotoThumbUploading(thumbElements && thumbElements[i], false);
     }
-    urls.push(result.url);
-    setPhotoUploadStatus(previewEl, {
-      current: i + 1,
-      total: total,
-      message: 'Uploaded ' + (i + 1) + ' of ' + total
-    });
   }
   setTimeout(function() {
     setPhotoUploadStatus(previewEl, { hidden: true });
@@ -1238,10 +1265,7 @@ async function saveEditProduct(productId, modalId) {
     }
     var saved = await window.FBDB.updateProduct(product.id, product);
     products[productIdx] = saved;
-    if (previousStock <= 0 && stock > 0) {
-      await processRestockNotifications(product);
-    }
-    
+
     adminMsg('Product saved.', 'success');
     await closeAdminModal(modalId);
     refreshCatalogAfterProductChange(saved);
@@ -1350,6 +1374,9 @@ async function openAddAuctionModal() {
             <option value="electronics">Electronics</option>
             <option value="collectibles">Collectibles</option>
             <option value="homeware">Homeware</option>
+            <option value="clothing">Clothing</option>
+            <option value="job-lots">Job lots / Mixed</option>
+            <option value="general">General</option>
           </select>
         </div>
         <div class="aylen-form-section">
@@ -1359,7 +1386,7 @@ async function openAddAuctionModal() {
           <div id="auctPhotoPreview" class="aylen-photo-preview"><span class="aylen-photo-empty">No photos yet</span></div>
         </div>
         <div class="aylen-form-actions">
-          <button type="button" class="aylen-btn aylen-btn-primary" id="auctCreateBtn" onclick="addAuctionWithUpload('${modalId}')"><i class="fas fa-save"></i> Create auction</button>
+          <button type="button" class="aylen-btn aylen-btn-primary" id="auctCreateBtn"><i class="fas fa-save"></i> Create auction</button>
           <button type="button" class="aylen-btn aylen-btn-secondary" data-aylen-close>Cancel</button>
         </div>
       </div>
@@ -1371,6 +1398,12 @@ async function openAddAuctionModal() {
     if (fileInput) {
       fileInput.addEventListener('change', function(e) {
         handleAuctionPhotoUpload(e, modalId);
+      });
+    }
+    var createBtn = panel.querySelector('#auctCreateBtn');
+    if (createBtn) {
+      createBtn.addEventListener('click', function() {
+        addAuctionWithUpload(modalId);
       });
     }
     var nameInput = panel.querySelector('#auctName');
@@ -1519,7 +1552,13 @@ async function addAuctionWithUpload(modalId) {
     }
   } catch (error) {
     console.error('addAuctionWithUpload', error);
-    adminMsg('Could not create auction. Sign in again and retry.', 'error');
+    var errText = error && error.message ? String(error.message) : '';
+    adminMsg(
+      errText.indexOf('INVALID_ADMIN') !== -1 || errText.indexOf('Admin') !== -1
+        ? 'Admin session expired — open Admin and sign in again.'
+        : ('Could not create auction: ' + (errText || 'try again')),
+      'error'
+    );
   } finally {
     auctionSaveInFlight = false;
     if (createBtn) createBtn.disabled = false;
@@ -1720,8 +1759,16 @@ function editAuction(id) {
               </select>
             </div>
           </div>
-          <label class="aylen-label" for="eauctEndTime">Ends at (local time)</label>
-          <input type="datetime-local" id="eauctEndTime" value="${endLocal}" step="60" min="${toDatetimeLocalValue(new Date().toISOString())}">
+          <div class="aylen-form-row">
+            <div class="aylen-field">
+              <label class="aylen-label" for="eauctBuyNow">Buy Now price £ (optional)</label>
+              <input type="number" id="eauctBuyNow" value="${Number(auction.buyNowPrice || 0) || ''}" step="0.01" min="0" placeholder="Leave empty to hide">
+            </div>
+            <div class="aylen-field">
+              <label class="aylen-label" for="eauctEndTime">Ends at (local time)</label>
+              <input type="datetime-local" id="eauctEndTime" value="${endLocal}" step="60" min="${toDatetimeLocalValue(new Date().toISOString())}">
+            </div>
+          </div>
           ${status !== 'active' ? '<p class="aylen-hint-box">This lot is <strong>' + status + '</strong>. Set a future end time and save — or tap Restart 24h below.</p>' : ''}
           ${hasBids ? '<p class="aylen-hint-box">Starting price is locked after the first bid.</p>' : ''}
         </div>
@@ -1729,12 +1776,12 @@ function editAuction(id) {
           <h3><i class="fas fa-images"></i> Photos (${images.length}/10)</h3>
           <div id="eauctPhotoPreview" class="aylen-photo-preview"></div>
           <label class="aylen-label" for="eauctPhotoInput">Add photos</label>
-          <input type="file" id="eauctPhotoInput" accept="image/*" multiple ${images.length >= 20 ? 'disabled' : ''}>
+          <input type="file" id="eauctPhotoInput" accept="image/*" multiple ${images.length >= 10 ? 'disabled' : ''}>
           <p class="aylen-hint-box">JPG, PNG, GIF, WebP — up to 5MB each</p>
         </div>
         <div class="aylen-form-actions">
-          ${status !== 'active' ? '<button type="button" class="aylen-btn aylen-btn-quiet" onclick="restartEditAuction(' + jsInlineArg(id) + ',' + jsInlineArg(modalId) + ')"><i class="fas fa-redo"></i> Restart 24h</button>' : ''}
-          <button type="button" class="aylen-btn aylen-btn-primary" id="eauctSaveBtn" onclick="saveEditAuction(${jsInlineArg(id)},${jsInlineArg(modalId)})"><i class="fas fa-save"></i> Save changes</button>
+          ${status !== 'active' ? '<button type="button" class="aylen-btn aylen-btn-quiet" id="eauctRestartBtn"><i class="fas fa-redo"></i> Restart 24h</button>' : ''}
+          <button type="button" class="aylen-btn aylen-btn-primary" id="eauctSaveBtn"><i class="fas fa-save"></i> Save changes</button>
           <button type="button" class="aylen-btn aylen-btn-secondary" data-aylen-close>Cancel</button>
         </div>
       </div>
@@ -1746,6 +1793,18 @@ function editAuction(id) {
       if (fileInput) {
         fileInput.addEventListener('change', function(e) {
           handleEditAuctionPhotoUpload(e, id);
+        });
+      }
+      var saveBtn = panel.querySelector('#eauctSaveBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+          saveEditAuction(id, modalId);
+        });
+      }
+      var restartBtn = panel.querySelector('#eauctRestartBtn');
+      if (restartBtn) {
+        restartBtn.addEventListener('click', function() {
+          restartEditAuction(id, modalId);
         });
       }
       var nameInput = panel.querySelector('#eauctName');
@@ -1760,7 +1819,10 @@ async function saveEditAuction(auctionId, modalId) {
     return;
   }
   if (!(await ensureAdminCanWrite())) return;
-  if (typeof confirmAylenProductionWrite === 'function' && !confirmAylenProductionWrite('save auction')) return;
+  if (typeof confirmAylenProductionWrite === 'function' && !confirmAylenProductionWrite('save auction')) {
+    notify('Save cancelled.', 'info');
+    return;
+  }
 
   var draft = editAuctionDraft[auctionId];
   var auction = auctions.find(function(a) { return sameId(a.id, auctionId); });
@@ -1816,7 +1878,7 @@ async function saveEditAuction(auctionId, modalId) {
     var previewEl = queryInAdminModal('#eauctPhotoPreview');
 
     if (draft.pending && draft.pending.files.length) {
-      if (imageUrls.length + draft.pending.files.length > 20) {
+      if (imageUrls.length + draft.pending.files.length > 10) {
         adminMsg('Maximum 10 photos per auction.', 'error');
         return;
       }
@@ -1833,6 +1895,22 @@ async function saveEditAuction(auctionId, modalId) {
     auction.photos = imageUrls;
     auction.endTime = endTime.toISOString();
     auction.updatedAt = new Date().toISOString();
+    var buyNowEl = queryInAdminModal('#eauctBuyNow');
+    var buyNowRaw = buyNowEl ? buyNowEl.value.trim() : '';
+    if (buyNowRaw === '') {
+      auction.buyNowPrice = null;
+    } else {
+      var buyNowVal = parseFloat(buyNowRaw);
+      if (!buyNowVal || buyNowVal <= 0) {
+        notify('Buy Now price must be greater than zero.', 'error');
+        return;
+      }
+      if (buyNowVal <= startPrice) {
+        notify('Buy Now must be higher than starting price.', 'error');
+        return;
+      }
+      auction.buyNowPrice = buyNowVal;
+    }
 
     if (bidCount === 0) {
       auction.currentPrice = startPrice;
@@ -1860,9 +1938,13 @@ async function saveEditAuction(auctionId, modalId) {
       throw new Error('Firebase is not ready.');
     }
     var saved = await window.FBDB.saveAuction(auction);
-    var idx = auctions.findIndex(function(a) { return sameId(a.id, auctionId); });
-    if (idx >= 0) auctions[idx] = saved;
-    else auctions.push(saved);
+    if (typeof applyCatalogSnapshot === 'function') {
+      applyCatalogSnapshot('auctions', [saved], { fromServer: true, merge: true });
+    } else {
+      var idx = auctions.findIndex(function(a) { return sameAuctionId(a.id, auctionId); });
+      if (idx >= 0) auctions[idx] = saved;
+      else auctions.push(saved);
+    }
 
     var wasRestart = endTime.getTime() > Date.now() && (
       prevStatus === 'ended' || prevStatus === 'winner_pending' ||
@@ -1871,12 +1953,18 @@ async function saveEditAuction(auctionId, modalId) {
     adminMsg(wasRestart ? 'Auction restarted.' : 'Auction saved.', 'success');
     await closeAdminModal(modalId);
     if (typeof renderAuctions === 'function') renderAuctions();
-    if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.refreshAuctionsPanel) {
-      global.AyelenAdminDashboard.refreshAuctionsPanel().catch(function() {});
+    if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.refreshAuctionsPanel) {
+      window.AyelenAdminDashboard.refreshAuctionsPanel().catch(function() {});
     }
   } catch (error) {
     console.error('saveEditAuction', error);
-    adminMsg('Could not save auction. Try again.', 'error');
+    var saveErr = error && error.message ? String(error.message) : '';
+    adminMsg(
+      saveErr.indexOf('INVALID_ADMIN') !== -1 || saveErr.indexOf('Admin') !== -1
+        ? 'Admin session expired — sign in again and retry.'
+        : ('Could not save auction: ' + (saveErr || 'try again')),
+      'error'
+    );
   } finally {
     auctionSaveInFlight = false;
     if (saveBtn) saveBtn.disabled = false;
@@ -1895,6 +1983,8 @@ window.saveEditAuction = saveEditAuction;
 window.restartEditAuction = restartEditAuction;
 window.editAuction = editAuction;
 window.deleteAuctionConfirm = deleteAuctionConfirm;
+window.addAuctionWithUpload = addAuctionWithUpload;
+window.openAddAuctionModal = openAddAuctionModal;
 
 function deleteAuctionConfirm(id) {
   var auction = auctions.find(function(a) { return sameId(a.id, id); });
@@ -2422,29 +2512,38 @@ async function processSingleNotifyRequest(req, product) {
 }
 
 async function processRestockNotifications(product) {
-  if (!window.FBDB || !window.FBDB.loadPendingNotifyRequests) return;
-  var pending = await window.FBDB.loadPendingNotifyRequests(product.id);
-  if (!pending.length) return;
+  var previousStock = Number(product._previousStock != null ? product._previousStock : 0);
+  var newStock = Number(product.stock || 0);
+  if (previousStock > 0 || newStock <= 0) return;
 
-  var sent = 0;
-  var manual = 0;
-  var failed = 0;
-  for (var i = 0; i < pending.length; i++) {
-    try {
-      var result = await processSingleNotifyRequest(pending[i], product);
-      if (result === 'sent') sent++;
-      else if (result === 'manual') manual++;
-      else failed++;
-    } catch (error) {
-      failed++;
-      await updateNotifyRequest(pending[i].id, {
-        status: 'failed',
-        error: error.message || String(error),
-        lastTriedAt: new Date().toISOString()
-      });
+  try {
+    var headers = { 'Content-Type': 'application/json' };
+    if (window.FBDB && window.FBDB.getAdminIdToken) {
+      var token = await window.FBDB.getAdminIdToken();
+      if (token) headers.Authorization = 'Bearer ' + token;
     }
+    var response = await fetch('/api/process-restock-notify', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        productId: product.id,
+        productName: product.name || product.title || 'Product',
+        previousStock: previousStock,
+        newStock: newStock
+      })
+    });
+    var data = await response.json();
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'Restock notify API failed');
+    }
+    if (data.skipped) {
+      notify('No pending notify requests for this product', 'info');
+    } else {
+      notify('Restock notifications: sent ' + (data.sent || 0) + ', manual ' + (data.manual || 0) + ', failed ' + (data.failed || 0), data.failed ? 'error' : 'success');
+    }
+  } catch (error) {
+    notify('Restock notify failed: ' + (error.message || error), 'error');
   }
-  notify('Restock notifications: sent ' + sent + ', manual ' + manual + ', failed ' + failed, failed ? 'error' : 'success');
   startNotifyRequestsWatch();
 }
 
@@ -3044,7 +3143,7 @@ function openEbaySettingsModal() {
     enabled: false,
     url: '',
     buttonText: 'Shop on eBay',
-    description: 'Prefer eBay? You can also buy from our official AYLENSALE eBay store.'
+    description: 'Prefer eBay? Shop our AYLENSALE store on eBay.co.uk.'
   }, (siteSettings && siteSettings.ebay) || {});
   var html = `
     <div id="${modalId}" class="modal" style="display:flex">
@@ -3076,7 +3175,7 @@ async function saveEbaySettings(modalId) {
   try {
     var url = document.getElementById('ebayStoreUrl_' + modalId).value.trim();
     var buttonText = document.getElementById('ebayButtonText_' + modalId).value.trim() || 'Shop on eBay';
-    var description = document.getElementById('ebayDescription_' + modalId).value.trim() || 'Prefer eBay? You can also buy from our official AYLENSALE eBay store.';
+    var description = document.getElementById('ebayDescription_' + modalId).value.trim() || 'Prefer eBay? Shop our AYLENSALE store on eBay.co.uk.';
     var enabled = document.getElementById('ebayEnabled_' + modalId).checked;
     if (enabled && !validEbayUrl(url)) {
       notify('Please enter a valid https eBay store URL', 'error');
@@ -3366,3 +3465,19 @@ function openAiAdminAssistantSafe(opts) {
   }
 }
 window.openAiAdminAssistantSafe = openAiAdminAssistantSafe;
+
+function openWarehouseScanSafe() {
+  var run = function() {
+    if (typeof openWarehouseScan === 'function') {
+      openWarehouseScan();
+      return;
+    }
+    notify('Warehouse Scan is still loading. Try again in a few seconds.', 'info');
+  };
+  if (window.AYLEN_ADMIN_LOADER && window.AYLEN_ADMIN_LOADER.loadExtras) {
+    window.AYLEN_ADMIN_LOADER.loadExtras().then(run).catch(run);
+  } else {
+    run();
+  }
+}
+window.openWarehouseScanSafe = openWarehouseScanSafe;

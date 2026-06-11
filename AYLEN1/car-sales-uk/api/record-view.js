@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const mod = await import('./lib/record-view-stats.mjs');
+    const mod = await import('../lib/server/record-view-stats.mjs');
     if (type === 'product') {
       await mod.recordProductViewStat(id);
     } else {

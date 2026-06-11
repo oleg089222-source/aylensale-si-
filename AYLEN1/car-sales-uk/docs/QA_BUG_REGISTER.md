@@ -18,6 +18,14 @@
 | CAR-003 | P2 | fixed | Cart | No stock cap on `addToCart` |
 | MOD-002 | P2 | fixed | Modals | `admin-modal-open` on storefront cart |
 | ADM-002 | P1 | fixed | Admin | `closeAll` on product delete closes everything |
+| DUP-001 | P0 | verified-prod | Catalog | Public API deduped; legacy doc pair not in catalog response |
+| DUP-002 | P0 | verified-prod | Catalog | Post-merge dedupe; admin shows 18 of 18, no duplicate cards |
+| UPL-001 | P0 | fixing | Admin upload | Byte % progress + retry added; not screenshot-verified |
+| STOCK-001 | P0 | verified-prod | Stock | send-order decrements Firestore; VIP order decrements vipStockItems |
+| NTF-001 | P0 | verified-prod | Notify Me | Server restock notify — Telegram + email/fallback on 0→stock |
+| ADM-003 | P0 | verified-prod | Admin CRUD | Create/edit persist; QA product removed after audit |
+| CAT-001 | P1 | verified-prod | Catalog | Bootstrap 18 matches API 18 after rebuild |
+| ADM-004 | P0 | open | Admin UX | Loading overlay stuck after login until CMS opened manually |
 | CAT-001 | P1 | open | Catalog | Load-more + admin refresh confusion |
 | AUC-002 | P1 | open | Auctions | Optimistic duplicate auction push |
 | IMG-001 | P1 | open | Images | `sanitizeProductImageUrls` empties arrays |

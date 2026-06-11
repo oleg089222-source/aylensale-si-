@@ -20,14 +20,22 @@
     if (!id) return false;
     var el = document.getElementById(id);
     if (!el) return false;
-    var header = qs('.site-header');
-    var offset = (header ? header.offsetHeight : 64) + 8;
-    var top = el.getBoundingClientRect().top + (window.scrollY || 0) - offset;
-    window.scrollTo({
-      top: Math.max(0, top),
-      behavior: opts.instant ? 'auto' : 'smooth'
-    });
-    return true;
+    if (el.scrollIntoView) {
+      var sticky = 104;
+      try {
+        var root = document.documentElement;
+        var v = getComputedStyle(root).getPropertyValue('--aylen-header-sticky-h');
+        if (v) sticky = parseFloat(v) || sticky;
+      } catch (e) {}
+      var top = el.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop || 0);
+      var offset = Math.max(0, top - sticky - 8);
+      window.scrollTo({
+        top: offset,
+        behavior: opts.instant ? 'auto' : 'smooth'
+      });
+      return true;
+    }
+    return false;
   }
 
   global.scrollToStoreSection = scrollToStoreSection;
@@ -70,8 +78,10 @@
       var y = window.scrollY || document.documentElement.scrollTop || 0;
       header.classList.toggle('site-header--compact', y > SCROLL_COMPACT);
     }
-    window.addEventListener('scroll', scheduleScroll, { passive: true });
-    apply();
+    window.addEventListener('scroll', function() {
+      scheduleScroll();
+      apply();
+    }, { passive: true });
   }
 
   function setContactOpen(root, fab, open) {
@@ -142,7 +152,6 @@
       scheduleScroll();
       applyScroll();
     }, { passive: true });
-    applyScroll();
   }
 
   function initCustomerLogin() {
@@ -199,17 +208,8 @@
     heroLinks.forEach(bindNavClick);
     footerLinks.forEach(bindNavClick);
 
-    function updateActiveFromScroll() {
-      if (Date.now() < navLockUntil) return;
-      var probe = (window.scrollY || 0) + (window.innerHeight * 0.32);
-      var current = '#products';
-      sections.forEach(function(s) {
-        if (s.el.offsetTop <= probe) current = '#' + s.id;
-      });
-      setActive(current);
-    }
-
-    if ('IntersectionObserver' in global) {
+    function startSectionObserver() {
+      if (!('IntersectionObserver' in global)) return;
       var observer = new IntersectionObserver(function(entries) {
         if (Date.now() < navLockUntil) return;
         var best = null;
@@ -229,10 +229,10 @@
       });
       sections.forEach(function(s) { observer.observe(s.el); });
     }
+    startSectionObserver();
 
     window.addEventListener('scroll', function() {
       scheduleScroll();
-      updateActiveFromScroll();
     }, { passive: true });
 
     window.addEventListener('hashchange', function() {
@@ -247,18 +247,23 @@
         global.history.scrollRestoration = 'manual';
       }
 
+      var hash = normalizeHash(global.location.hash);
+
       if (isFreshPageLoad()) {
-        lockSectionNav(500);
-        setActive('#products');
-        replaceSectionHash('#products');
-        navPendingHash = null;
-        requestAnimationFrame(function() {
-          global.scrollTo(0, 0);
-        });
+        lockSectionNav(1200);
+        setActive(hash);
+        replaceSectionHash(hash);
+        if (hash !== '#products') {
+          navPendingHash = hash;
+          requestAnimationFrame(function() {
+            scrollToStoreSection(hash, { instant: true });
+          });
+        } else {
+          navPendingHash = null;
+        }
         return;
       }
 
-      var hash = normalizeHash(global.location.hash);
       if (hash === '#products') {
         setActive(hash);
         return;
@@ -299,18 +304,39 @@
       var firebaseAdmin = !!(global.FBDB && global.FBDB.isAdmin && global.FBDB.isAdmin());
       document.body.classList.toggle('admin-mode-active', !!(global.isAdminMode));
       document.body.classList.toggle('firebase-admin-authed', firebaseAdmin);
+    }
+    function syncWithLocations() {
+      sync();
       if (typeof renderLocations === 'function') renderLocations();
     }
     sync();
-    window.addEventListener('aylen-admin-mode', sync);
-    window.addEventListener('aylen-firebase-admin', sync);
+    window.addEventListener('aylen-admin-mode', syncWithLocations);
+    window.addEventListener('aylen-firebase-admin', syncWithLocations);
+  }
+
+  var mobileUiBooted = false;
+  function bootMobileUi() {
+    if (mobileUiBooted) return;
+    mobileUiBooted = true;
+    initCompactHeader();
+    initContactFloat();
+    initSectionNav();
+    markAdminBodyClass();
+  }
+
+  function scheduleBootMobileUi() {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(bootMobileUi, { timeout: 2500 });
+    } else {
+      setTimeout(bootMobileUi, 0);
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    initCompactHeader();
-    initContactFloat();
     initCustomerLogin();
-    initSectionNav();
-    markAdminBodyClass();
+    document.addEventListener('aylen-catalog-ready', scheduleBootMobileUi, { once: true });
+    window.addEventListener('load', function() {
+      if (!mobileUiBooted) scheduleBootMobileUi();
+    }, { once: true });
   });
 })(window);

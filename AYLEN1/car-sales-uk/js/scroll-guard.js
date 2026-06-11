@@ -85,8 +85,12 @@
     }
 
     if (!cmsOpen && !modalOpen && !authBusy && !isPdpModalOpen()) {
-      document.documentElement.style.overflowY = 'auto';
-      document.body.style.overflowY = 'auto';
+      if (document.documentElement.style.overflowY) {
+        document.documentElement.style.overflowY = '';
+      }
+      if (document.body.style.overflowY) {
+        document.body.style.overflowY = '';
+      }
     }
   }
 

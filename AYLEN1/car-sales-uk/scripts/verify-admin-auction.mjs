@@ -7,41 +7,52 @@
  * Env: FIREBASE_SERVICE_ACCOUNT, optional VERIFY_URL (default https://aylensale.com)
  */
 import { loadProjectEnv } from './lib/load-env.mjs';
-import { getAuthAdmin } from '../api/lib/firebase-admin-app.mjs';
+import { getAuthAdmin } from '../lib/server/firebase-admin-app.mjs';
 
 loadProjectEnv();
 
 const BASE = (process.env.VERIFY_URL || 'https://aylensale.com').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg';
 const ADMIN_EMAIL = process.env.ADMIN_VERIFY_EMAIL || 'admin@aylensale.com';
+const ADMIN_EMAIL_FALLBACKS = [
+  ADMIN_EMAIL,
+  'oleg.yuryevich@gmail.com',
+  'admin@aylensale.com'
+].filter(function(v, i, a) { return a.indexOf(v) === i; });
 
 async function getAdminIdTokenViaPassword(password) {
-  const res = await fetch(
-    'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + encodeURIComponent(API_KEY),
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: ADMIN_EMAIL,
-        password: String(password),
-        returnSecureToken: true
-      })
-    }
-  );
-  const data = await res.json();
-  if (!res.ok || !data.idToken) {
-    throw new Error('Firebase password sign-in failed: ' + (data.error && data.error.message || res.status));
+  let lastErr = 'INVALID_LOGIN_CREDENTIALS';
+  for (const email of ADMIN_EMAIL_FALLBACKS) {
+    const res = await fetch(
+      'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + encodeURIComponent(API_KEY),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          password: String(password),
+          returnSecureToken: true
+        })
+      }
+    );
+    const data = await res.json();
+    if (res.ok && data.idToken) return data.idToken;
+    lastErr = data.error?.message || String(res.status);
   }
-  return data.idToken;
+  throw new Error('Firebase password sign-in failed: ' + lastErr);
 }
 
 async function getAdminIdTokenViaServiceAccount() {
   const auth = getAuthAdmin();
   let user;
-  try {
-    user = await auth.getUserByEmail(ADMIN_EMAIL);
-  } catch (e) {
-    throw new Error('Admin user not found: ' + ADMIN_EMAIL);
+  for (const email of ADMIN_EMAIL_FALLBACKS) {
+    try {
+      user = await auth.getUserByEmail(email);
+      break;
+    } catch (e) {}
+  }
+  if (!user) {
+    throw new Error('Admin user not found: ' + ADMIN_EMAIL_FALLBACKS.join(' or '));
   }
   const customToken = await auth.createCustomToken(user.uid);
   const res = await fetch(

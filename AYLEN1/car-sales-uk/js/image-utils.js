@@ -50,18 +50,37 @@
     return url + sep + 'alt=media';
   }
 
-  function thumbServiceUrl(url, w, h) {
+  function isMobileStorefront() {
+    try {
+      return global.matchMedia && global.matchMedia('(max-width: 768px)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  var MOBILE_CARD = 176;
+  var MOBILE_CARD_2X = 352;
+
+  function thumbQuality(width) {
+    if (width <= MOBILE_CARD) return 52;
+    if (width <= MOBILE_CARD_2X) return 48;
+    if (width <= 360) return 68;
+    return 74;
+  }
+
+  function thumbServiceUrl(url, w, h, fmt) {
     if (!url || isDataUrl(url) || !isFirebaseStorageUrl(url)) return url || '';
     if (isLocalPreviewHost()) return firebaseMediaUrl(url);
     var width = Math.max(32, Math.min(1200, Number(w) || 320));
     var height = Math.max(32, Math.min(1200, Number(h) || width));
-    var q = width <= 360 ? 72 : 78;
-    return (
+    var q = thumbQuality(width);
+    var base =
       '/api/image-thumb?w=' + width +
       '&h=' + height +
       '&q=' + q +
-      '&url=' + encodeURIComponent(firebaseMediaUrl(url))
-    );
+      '&url=' + encodeURIComponent(firebaseMediaUrl(url));
+    if (fmt) base += '&fmt=' + encodeURIComponent(fmt);
+    return base;
   }
 
   function cloudinaryAssetPath(url) {
@@ -108,34 +127,112 @@
   function productCardImageUrl(url) {
     if (!url || isDataUrl(url)) return url || '';
     if (isLocalPreviewHost()) return firebaseMediaUrl(url);
+    if (isMobileStorefront()) {
+      if (url.indexOf('res.cloudinary.com') !== -1) return cloudinaryThumb(url, MOBILE_CARD, MOBILE_CARD);
+      if (isFirebaseStorageUrl(url)) return thumbServiceUrl(url, MOBILE_CARD, MOBILE_CARD);
+      return productThumbUrl(url, MOBILE_CARD);
+    }
     if (url.indexOf('res.cloudinary.com') !== -1) return cloudinaryThumb(url, 320, 220);
     if (isFirebaseStorageUrl(url)) return thumbServiceUrl(url, 320, 220);
     return productThumbUrl(url, 320);
   }
 
+  function responsiveWidths() {
+    if (isMobileStorefront()) return [176, 352, 400];
+    return [320, 400, 600, 800, 1200];
+  }
+
   function productCardImageSrcset(url) {
     if (!url || isDataUrl(url) || isLocalPreviewHost()) return '';
-    if (url.indexOf('res.cloudinary.com') !== -1) return '';
+    if (url.indexOf('res.cloudinary.com') !== -1) {
+      var widths = responsiveWidths();
+      return widths.map(function(w) {
+        var h = isMobileStorefront() ? w : Math.round(w * 0.69);
+        return cloudinaryThumb(url, w, h) + ' ' + w + 'w';
+      }).join(', ');
+    }
     if (!isFirebaseStorageUrl(url)) return '';
-    var oneX = thumbServiceUrl(url, 320, 220);
-    var twoX = thumbServiceUrl(url, 640, 440);
-    return oneX + ' 320w, ' + twoX + ' 640w';
+    var parts = responsiveWidths().map(function(w) {
+      var h = isMobileStorefront() ? w : Math.round(w * 0.69);
+      return thumbServiceUrl(url, w, h, 'webp') + ' ' + w + 'w';
+    });
+    return parts.join(', ');
+  }
+
+  function productCardPictureFallbackUrl(url) {
+    if (!url || isDataUrl(url)) return url || '';
+    if (url.indexOf('res.cloudinary.com') !== -1) {
+      return isMobileStorefront()
+        ? cloudinaryThumb(url, MOBILE_CARD, MOBILE_CARD)
+        : cloudinaryThumb(url, 400, 276);
+    }
+    if (isFirebaseStorageUrl(url)) {
+      return isMobileStorefront()
+        ? thumbServiceUrl(url, MOBILE_CARD, MOBILE_CARD, 'jpeg')
+        : thumbServiceUrl(url, 400, 276, 'jpeg');
+    }
+    return productCardImageUrl(url);
+  }
+
+  function buildProductCardPictureHtml(url, attrs) {
+    attrs = attrs || {};
+    if (!url || isDataUrl(url)) {
+      return '<img src="' + (url || '') + '"' + (attrs.imgAttrs || '') + '>';
+    }
+    var srcset = productCardImageSrcset(url);
+    if (!srcset) {
+      var single = productCardImageUrl(url);
+      var d = productCardDisplaySize();
+      return '<img src="' + single + '" width="' + d.w + '" height="' + d.h + '"' + (attrs.imgAttrs || '') + '>';
+    }
+    var sizes = productCardImageSizes();
+    var fallback = productCardPictureFallbackUrl(url);
+    var webpSrcset = srcset;
+    var imgAttrs = attrs.imgAttrs || '';
+    var w = attrs.width ? ' width="' + attrs.width + '"' : '';
+    var h = attrs.height ? ' height="' + attrs.height + '"' : '';
+    return '<picture class="product-card-picture">' +
+      '<source type="image/webp" srcset="' + webpSrcset + '" sizes="' + sizes + '">' +
+      '<img src="' + fallback + '" srcset="' + webpSrcset + '" sizes="' + sizes + '"' +
+      w + h + imgAttrs + '>' +
+      '</picture>';
+  }
+
+  function productCardDisplaySize() {
+    if (isMobileStorefront()) return { w: MOBILE_CARD, h: MOBILE_CARD };
+    return { w: 320, h: 220 };
   }
 
   function productCardImageSizes() {
-    return '(max-width: 480px) 50vw, (max-width: 1024px) 33vw, 320px';
+    return '(max-width: 768px) calc(50vw - 14px), (max-width: 1024px) 33vw, 300px';
+  }
+
+  function pickupCardImageUrl(url) {
+    if (!url || isDataUrl(url)) return url || '';
+    if (isLocalPreviewHost()) return firebaseMediaUrl(url);
+    var pw = isMobileStorefront() ? 360 : 460;
+    var ph = isMobileStorefront() ? 180 : 220;
+    if (url.indexOf('res.cloudinary.com') !== -1) {
+      return cloudinaryThumb(url, pw, ph);
+    }
+    if (isFirebaseStorageUrl(url)) {
+      return thumbServiceUrl(url, pw, ph);
+    }
+    return productThumbUrl(url, pw);
   }
 
   function auctionCardImageUrl(url) {
     if (!url || isDataUrl(url)) return url || '';
     if (isLocalPreviewHost()) return firebaseMediaUrl(url);
+    var aw = isMobileStorefront() ? 200 : 480;
+    var ah = isMobileStorefront() ? 112 : 270;
     if (url.indexOf('res.cloudinary.com') !== -1) {
-      return cloudinaryThumb(url, 520, 293);
+      return cloudinaryThumb(url, aw, ah);
     }
     if (isFirebaseStorageUrl(url)) {
-      return thumbServiceUrl(url, 520, 293);
+      return thumbServiceUrl(url, aw, ah);
     }
-    return productThumbUrl(url, 400);
+    return productThumbUrl(url, aw);
   }
 
   function productDetailMainUrl(url) {
@@ -153,7 +250,7 @@
     return ' loading="eager" decoding="async" fetchpriority="high"';
   }
 
-  function preloadProductCardImage(url) {
+  function preloadProductCardImage(url, rawUrl) {
     if (!url || isDataUrl(url)) return;
     if (document.querySelector('link[data-aylen-lcp-preload="1"]')) return;
     var link = document.createElement('link');
@@ -162,9 +259,20 @@
     link.href = url;
     link.setAttribute('data-aylen-lcp-preload', '1');
     link.setAttribute('fetchpriority', 'high');
+    if (rawUrl) {
+      var srcset = productCardImageSrcset(rawUrl);
+      if (srcset) {
+        link.setAttribute('imagesrcset', srcset);
+        link.setAttribute('imagesizes', productCardImageSizes());
+      }
+    }
     document.head.appendChild(link);
     var img = new Image();
     img.decoding = 'async';
+    if (link.getAttribute('imagesrcset')) {
+      img.sizes = productCardImageSizes();
+      img.srcset = link.getAttribute('imagesrcset');
+    }
     img.src = url;
   }
 
@@ -173,7 +281,7 @@
     var first = products[0];
     var raw = first && first.images && first.images[0];
     if (!raw) return;
-    preloadProductCardImage(productCardImageUrl(raw));
+    preloadProductCardImage(productCardImageUrl(raw), raw);
   }
 
   global.aylenImageLoadFallback = imageLoadFallback;
@@ -183,16 +291,21 @@
     productCardImageUrl: productCardImageUrl,
     productCardImageSrcset: productCardImageSrcset,
     productCardImageSizes: productCardImageSizes,
+    productCardDisplaySize: productCardDisplaySize,
     productCardImageDirectUrl: firebaseMediaUrl,
     firebaseMediaUrl: firebaseMediaUrl,
     isLocalPreviewHost: isLocalPreviewHost,
     imageLoadFallback: imageLoadFallback,
+    pickupCardImageUrl: pickupCardImageUrl,
     auctionCardImageUrl: auctionCardImageUrl,
     productDetailMainUrl: productDetailMainUrl,
     lazyImgAttrs: lazyImgAttrs,
     eagerMainAttrs: eagerMainAttrs,
     thumbServiceUrl: thumbServiceUrl,
     preloadProductCardImage: preloadProductCardImage,
-    preloadFirstCatalogImage: preloadFirstCatalogImage
+    preloadFirstCatalogImage: preloadFirstCatalogImage,
+    buildProductCardPictureHtml: buildProductCardPictureHtml,
+    productCardPictureFallbackUrl: productCardPictureFallbackUrl,
+    responsiveWidths: responsiveWidths
   };
 })(window);

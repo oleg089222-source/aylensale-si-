@@ -11,8 +11,8 @@ const fail = (s) => { console.log('\x1b[31m✗\x1b[0m', s); process.exitCode = 1
 const files = [
   'js/vip-carousel-defaults.js',
   'js/vip-stock.js',
-  'api/lib/vip-carousel-defaults.mjs',
-  'api/lib/vip-store.mjs',
+  'lib/server/vip-carousel-defaults.mjs',
+  'lib/server/vip-store.mjs',
   'vip-stock.html',
   'vip-live-preview.html',
   'css/vip-glass-hub.css'
@@ -40,7 +40,7 @@ checks.forEach(function(pair) {
   else fail(pair[0]);
 });
 
-const store = fs.readFileSync(path.join(root, 'api/lib/vip-store.mjs'), 'utf8');
+const store = fs.readFileSync(path.join(root, 'lib/server/vip-store.mjs'), 'utf8');
 if (/DEFAULT_VIP_HUB_CAROUSEL/.test(store) && !/hubCarouselImages: hubCarouselImages/.test(store)) {
   ok('Hub carousel no longer falls back to paywall warehouse in store');
 } else if (/DEFAULT_VIP_HUB_CAROUSEL/.test(store)) {

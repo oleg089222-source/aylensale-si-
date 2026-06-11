@@ -434,8 +434,13 @@ body.aylen-discount-active .site-header .login-box input#cardNumber.card-applied
 }
 
 @media (max-width: 768px) {
+  html {
+    scroll-padding-top: calc(var(--aylen-header-sticky-h, 104px) + env(safe-area-inset-top, 0px));
+  }
+
   .site-header .header-top.header-top--unified {
     flex-wrap: wrap !important;
+    align-items: center !important;
     gap: 8px !important;
     padding: 8px 10px !important;
     margin: 6px 0 4px !important;
@@ -444,18 +449,36 @@ body.aylen-discount-active .site-header .login-box input#cardNumber.card-applied
 
   .site-header .header-top.header-top--unified .logo {
     order: 1 !important;
-    font-size: 16px !important;
+    flex: 0 1 auto !important;
+    font-size: 15px !important;
     letter-spacing: 0.06em !important;
+    max-width: none !important;
   }
 
   .site-header .header-tools {
     order: 2 !important;
+    flex: 0 0 auto !important;
     margin-left: auto !important;
   }
 
   .site-header .header-card-bar {
     order: 3 !important;
     flex: 1 1 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .site-header .header-card-access__label {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
   }
 
   .site-header .login-box input#cardNumber {
@@ -479,6 +502,11 @@ body.aylen-discount-active .site-header .login-box input#cardNumber.card-applied
     height: 38px !important;
     min-width: 38px !important;
     min-height: 38px !important;
+  }
+
+  #storefrontAboveProducts {
+    scroll-margin-top: calc(var(--aylen-header-sticky-h, 104px) + env(safe-area-inset-top, 0px));
+    padding-top: 4px;
   }
 }
 

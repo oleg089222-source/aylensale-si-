@@ -22,7 +22,7 @@ import {
   handleVipItemVerify,
   handleVipItemView,
   handleVipAuctionBid
-} from './lib/vip-handlers.mjs';
+} from '../lib/server/vip-handlers.mjs';
 
 export const config = {
   api: {

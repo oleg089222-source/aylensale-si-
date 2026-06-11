@@ -3,12 +3,26 @@
  */
 (function(global) {
   var PAGE_SIZE = 24;
+  var MOBILE_INITIAL_LIMIT = 8;
+
+  function isMobileCatalogLayout() {
+    try {
+      return global.matchMedia && global.matchMedia('(max-width: 768px)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function catalogPageSize() {
+    return isMobileCatalogLayout() ? MOBILE_INITIAL_LIMIT : PAGE_SIZE;
+  }
+
   var state = {
     query: '',
     category: '',
     sort: 'newest',
     quickFilter: '',
-    visibleLimit: PAGE_SIZE
+    visibleLimit: catalogPageSize()
   };
 
   function productVisible(p) {
@@ -52,7 +66,11 @@
   }
 
   function getFilteredProducts() {
-    var list = (typeof products !== 'undefined' ? products : []).filter(productVisible);
+    var source = typeof products !== 'undefined' ? products : [];
+    if (global.AYLEN_PRODUCTION && global.AYLEN_PRODUCTION.dedupeProductionProducts && source.length > 1) {
+      source = global.AYLEN_PRODUCTION.dedupeProductionProducts(source);
+    }
+    var list = source.filter(productVisible);
     var q = state.query.trim().toLowerCase();
     if (q) {
       list = list.filter(function(p) { return productSearchHaystack(p).indexOf(q) !== -1; });
@@ -97,7 +115,7 @@
   }
 
   function resetVisibleLimit() {
-    state.visibleLimit = PAGE_SIZE;
+    state.visibleLimit = catalogPageSize();
   }
 
   function mergeCatalogItems(items) {
@@ -168,7 +186,7 @@
       if (loaded) return;
     }
 
-    state.visibleLimit += PAGE_SIZE;
+    state.visibleLimit += catalogPageSize();
     if (typeof renderProducts === 'function') renderProducts();
   }
 

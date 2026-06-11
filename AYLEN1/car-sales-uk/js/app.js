@@ -101,7 +101,11 @@ function stopCarouselEvent(ev) {
 }
 
 function productImageKey(productId) {
-  return String(productId);
+  if (window.AYLEN_PRODUCTION && window.AYLEN_PRODUCTION.canonicalProductKey) {
+    return window.AYLEN_PRODUCTION.canonicalProductKey(productId);
+  }
+  var raw = String(productId || '');
+  return raw.indexOf('prod_') === 0 ? raw.slice(5) : raw;
 }
 
 function imageSourcesMatch(imgEl, nextSrc) {
@@ -126,7 +130,8 @@ function catalogInitialPageSize() {
 }
 
 function productsGridGap(grid) {
-  var width = grid ? (grid.clientWidth || grid.getBoundingClientRect().width || 0) : (window.innerWidth || 0);
+  if (isMobileStorefrontLayout()) return 10;
+  var width = grid ? (grid.clientWidth || 0) : (window.innerWidth || 0);
   if (width <= 640) return 10;
   if (width <= 1024) return 14;
   if (width >= 1400) return 20;
@@ -134,21 +139,37 @@ function productsGridGap(grid) {
 }
 
 function productsGridColumnCount(grid) {
-  var width = grid.clientWidth || grid.getBoundingClientRect().width || window.innerWidth || 0;
-  try {
-    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return 2;
-  } catch (e) {}
+  if (isMobileStorefrontLayout()) return 2;
+  var width = grid.clientWidth || window.innerWidth || 0;
   if (width <= 1024) return 2;
   if (width <= 1399) return 3;
   return 4;
 }
 
 var measuredProductCardHeight = 0;
+var MOBILE_PRODUCTS_GRID_RESERVE = 1760;
+var MOBILE_PRODUCTS_SECTION_RESERVE = 1960;
+var MOBILE_PRODUCT_CARD_HEIGHT = 420;
+var MOBILE_SSR_EAGER_IMAGE_COUNT = 1;
+
+function readMobileReserveMeta(name, fallback) {
+  var meta = document.querySelector('meta[name="' + name + '"]');
+  var n = meta ? parseInt(meta.getAttribute('content'), 10) : 0;
+  return n > 0 ? n : fallback;
+}
+
+function mobileProductsGridReservePx() {
+  return readMobileReserveMeta('aylen-mobile-grid-reserve', MOBILE_PRODUCTS_GRID_RESERVE);
+}
+
+function mobileProductsSectionReservePx() {
+  return readMobileReserveMeta('aylen-mobile-section-reserve', MOBILE_PRODUCTS_SECTION_RESERVE);
+}
 
 function estimateProductCardHeightFallback() {
   var cardMin = 420;
   try {
-    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) cardMin = 280;
+    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) cardMin = 420;
   } catch (e) {}
   return cardMin;
 }
@@ -161,20 +182,68 @@ function isMobileStorefrontLayout() {
   }
 }
 
+function isTabletStorefrontLayout() {
+  try {
+    return window.matchMedia && window.matchMedia('(min-width: 769px) and (max-width: 1024px)').matches;
+  } catch (e) {
+    return false;
+  }
+}
+
+function storefrontBelowFoldTiming() {
+  if (isMobileStorefrontLayout()) {
+    return { delayAfterLoad: 2000, idleTimeout: 8000 };
+  }
+  if (isTabletStorefrontLayout()) {
+    return { delayAfterLoad: 1500, idleTimeout: 6000 };
+  }
+  return { delayAfterLoad: 2000, idleTimeout: 8000 };
+}
+
 function clearProductsLayoutReserve(section, grid) {
   if (section) {
     section.style.minHeight = '';
+    section.style.height = '';
+    section.style.maxHeight = '';
     section.style.removeProperty('--products-section-reserved-h');
   }
   if (grid) {
     grid.style.minHeight = '';
+    grid.style.height = '';
+    grid.style.maxHeight = '';
     grid.style.removeProperty('--products-grid-reserved-h');
+  }
+}
+
+function pinProductsLayoutReserve(section, grid) {
+  if (isMobileStorefrontLayout()) return;
+  if (grid) {
+    var gridH = Math.ceil(grid.getBoundingClientRect().height);
+    if (gridH > 0) {
+      syncProductsGridReserveVar(grid, gridH);
+      grid.style.height = gridH + 'px';
+      grid.style.maxHeight = gridH + 'px';
+    }
+  }
+  if (section) {
+    var sectionH = measureProductsSectionHeight();
+    if (sectionH > 0) {
+      syncProductsSectionReserve(section, sectionH, false);
+      section.style.height = sectionH + 'px';
+      section.style.maxHeight = sectionH + 'px';
+    }
   }
 }
 
 function syncProductsGridReserveVar(grid, heightPx) {
   if (!grid || !heightPx) return;
   var next = Math.ceil(heightPx);
+  var current = parseInt(grid.style.getPropertyValue('--products-grid-reserved-h'), 10) || 0;
+  if (isMobileStorefrontLayout()) {
+    if (current > 0 && next < current) next = current;
+    grid.style.setProperty('--products-grid-reserved-h', next + 'px');
+    return;
+  }
   grid.style.setProperty('--products-grid-reserved-h', next + 'px');
   grid.style.minHeight = next + 'px';
 }
@@ -185,10 +254,18 @@ function syncProductsSectionReserve(section, heightPx, allowShrink) {
   var current = parseInt(section.style.getPropertyValue('--products-section-reserved-h'), 10) || 0;
   if (!allowShrink && current > 0 && next < current) next = current;
   section.style.setProperty('--products-section-reserved-h', next + 'px');
-  section.style.minHeight = next + 'px';
+  if (!isMobileStorefrontLayout()) {
+    section.style.minHeight = next + 'px';
+  }
 }
 
 function measureProductsSectionHeight() {
+  if (isMobileStorefrontLayout()) {
+    var section = document.getElementById('products');
+    if (!section) return mobileProductsSectionReservePx();
+    var reserved = parseInt(section.style.getPropertyValue('--products-section-reserved-h'), 10);
+    return reserved > 0 ? reserved : mobileProductsSectionReservePx();
+  }
   var section = document.getElementById('products');
   if (!section) return 0;
   return Math.ceil(section.getBoundingClientRect().height);
@@ -197,9 +274,38 @@ function measureProductsSectionHeight() {
 function lockProductsSectionShell() {
   var section = document.getElementById('products');
   if (!section || section.classList.contains('products-section--settled')) return;
-  var measured = measureProductsSectionHeight();
-  if (measured > 0) syncProductsSectionReserve(section, measured, false);
+  if (!isMobileStorefrontLayout()) {
+    var measured = measureProductsSectionHeight();
+    if (measured > 0) syncProductsSectionReserve(section, measured, false);
+  }
   section.classList.add('products-section--loading');
+}
+
+function waitForDeferredShellCss(timeoutMs) {
+  timeoutMs = timeoutMs || 4000;
+  return new Promise(function(resolve) {
+    if (document.documentElement.classList.contains('shell-deferred-ready')) {
+      resolve();
+      return;
+    }
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      resolve();
+    }
+    var observer = new MutationObserver(function() {
+      if (document.documentElement.classList.contains('shell-deferred-ready')) {
+        observer.disconnect();
+        finish();
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    setTimeout(function() {
+      observer.disconnect();
+      finish();
+    }, timeoutMs);
+  });
 }
 
 function waitForStorefrontPaintReady(timeoutMs) {
@@ -263,16 +369,99 @@ function waitForFirstProductImages(grid, limit, timeoutMs) {
 }
 
 function measureSkeletonGridHeight(grid) {
+  if (isMobileStorefrontLayout()) return mobileProductsGridReservePx();
   if (!grid) return 0;
-  var skeletons = grid.querySelectorAll('.product-skeleton');
-  if (!skeletons.length) return Math.ceil(grid.getBoundingClientRect().height);
   return Math.ceil(grid.getBoundingClientRect().height);
 }
 
+function pinMobileProductsLayoutReserve(section, grid, itemCount) {
+  /* Mobile reserve is fixed in HTML critical CSS — no runtime resize (CLS). */
+}
+
+function releaseMobileProductsLayoutReserve(section, grid) {
+  var above = document.getElementById('storefrontAboveProducts');
+  if (above) {
+    above.style.removeProperty('height');
+    above.style.removeProperty('max-height');
+    above.style.removeProperty('overflow');
+  }
+  if (grid) {
+    var measured = Math.ceil(grid.getBoundingClientRect().height);
+    var reserved = parseInt(grid.style.getPropertyValue('--products-grid-reserved-h'), 10) || 0;
+    if (!reserved || !Number.isFinite(reserved)) reserved = mobileProductsGridReservePx();
+    syncProductsGridReserveVar(grid, Math.max(measured, reserved));
+    grid.style.removeProperty('height');
+    grid.style.removeProperty('max-height');
+    grid.classList.remove('products-grid--loading');
+    grid.classList.add('products-grid--settled');
+    grid.removeAttribute('aria-busy');
+  }
+  if (section) {
+    var gridReserve = grid
+      ? (parseInt(grid.style.getPropertyValue('--products-grid-reserved-h'), 10) || mobileProductsGridReservePx())
+      : mobileProductsGridReservePx();
+    syncProductsSectionReserve(section, Math.max(measureProductsSectionHeight(), gridReserve + 248), true);
+    section.style.removeProperty('height');
+    section.style.removeProperty('max-height');
+    section.classList.remove('products-section--loading');
+    section.classList.add('products-section--settled');
+  }
+}
+
+function scheduleBelowFoldStorefrontWork(fn, opts) {
+  opts = opts || {};
+  var delayAfterLoad = opts.delayAfterLoad || 0;
+  var idleTimeout = opts.idleTimeout || 10000;
+  function runWork() {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(fn, { timeout: idleTimeout });
+    } else {
+      setTimeout(fn, Math.min(idleTimeout, 8000));
+    }
+  }
+  function afterLoad() {
+    if (delayAfterLoad > 0) setTimeout(runWork, delayAfterLoad);
+    else runWork();
+  }
+  if (document.readyState === 'complete') afterLoad();
+  else window.addEventListener('load', afterLoad, { once: true });
+}
+
 function releaseProductsLayoutReserveWhenStable(section, grid, onDone) {
-  var imageLimit = isMobileStorefrontLayout() ? 2 : 4;
+  function settleProductsLayout() {
+    requestAnimationFrame(function() {
+      if (isMobileStorefrontLayout()) {
+        releaseMobileProductsLayoutReserve(section, grid);
+      } else {
+        if (section && !section.classList.contains('products-section--settled')) {
+          section.classList.remove('products-section--loading');
+          section.classList.add('products-section--settled');
+        }
+        if (grid && !grid.classList.contains('products-grid--settled')) {
+          grid.classList.remove('products-grid--loading');
+          grid.classList.add('products-grid--settled');
+          grid.removeAttribute('aria-busy');
+        }
+      }
+      requestAnimationFrame(function() {
+        if (!isMobileStorefrontLayout()) {
+          pinProductsLayoutReserve(section, grid);
+        }
+        if (typeof onDone === 'function') onDone();
+      });
+    });
+  }
+
+  if (isMobileStorefrontLayout()) {
+    scheduleBelowFoldStorefrontWork(function() {
+      requestAnimationFrame(settleProductsLayout);
+    }, storefrontBelowFoldTiming());
+    return;
+  }
+
+  var imageLimit = 4;
   Promise.all([
-    waitForStorefrontPaintReady(isMobileStorefrontLayout() ? 2000 : 3000),
+    waitForStorefrontPaintReady(3000),
     waitForFirstProductImages(grid, imageLimit, 3000)
   ]).then(function() {
     waitForStableGridHeight(grid || section, function(stableGridH) {
@@ -282,22 +471,7 @@ function releaseProductsLayoutReserveWhenStable(section, grid, onDone) {
       if (section) {
         syncProductsSectionReserve(section, measureProductsSectionHeight(), true);
       }
-      requestAnimationFrame(function() {
-        if (section) {
-          section.classList.remove('products-section--loading');
-          section.classList.add('products-section--settled');
-        }
-        if (grid) {
-          grid.classList.remove('products-grid--loading');
-          grid.classList.add('products-grid--settled');
-        }
-        requestAnimationFrame(function() {
-          if (!isMobileStorefrontLayout()) {
-            clearProductsLayoutReserve(section, grid);
-          }
-          if (typeof onDone === 'function') onDone();
-        });
-      });
+      settleProductsLayout();
     }, { stableFrames: 3, tolerance: 3, maxFrames: 48 });
   });
 }
@@ -309,12 +483,20 @@ function finalizeProductsSectionLayout(onDone) {
     if (typeof onDone === 'function') onDone();
     return;
   }
+  if (isMobileStorefrontLayout()) {
+    releaseProductsLayoutReserveWhenStable(section, grid, onDone);
+    return;
+  }
   waitForStableGridHeight(section, function() {
     releaseProductsLayoutReserveWhenStable(section, grid, onDone);
   }, { stableFrames: 2, tolerance: 4, maxFrames: 36 });
 }
 
 function measureProductCardHeight(grid) {
+  if (isMobileStorefrontLayout()) {
+    if (measuredProductCardHeight > 0 && measuredProductCardHeight < 900) return measuredProductCardHeight;
+    return MOBILE_PRODUCT_CARD_HEIGHT;
+  }
   var sample = grid && (grid.querySelector('.product-card-grid-item') || grid.querySelector('.product-skeleton'));
   if (sample) {
     var savedMin = grid ? grid.style.minHeight : '';
@@ -335,6 +517,12 @@ function estimateProductCardHeight(grid) {
 }
 
 function waitForStableGridHeight(el, done, opts) {
+  if (isMobileStorefrontLayout()) {
+    requestAnimationFrame(function() {
+      done(el && el.id === 'products' ? mobileProductsSectionReservePx() : mobileProductsGridReservePx());
+    });
+    return;
+  }
   opts = opts || {};
   var stableFrames = opts.stableFrames || 2;
   var tolerance = opts.tolerance || 2;
@@ -378,6 +566,12 @@ function estimateProductsGridHeight(grid, itemCount) {
 
 function applyProductsGridLoadingReserve(grid, itemCount) {
   if (!grid || !itemCount) return 0;
+  if (isMobileStorefrontLayout()) {
+    syncProductsGridReserveVar(grid, mobileProductsGridReservePx());
+    var section = document.getElementById('products');
+    if (section) syncProductsSectionReserve(section, mobileProductsSectionReservePx(), false);
+    return mobileProductsGridReservePx();
+  }
   var current = Math.ceil(grid.getBoundingClientRect().height);
   var skeletonH = measureSkeletonGridHeight(grid);
   var target = estimateProductsGridHeight(grid, itemCount);
@@ -400,17 +594,12 @@ function finalizeProductsGridSwap(grid, onStable) {
   if (!grid) return;
   grid.classList.add('products-grid--revealed');
   if (isMobileStorefrontLayout()) {
-    var lockedMobile = Math.ceil(grid.getBoundingClientRect().height);
-    var reservedMobileRaw = grid.style.getPropertyValue('--products-grid-reserved-h');
-    var reservedMobile = reservedMobileRaw ? parseInt(reservedMobileRaw, 10) : 0;
-    syncProductsGridReserveVar(grid, Math.max(lockedMobile, reservedMobile || 0));
-    waitForStableGridHeight(grid, function(stableHeight) {
-      syncProductsGridReserveVar(grid, Math.max(lockedMobile, stableHeight, reservedMobile || 0));
-      grid.classList.add('products-grid--settled');
-      grid.classList.remove('products-grid--loading');
-      grid.removeAttribute('aria-busy');
+    var section = document.getElementById('products');
+    grid.removeAttribute('aria-busy');
+    scheduleBelowFoldStorefrontWork(function() {
+      releaseMobileProductsLayoutReserve(section, grid);
       if (typeof onStable === 'function') onStable();
-    }, { stableFrames: 2, tolerance: 4, maxFrames: 36 });
+    }, { delayAfterLoad: 2000, idleTimeout: 8000 });
     return;
   }
   var locked = Math.ceil(grid.getBoundingClientRect().height);
@@ -555,6 +744,69 @@ function aylenProductImageFallback(img) {
 window.aylenProductImageFallback = aylenProductImageFallback;
 window.aylenImageLoadFallback = aylenProductImageFallback;
 
+var DEFERRED_GALLERY_IMG =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+function productCardDisplayDims() {
+  if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.productCardDisplaySize) {
+    return window.AYLEN_IMAGES.productCardDisplaySize();
+  }
+  return { w: 320, h: 220 };
+}
+
+function hydrateDeferredGalleryImage(img) {
+  if (!img) return;
+  var deferred = img.getAttribute('data-deferred-src');
+  if (!deferred || img.getAttribute('data-hydrated') === '1') return;
+  img.setAttribute('data-hydrated', '1');
+  var deferredSrcset = img.getAttribute('data-deferred-srcset');
+  if (deferredSrcset) {
+    img.srcset = deferredSrcset;
+    img.removeAttribute('data-deferred-srcset');
+  }
+  var deferredSizes = img.getAttribute('data-deferred-sizes');
+  if (deferredSizes) {
+    img.sizes = deferredSizes;
+    img.removeAttribute('data-deferred-sizes');
+  }
+  img.src = deferred;
+  img.removeAttribute('data-deferred-src');
+}
+
+function initSsrDeferredProductImages() {
+  var grid = document.getElementById('productsGrid');
+  if (!grid) return;
+  var imgs = grid.querySelectorAll('img[data-deferred-src]');
+  if (!imgs.length) return;
+  function reveal(img) {
+    hydrateDeferredGalleryImage(img);
+  }
+  function wireObserver() {
+    if (!('IntersectionObserver' in window)) {
+      imgs.forEach(reveal);
+      return;
+    }
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (!entry.isIntersecting) return;
+        reveal(entry.target);
+        observer.unobserve(entry.target);
+      });
+    }, { rootMargin: isMobileStorefrontLayout() ? '48px 0px' : '96px 0px', threshold: 0.01 });
+    imgs.forEach(function(img) { observer.observe(img); });
+  }
+  if (isMobileStorefrontLayout()) {
+    scheduleMobileBelowFoldCatalogWork(wireObserver);
+    return;
+  }
+  wireObserver();
+}
+
+function hydrateProductScrollGalleryImages(scroller) {
+  if (!scroller) return;
+  scroller.querySelectorAll('img[data-deferred-src]').forEach(hydrateDeferredGalleryImage);
+}
+
 function productCardImageErrorAttr() {
   return ' onerror="aylenProductImageFallback(this)"';
 }
@@ -573,6 +825,19 @@ function productCardResponsiveImgAttrs(rawUrl) {
     ? window.AYLEN_IMAGES.productCardImageSizes()
     : '(max-width: 768px) 50vw, 320px';
   return ' srcset="' + escapeHtml(srcset) + '" sizes="' + escapeHtml(sizes) + '"';
+}
+
+function productCardPictureHtml(rawUrl, imgAttrs, dims) {
+  if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.buildProductCardPictureHtml) {
+    return window.AYLEN_IMAGES.buildProductCardPictureHtml(rawUrl, {
+      imgAttrs: imgAttrs,
+      width: dims && dims.w,
+      height: dims && dims.h
+    });
+  }
+  var src = productCardImageSrc(rawUrl);
+  var d = dims || productCardDisplayDims();
+  return '<img src="' + escapeHtml(src) + '" width="' + d.w + '" height="' + d.h + '"' + productCardResponsiveImgAttrs(rawUrl) + (imgAttrs || '') + '>';
 }
 
 function auctionImageDataAttrs(rawUrl) {
@@ -675,6 +940,16 @@ function ensureEngagementBar() {
   return !!document.getElementById('engagementBar');
 }
 
+function readSsrEngagementSeed() {
+  try {
+    var meta = document.querySelector('meta[name="aylen-engagement-seed"]');
+    if (!meta || !meta.content) return null;
+    return JSON.parse(meta.content);
+  } catch (e) {
+    return null;
+  }
+}
+
 function renderEngagementStats() {
   ensureEngagementBar();
   var onlineEl = document.getElementById('onlineVisitorsCount');
@@ -682,15 +957,23 @@ function renderEngagementStats() {
   var productsEl = document.getElementById('productsAvailableCount');
   var auctionsEl = document.getElementById('activeAuctionsCount');
   var pickupsEl = document.getElementById('pickupPointsCount');
+  var seed = readSsrEngagementSeed();
   if (onlineEl) onlineEl.textContent = onlineVisitorsCount;
   if (cartsEl) cartsEl.textContent = activeCartsCount;
-  if (productsEl) productsEl.textContent = (products || []).filter(function(p) { return p.active !== false && Number(p.stock || 0) > 0; }).length;
-  if (auctionsEl) auctionsEl.textContent = (auctions || []).filter(function(a) { return getAuctionStatus(a) === 'active'; }).length;
+  if (productsEl) {
+    var inStock = (products || []).filter(function(p) { return p.active !== false && Number(p.stock || 0) > 0; }).length;
+    productsEl.textContent = inStock || (seed && seed.productsInStock) || productsEl.textContent || '0';
+  }
+  if (auctionsEl) {
+    var activeAuctions = (auctions || []).filter(function(a) { return getAuctionStatus(a) === 'active'; }).length;
+    auctionsEl.textContent = activeAuctions || (seed && seed.activeAuctions) || auctionsEl.textContent || '0';
+  }
   if (pickupsEl) {
-    pickupsEl.textContent = (locations || []).filter(function(l) {
+    var pickupCount = (locations || []).filter(function(l) {
       if (window.AYLEN_PICKUP) return window.AYLEN_PICKUP.normalizePickupStatus(l) === 'going';
       return l.active !== false;
     }).length;
+    pickupsEl.textContent = pickupCount || (seed && seed.pickupPoints) || pickupsEl.textContent || '0';
   }
   updateProductViewerBadges();
 }
@@ -964,7 +1247,7 @@ function safeEbaySettings() {
     enabled: false,
     url: '',
     buttonText: 'Shop on eBay',
-    description: 'Prefer eBay? You can also buy from our official AYLENSALE eBay store.'
+    description: 'Prefer eBay? Shop our AYLENSALE store on eBay.co.uk.'
   };
   return Object.assign({}, defaults, (window.siteSettings && window.siteSettings.ebay) || (typeof siteSettings !== 'undefined' && siteSettings.ebay) || {});
 }
@@ -1005,6 +1288,30 @@ function renderTelegramLinks() {
   }
 }
 
+function buildEbayPromoCardHtml(settings) {
+  var buttonText = settings.buttonText || 'Shop on eBay';
+  var description = settings.description || 'Prefer eBay? Shop our AYLENSALE store on eBay.co.uk.';
+  if (description === 'Prefer eBay? You can also buy from our official AYLENSALE eBay store.') {
+    description = 'Prefer eBay? Shop our AYLENSALE store on eBay.co.uk.';
+  }
+  return (
+    '<div class="ebay-promo-card">' +
+      '<div class="ebay-promo-card__main">' +
+        '<div class="ebay-promo-card__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16v2H4V4zm2 4h12l-1.2 10H7.2L6 8zm6 2v6h2v-6h-2z"/></svg></div>' +
+        '<div class="ebay-promo-card__copy">' +
+          '<div class="ebay-promo-card__logo" aria-hidden="true">' +
+            '<span class="ebay-promo-card__logo-e">e</span><span class="ebay-promo-card__logo-b">B</span><span class="ebay-promo-card__logo-a">a</span><span class="ebay-promo-card__logo-y">y</span>' +
+          '</div>' +
+          '<p class="ebay-promo-card__desc">' + escapeHtml(description) + '</p>' +
+        '</div>' +
+      '</div>' +
+      '<a class="ebay-promo-card__cta" href="' + escapeHtml(settings.url) + '" target="_blank" rel="noopener noreferrer">' +
+        '<i class="fas fa-external-link-alt" aria-hidden="true"></i> ' + escapeHtml(buttonText) +
+      '</a>' +
+    '</div>'
+  );
+}
+
 function renderEbayPromo() {
   var settings = safeEbaySettings();
   var shouldShow = settings.enabled === true && validEbayUrl(settings.url);
@@ -1012,36 +1319,87 @@ function renderEbayPromo() {
   var headerBtn = document.getElementById('headerEbayBtn');
   var buttonText = settings.buttonText || 'Shop on eBay';
 
+  if (!headerBtn) {
+    var headerRight = document.querySelector('.header-right');
+    if (headerRight) {
+      headerBtn = document.createElement('a');
+      headerBtn.id = 'headerEbayBtn';
+      headerBtn.className = 'header-ebay-btn';
+      headerBtn.target = '_blank';
+      headerBtn.rel = 'noopener noreferrer';
+      headerRight.insertBefore(headerBtn, headerRight.firstChild);
+    }
+  }
+
   if (headerBtn) {
-    headerBtn.style.display = 'none';
-    headerBtn.setAttribute('aria-hidden', 'true');
+    if (shouldShow && !isMobileStorefrontLayout()) {
+      headerBtn.href = settings.url;
+      headerBtn.innerHTML = '<i class="fas fa-store" aria-hidden="true"></i> ' + escapeHtml(buttonText);
+      headerBtn.classList.add('is-visible');
+      headerBtn.removeAttribute('aria-hidden');
+    } else {
+      headerBtn.classList.remove('is-visible');
+      headerBtn.setAttribute('aria-hidden', 'true');
+    }
   }
 
   if (!wrap) return;
-  if (!shouldShow) {
-    wrap.style.display = 'none';
+  function hideEbayWrap() {
+    wrap.classList.remove('is-visible');
+    wrap.style.removeProperty('display');
+    wrap.style.visibility = 'hidden';
+    wrap.style.pointerEvents = 'none';
     wrap.innerHTML = '';
+  }
+  function showEbayWrap() {
+    wrap.classList.add('is-visible');
+    wrap.style.removeProperty('display');
+    wrap.style.visibility = 'visible';
+    wrap.style.pointerEvents = 'auto';
+  }
+  if (wrap.getAttribute('data-ssr-ebay') === '1') {
+    if (!shouldShow) {
+      hideEbayWrap();
+      wrap.removeAttribute('data-ssr-ebay');
+      if (window.AYLEN_STOREFRONT_FOLDS && window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility) {
+        window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility(false);
+      }
+      if (headerBtn) {
+        headerBtn.classList.remove('is-visible');
+        headerBtn.setAttribute('aria-hidden', 'true');
+      }
+      return;
+    }
+    showEbayWrap();
+    if (headerBtn) {
+      if (!isMobileStorefrontLayout()) {
+        headerBtn.href = settings.url;
+        headerBtn.innerHTML = '<i class="fas fa-store" aria-hidden="true"></i> ' + escapeHtml(buttonText);
+        headerBtn.classList.add('is-visible');
+        headerBtn.removeAttribute('aria-hidden');
+      } else {
+        headerBtn.classList.remove('is-visible');
+        headerBtn.setAttribute('aria-hidden', 'true');
+      }
+    }
+    return;
+  }
+  if (!shouldShow) {
+    hideEbayWrap();
     if (window.AYLEN_STOREFRONT_FOLDS && window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility) {
       window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility();
     }
     return;
   }
 
-  wrap.style.display = 'block';
-  wrap.innerHTML =
-    '<div style="background:linear-gradient(135deg,#fff 0%,#f7fbff 100%);border:1px solid #dbeafe;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(0,100,210,.10);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">' +
-      '<div style="display:flex;align-items:center;gap:14px;min-width:240px;flex:1">' +
-        '<div style="width:54px;height:54px;border-radius:16px;background:#0064d2;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 6px 16px rgba(0,100,210,.25)"><i class="fas fa-store"></i></div>' +
-        '<div>' +
-          '<div style="display:inline-flex;gap:4px;align-items:center;font-size:12px;font-weight:900;letter-spacing:.4px;margin-bottom:5px">' +
-            '<span style="color:#e53238">e</span><span style="color:#0064d2">B</span><span style="color:#f5af02">a</span><span style="color:#86b817">y</span><span style="color:#1a1a2e;margin-left:4px">OFFICIAL STORE</span>' +
-          '</div>' +
-          '<div style="color:#1a1a2e;font-weight:800;font-size:18px;margin-bottom:3px">' + escapeHtml(buttonText) + '</div>' +
-          '<div style="color:#555;font-size:13px;line-height:1.4">' + escapeHtml(settings.description || '') + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<a href="' + escapeHtml(settings.url) + '" target="_blank" rel="noopener" style="background:#0064d2;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:900;display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><i class="fas fa-external-link-alt"></i> ' + escapeHtml(buttonText) + '</a>' +
-    '</div>';
+  showEbayWrap();
+  if (wrap.querySelector('.ebay-promo-card')) {
+    if (window.AYLEN_STOREFRONT_FOLDS && window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility) {
+      window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility();
+    }
+    return;
+  }
+  wrap.innerHTML = buildEbayPromoCardHtml(settings);
   if (window.AYLEN_STOREFRONT_FOLDS && window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility) {
     window.AYLEN_STOREFRONT_FOLDS.syncEbayFoldVisibility();
   }
@@ -1075,9 +1433,108 @@ async function geocodeLocationForWeather(loc) {
 function renderLocationWeatherCard(el, forecast, loc) {
   if (window.AYLEN_WEATHER && window.AYLEN_WEATHER.paint) {
     window.AYLEN_WEATHER.paint(el, forecast, loc);
+  } else if (el) {
+    el.textContent = 'Weather updating…';
+  }
+  applyPickupWeatherRiskBadge(el && el.closest('.pickup-card'), loc, forecast);
+}
+
+function applyPickupWeatherRiskBadge(cardEl, loc, forecast) {
+  if (!cardEl || !loc) return;
+  var existing = cardEl.querySelector('.pickup-weather-risk');
+  if (existing) existing.remove();
+  var status = window.AYLEN_PICKUP
+    ? window.AYLEN_PICKUP.normalizePickupStatus(loc)
+    : (loc.active ? 'going' : 'not_confirmed');
+  if (status !== 'going') return;
+  var risk = window.AYLEN_PICKUP && window.AYLEN_PICKUP.weatherRiskMeta
+    ? window.AYLEN_PICKUP.weatherRiskMeta(loc, forecast)
+    : null;
+  if (!risk) return;
+  var banner = document.createElement('div');
+  banner.className = 'pickup-weather-risk pickup-weather-risk--' + String(risk.key || 'possible').toLowerCase();
+  banner.setAttribute('role', 'status');
+  banner.innerHTML =
+    '<span class="pickup-weather-risk__icon"><i class="fas fa-cloud-showers-heavy"></i></span>' +
+    '<span class="pickup-weather-risk__copy">' +
+      '<strong>' + escapeHtml(risk.label || 'WEATHER RISK') + '</strong>' +
+      '<span>' + escapeHtml(risk.hint || '') + '</span>' +
+    '</span>';
+  var media = cardEl.querySelector('.pickup-card-media');
+  if (media && media.nextSibling) {
+    cardEl.insertBefore(banner, media.nextSibling);
+  } else {
+    cardEl.insertBefore(banner, cardEl.firstChild);
+  }
+}
+
+function updatePickupSectionMeta(visibleLocations) {
+  var datesEl = document.getElementById('pickupWeekendDates');
+  if (datesEl && window.AYLEN_PICKUP && window.AYLEN_PICKUP.formatWeekendDatesLabel) {
+    datesEl.textContent = window.AYLEN_PICKUP.formatWeekendDatesLabel();
+  }
+  var summaryEl = document.getElementById('pickupGoingSummary');
+  if (summaryEl) {
+    var going = (visibleLocations || []).filter(function(loc) {
+      return window.AYLEN_PICKUP
+        ? window.AYLEN_PICKUP.normalizePickupStatus(loc) === 'going'
+        : !!loc.active;
+    });
+    if (!going.length) {
+      summaryEl.innerHTML = '<span class="pickup-going-summary__empty">No confirmed AYLENSALE stops this weekend yet — check back soon.</span>';
+    } else {
+      summaryEl.innerHTML = going.map(function(loc) {
+        return '<span class="pickup-going-summary__chip"><i class="fas fa-check-circle"></i> ' + escapeHtml(loc.name || 'Car boot') + '</span>';
+      }).join('');
+    }
+  }
+}
+
+function initPickupCarouselDots(count) {
+  var rail = document.getElementById('locationsRow');
+  var dotsEl = document.getElementById('pickupCarouselDots');
+  if (!rail || !dotsEl) return;
+  dotsEl.innerHTML = '';
+  if (count <= 1) {
+    dotsEl.hidden = true;
     return;
   }
-  if (el) el.textContent = 'Weather updating…';
+  dotsEl.hidden = false;
+  for (var i = 0; i < count; i++) {
+    var dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'pickup-carousel-dot' + (i === 0 ? ' is-active' : '');
+    dot.setAttribute('aria-label', 'Car boot ' + (i + 1));
+    dot.setAttribute('data-index', String(i));
+    dotsEl.appendChild(dot);
+  }
+  if (rail._pickupCarouselBound) return;
+  rail._pickupCarouselBound = true;
+  rail.addEventListener('scroll', function() {
+    var cards = rail.querySelectorAll('.pickup-card');
+    if (!cards.length) return;
+    var idx = 0;
+    var minDist = Infinity;
+    var railRect = rail.getBoundingClientRect();
+    cards.forEach(function(card, i) {
+      var rect = card.getBoundingClientRect();
+      var dist = Math.abs(rect.left - railRect.left);
+      if (dist < minDist) {
+        minDist = dist;
+        idx = i;
+      }
+    });
+    dotsEl.querySelectorAll('.pickup-carousel-dot').forEach(function(d, i) {
+      d.classList.toggle('is-active', i === idx);
+    });
+  }, { passive: true });
+  dotsEl.addEventListener('click', function(e) {
+    var btn = e.target.closest('.pickup-carousel-dot');
+    if (!btn) return;
+    var idx = Number(btn.getAttribute('data-index') || 0);
+    var card = rail.querySelectorAll('.pickup-card')[idx];
+    if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+  });
 }
 
 async function fetchWeekendWeather(loc) {
@@ -1156,28 +1613,32 @@ async function refreshLocationWeather(loc) {
   }
 }
 
-document.addEventListener("DOMContentLoaded", async function() {
-  if (window.AYLEN_SEO && window.AYLEN_SEO.init) window.AYLEN_SEO.init();
-  if (window.AYLEN_COMPLIANCE && window.AYLEN_COMPLIANCE.init) window.AYLEN_COMPLIANCE.init();
+function ensureStorefrontInteraction() {
+  if (window.AYLEN_LAZY && window.AYLEN_LAZY.ensureStorefrontInteraction) {
+    return window.AYLEN_LAZY.ensureStorefrontInteraction();
+  }
+  return Promise.resolve(true);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  initSsrDeferredProductImages();
   var footerYear = document.getElementById('footerYear');
   if (footerYear) footerYear.textContent = String(new Date().getFullYear());
   var footerCookie = document.getElementById('footerCookieSettings');
   if (footerCookie) {
     footerCookie.addEventListener('click', function(e) {
       e.preventDefault();
-      if (window.AYLEN_COMPLIANCE && window.AYLEN_COMPLIANCE.openPreferences) {
-        window.AYLEN_COMPLIANCE.openPreferences();
-      }
+      ensureStorefrontInteraction().then(function() {
+        if (window.AYLEN_COMPLIANCE && window.AYLEN_COMPLIANCE.openPreferences) {
+          window.AYLEN_COMPLIANCE.openPreferences();
+        }
+      });
     });
   }
   var isProductPage = document.body.classList.contains('product-page');
-  if (!isProductPage) {
+  if (!isProductPage && !isMobileStorefrontLayout()) {
     prepareProductsGridLoadingShell();
-    if (isMobileStorefrontLayout()) {
-      layoutResizeLastWidth = window.innerWidth || 0;
-    }
     window.addEventListener('resize', function() {
-      if (!isMobileStorefrontLayout()) return;
       var w = window.innerWidth || 0;
       if (w === layoutResizeLastWidth) return;
       layoutResizeLastWidth = w;
@@ -1193,6 +1654,7 @@ document.addEventListener("DOMContentLoaded", async function() {
   if (!isProductPage && !prefersReducedMotion() && !(window.matchMedia && window.matchMedia('(max-width: 1024px)').matches)) {
     initSmoothReveal();
   }
+  var runStorefrontBoot = async function() {
   await loadAllData();
   applyCardFromUrl();
   prefetchLoyaltyPortalIfNeeded();
@@ -1204,28 +1666,37 @@ document.addEventListener("DOMContentLoaded", async function() {
   if (isProductPage && typeof initProductDetailPage === 'function') {
     await initProductDetailPage();
   } else {
-    renderProducts(true);
+    renderProducts(false);
   }
-  document.dispatchEvent(new CustomEvent('aylen-catalog-ready'));
-  renderEbayPromo();
+  requestAnimationFrame(function() {
+    document.dispatchEvent(new CustomEvent('aylen-catalog-ready'));
+  });
   if (!isProductPage) renderTelegramLinks();
   updateCartCount();
-  fillPickup();
   if (!isProductPage) {
-    renderLocations();
-    renderAuctions();
     priceMode = 'retail';
-    scheduleWeatherAutoRefresh();
     if (window.AYLEN_PERF && window.AYLEN_PERF.scheduleEngagement) {
       window.AYLEN_PERF.scheduleEngagement();
     } else {
       startEngagementTracking();
     }
-    if (document.documentElement.classList.contains('motion-ready')) refreshRevealItems();
     if (currentUser) {
       showWelcome(currentUser);
       setDiscountActiveUi(true);
       refreshStorefrontPricesAfterDiscount();
+    }
+    renderEbayPromo();
+    var paintBelowFoldRest = function() {
+      fillPickup();
+      renderLocations();
+      renderAuctions();
+      scheduleWeatherAutoRefresh();
+      if (document.documentElement.classList.contains('motion-ready')) refreshRevealItems();
+    };
+    if (isMobileStorefrontLayout()) {
+      scheduleMobilePostCatalogWork(paintBelowFoldRest);
+    } else {
+      scheduleBelowFoldStorefrontWork(paintBelowFoldRest, storefrontBelowFoldTiming());
     }
     try {
       if (new URLSearchParams(window.location.search || '').get('priceList') === '1') {
@@ -1240,6 +1711,8 @@ document.addEventListener("DOMContentLoaded", async function() {
   } else if (typeof renderTelegramLinks === 'function') {
     renderTelegramLinks();
   }
+  };
+  runStorefrontBoot();
 });
 
 function refreshVisibleWeatherCards() {
@@ -1453,6 +1926,12 @@ function recalculateCartPrices() {
 }
 
 function validateCurrentUserCard() {
+  if (!window.AYLEN_DISCOUNT) {
+    ensureStorefrontInteraction().then(function() {
+      validateCurrentUserCard();
+    }).catch(function() {});
+    return true;
+  }
   if (window.AYLEN_DISCOUNT && window.AYLEN_DISCOUNT.validateStoredSession) {
     var ok = window.AYLEN_DISCOUNT.validateStoredSession();
     if (!ok) {
@@ -1593,8 +2072,10 @@ function renderLocations() {
       ? window.AYLEN_PICKUP.isPickupVisibleOnSite(loc, isAdmin)
       : (isAdmin || loc.showOnWebsite !== false);
   });
+  updatePickupSectionMeta(visibleLocations);
   if (!visibleLocations.length) {
-    row.innerHTML = '<div class="pickup-empty">No pickup locations configured.</div>';
+    row.innerHTML = '<div class="pickup-empty">No car boot locations yet. Follow AYLENSALE for weekend updates.</div>';
+    initPickupCarouselDots(0);
     return;
   }
   for (var i = 0; i < visibleLocations.length; i++) {
@@ -1604,34 +2085,53 @@ function renderLocations() {
     }
     var status = window.AYLEN_PICKUP ? window.AYLEN_PICKUP.normalizePickupStatus(loc) : (loc.active ? 'going' : 'not_confirmed');
     var meta = window.AYLEN_PICKUP ? window.AYLEN_PICKUP.pickupStatusMeta(status) : { cardClass: '', label: '' };
-    var c = document.createElement('div');
+    var daysShort = window.AYLEN_PICKUP && window.AYLEN_PICKUP.formatDaysShort
+      ? window.AYLEN_PICKUP.formatDaysShort(loc.days || loc.day)
+      : (loc.days || loc.day || '');
+    var c = document.createElement('article');
     c.className = 'location-card pickup-card ' + meta.cardClass;
+    c.setAttribute('data-pickup-status', status);
     var h = '';
-    if (status === 'going') {
-      h += '<div class="pickup-going-badge">' + escapeHtml(meta.badge || 'GOING THIS WEEKEND') + '</div>';
-    }
     var locRaw = loc.photoUrl || loc.imageUrl || LOCATION_FALLBACK_IMAGE;
-    var locationImage = productCardImageSrc(locRaw);
+    var locationImage = pickupCardImageSrc(locRaw);
+    var pickupDims = isMobileStorefrontLayout() ? { w: 360, h: 270 } : { w: 460, h: 345 };
     h += '<div class="pickup-card-media">';
-    h += '<img class="pickup-card-photo" src="' + escapeHtml(locationImage) + '" alt="' + escapeHtml(loc.name) + ' pickup point"' +
-      ' loading="lazy" decoding="async"' + antiTheftImageAttrs() + storefrontImageDataAttrs(locRaw, LOCATION_FALLBACK_IMAGE) + '>';
-    h += '<span class="pickup-card-media-badge"><i class="fas fa-map-pin"></i> Pickup</span>';
+    if (status === 'going') {
+      h += '<span class="pickup-going-badge pickup-going-badge--overlay">' + escapeHtml(meta.badge || 'WE ARE GOING') + '</span>';
+    }
+    h += '<img class="pickup-card-photo" src="' + escapeHtml(locationImage) + '" alt="' + escapeHtml(loc.name) + ' car boot"' +
+      ' width="' + pickupDims.w + '" height="' + pickupDims.h + '" loading="lazy" decoding="async"' + antiTheftImageAttrs() + storefrontImageDataAttrs(locRaw, LOCATION_FALLBACK_IMAGE) + '>';
+    h += '<span class="pickup-card-media-badge"><i class="fas fa-store"></i> Car Boot</span>';
     h += '</div>';
+    h += '<div class="pickup-card-body">';
     h += '<div class="loc-name">' + escapeHtml(loc.name) + '</div>';
     if (loc.city) h += '<div class="loc-city"><i class="fas fa-city"></i> ' + escapeHtml(loc.city) + '</div>';
-    h += '<div class="loc-address"><i class="fas fa-location-dot"></i> ' + escapeHtml(loc.address) + '</div>';
-    if (loc.postcode) h += '<div class="loc-address"><i class="fas fa-envelope"></i> ' + escapeHtml(loc.postcode) + '</div>';
-    h += '<div class="loc-day"><i class="fas fa-calendar"></i> ' + escapeHtml(loc.days || loc.day || '') + (loc.openingTime || loc.time ? ' · ' + escapeHtml(loc.openingTime || loc.time) : '') + '</div>';
-    if (loc.note) h += '<div class="loc-day"><i class="fas fa-note-sticky"></i> ' + escapeHtml(loc.note) + '</div>';
-    h += '<div class="pickup-status-banner"><i class="fas fa-circle"></i> ' + escapeHtml(meta.label) + '</div>';
+    if (loc.postcode) h += '<div class="loc-postcode"><i class="fas fa-envelope"></i> ' + escapeHtml(loc.postcode) + '</div>';
+    if (loc.address) h += '<div class="loc-address"><i class="fas fa-location-dot"></i> ' + escapeHtml(loc.address) + '</div>';
+    h += '<div class="loc-day"><i class="fas fa-calendar-week"></i> ' + escapeHtml(daysShort) +
+      (loc.openingTime || loc.time ? ' · ' + escapeHtml(loc.openingTime || loc.time) : '') + '</div>';
+    var desc = String(loc.description || loc.desc || '').trim();
+    if (desc) h += '<p class="pickup-card-desc">' + escapeHtml(desc) + '</p>';
+    if (loc.note) h += '<div class="pickup-card-note"><i class="fas fa-note-sticky"></i> ' + escapeHtml(loc.note) + '</div>';
+    if (status === 'going') {
+      h += '<div class="pickup-status-banner pickup-status-banner--going"><i class="fas fa-circle-check"></i> ' + escapeHtml(meta.label) + '</div>';
+    } else if (status === 'possible') {
+      h += '<div class="pickup-status-banner"><i class="fas fa-circle-question"></i> ' + escapeHtml(meta.label) + '</div>';
+    } else {
+      h += '<div class="pickup-status-banner"><i class="fas fa-circle"></i> ' + escapeHtml(meta.label) + '</div>';
+    }
     h += '<div class="weather-wrap" id="weather-' + String(loc.id).replace(/[^a-zA-Z0-9_-]/g, '_') + '">' +
       (window.AYLEN_WEATHER ? window.AYLEN_WEATHER.renderLoadingHtml() : 'Loading weather…') +
       '</div>';
-    h += '<a class="map-link" href="' + escapeHtml(loc.mapLink || '#') + '" target="_blank" rel="noopener noreferrer"><i class="fas fa-map"></i> Google Maps</a>';
+    h += '<a class="map-link" href="' + escapeHtml(loc.mapLink || '#') + '" target="_blank" rel="noopener noreferrer"><i class="fas fa-map"></i> Open in Maps</a>';
+    h += '</div>';
     c.innerHTML = h;
     row.appendChild(c);
+    var storedForecast = storedWeatherForecast(loc);
+    if (storedForecast) applyPickupWeatherRiskBadge(c, loc, storedForecast);
     updateLocationWeather(loc);
   }
+  initPickupCarouselDots(visibleLocations.length);
   refreshRevealItems();
 }
 
@@ -1688,8 +2188,8 @@ async function setPickupWeekendStatus(id, status) {
       }
     }
     var msg = next === 'going'
-      ? 'Marked GOING — green card on the shop'
-      : (next === 'possible' ? 'Marked POSSIBLE' : 'Marked NOT confirmed (grey on shop)');
+      ? 'Going ON — green card live on Weekend Car Boots'
+      : (next === 'possible' ? 'Marked POSSIBLE' : 'Going OFF — grey card on shop');
     notify(msg, 'success');
   } catch (error) {
     notify('Could not save pickup status: ' + (error.message || error), 'error');
@@ -1731,7 +2231,21 @@ function storefrontProductsFingerprint(slice) {
   return parts.join('|');
 }
 
+function shouldDelayMobileSsrCatalogRender(forceRender) {
+  if (forceRender) return false;
+  if (!isMobileStorefrontLayout()) return false;
+  if (window._aylenMobileSsrCatalogHydrated) return false;
+  var grid = document.getElementById('productsGrid');
+  return !!(grid && grid.querySelector('[data-ssr-hydrate="1"]'));
+}
+
 function renderProducts(forceRender) {
+  if (shouldDelayMobileSsrCatalogRender(forceRender)) {
+    scheduleBelowFoldStorefrontWork(function() {
+      renderProducts(true);
+    }, storefrontBelowFoldTiming());
+    return;
+  }
   if (!forceRender && window.AYLEN_PERF && window.AYLEN_PERF.shouldSkipStorefrontRender && window.AYLEN_PERF.shouldSkipStorefrontRender()) return;
   if (renderProductsDebounceTimer) {
     clearTimeout(renderProductsDebounceTimer);
@@ -1748,11 +2262,122 @@ function renderProducts(forceRender) {
   renderProductsNow();
 }
 
+function upgradeSsrScrollGallery(card, p) {
+  if (!card || !p || !p.images || p.images.length <= 1) return;
+  var track = card.querySelector('.product-image-scroll-track');
+  if (!track || track.getAttribute('data-ssr-upgraded') === '1') return;
+  for (var j = 1; j < p.images.length; j++) {
+    var src = productCardImageSrc(p.images[j]);
+    var slide = document.createElement('div');
+    slide.className = 'product-image-slide';
+    var img = document.createElement('img');
+    img.setAttribute('data-main-product-image', String(p.id));
+    img.setAttribute('data-slide-index', String(j));
+    img.setAttribute('data-deferred-src', src);
+    img.src = DEFERRED_GALLERY_IMG;
+    img.alt = '';
+    var dims = productCardDisplayDims();
+    img.width = dims.w;
+    img.height = dims.h;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.setAttribute('fetchpriority', 'low');
+    slide.appendChild(img);
+    track.appendChild(slide);
+  }
+  track.setAttribute('data-ssr-upgraded', '1');
+}
+
+function buildSsrHydrateCardMap(grid) {
+  var map = Object.create(null);
+  if (!grid) return map;
+  grid.querySelectorAll('.product-card-grid-item[data-ssr-hydrate="1"]').forEach(function(el) {
+    var pid = el.getAttribute('data-product-id');
+    var key = productImageKey(pid);
+    if (key && !map[key]) map[key] = el;
+  });
+  return map;
+}
+
+function pruneDuplicateSsrCatalogCards(grid) {
+  if (!grid) return;
+  var seen = Object.create(null);
+  grid.querySelectorAll('.product-card-grid-item[data-ssr-hydrate="1"]').forEach(function(el) {
+    var key = productImageKey(el.getAttribute('data-product-id'));
+    if (!key) return;
+    if (seen[key]) el.remove();
+    else seen[key] = true;
+  });
+}
+
+function mobileSsrCatalogIsComplete(grid, pageLength) {
+  if (!grid || !pageLength || !isMobileStorefrontLayout()) return false;
+  if (!grid.querySelector('[data-ssr-hydrate="1"]')) return false;
+  return grid.querySelectorAll('.product-card-grid-item[data-ssr-hydrate="1"]').length >= pageLength;
+}
+
+function scheduleMobilePostCatalogWork(fn) {
+  scheduleBelowFoldStorefrontWork(fn, { idleTimeout: 10000, delayAfterLoad: 1500 });
+}
+
+function scheduleMobileBelowFoldCatalogWork(fn) {
+  scheduleBelowFoldStorefrontWork(function() {
+    waitForDeferredShellCss(2500).then(fn);
+  }, { idleTimeout: 8000, delayAfterLoad: 1500 });
+}
+
+function finalizeMobileSsrCatalog(grid, catalogSlice) {
+  if (window.AYLEN_CATALOG) {
+    window.AYLEN_CATALOG.ensureToolbar();
+    window.AYLEN_CATALOG.renderFooter(catalogSlice);
+  }
+  syncProductCardCartBadges();
+  scheduleMobilePostCatalogWork(function() {
+    renderEngagementStats();
+    if (window.AYLEN_CATALOG) window.AYLEN_CATALOG.refreshCategories();
+    renderNewArrivals();
+    updateProductViewerBadges();
+    if (productsRevealInitialized) {
+      grid.querySelectorAll('.product-card.reveal-item').forEach(function(card) {
+        card.classList.add('is-visible');
+      });
+    } else {
+      productsRevealInitialized = true;
+    }
+    ensureStorefrontInteraction().then(function() {
+      if (window.AYLEN_SEO && window.AYLEN_SEO.refreshProductSchema) {
+        window.AYLEN_SEO.refreshProductSchema(products);
+      }
+    });
+  });
+}
+
+function scheduleSsrScrollGalleryUpgrade(card, product) {
+  if (!card || !product) return;
+  if (isMobileStorefrontLayout()) return;
+  var run = function() {
+    upgradeSsrScrollGallery(card, product);
+    initProductCardScrollGalleries(card);
+  };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(run, { timeout: 4000 });
+  } else {
+    setTimeout(run, 3000);
+  }
+}
+
 function renderProductsNow() {
   var grid = document.getElementById('productsGrid');
   if (!grid) return;
+  if (window.AYLEN_PRODUCTION && window.AYLEN_PRODUCTION.dedupeProductionProducts && products.length > 1) {
+    var dedupedProducts = window.AYLEN_PRODUCTION.dedupeProductionProducts(products);
+    if (dedupedProducts.length !== products.length) products = dedupedProducts;
+  }
+  pruneDuplicateSsrCatalogCards(grid);
   if (window.AYLEN_PRODUCTION && !window.AYLEN_PRODUCTION.state.productsHydrated && !products.length) {
-    renderProductSkeletonGrid();
+    if (!grid.querySelector('[data-ssr-lcp="1"]')) {
+      renderProductSkeletonGrid();
+    }
     return;
   }
   if (window.AYLEN_CATALOG) {
@@ -1768,11 +2393,29 @@ function renderProductsNow() {
     syncProductCardCartBadges();
     return;
   }
+  if (mobileSsrCatalogIsComplete(grid, catalogSlice.page.length)) {
+    renderProductsLastFingerprint = fingerprint;
+    window._aylenMobileSsrCatalogHydrated = true;
+    finalizeMobileSsrCatalog(grid, catalogSlice);
+    return;
+  }
   renderProductsLastFingerprint = fingerprint;
+  var ssrExisting = grid.querySelector('[data-ssr-lcp="1"]');
+  var ssrPid = ssrExisting ? ssrExisting.getAttribute('data-product-id') : '';
+  var firstProduct = catalogSlice.page[0];
+  var keepSsrCard = !!(ssrExisting && firstProduct && ssrPid && productImageKey(firstProduct.id) === ssrPid);
+  var hasSsrHydrate = !!grid.querySelector('[data-ssr-hydrate="1"]');
+  var ssrHydrateMap = hasSsrHydrate ? buildSsrHydrateCardMap(grid) : null;
   var fragment = document.createDocumentFragment();
   var visibleCount = 0;
   for (var i = 0; i < catalogSlice.page.length; i++) {
     var p = catalogSlice.page[i];
+    var ssrPidMatch = productImageKey(p.id);
+    var ssrCard = ssrHydrateMap ? ssrHydrateMap[ssrPidMatch] : null;
+    if (ssrCard) {
+      visibleCount++;
+      continue;
+    }
     visibleCount++;
     
     var activeIndex = (selectedProductImage[p.id] !== undefined ? selectedProductImage[p.id] : 0);
@@ -1785,13 +2428,8 @@ function renderProductsNow() {
     card.setAttribute('onmouseenter', 'trackProductView(' + jsInlineArg(p.id) + ')');
     card.setAttribute('ontouchstart', 'trackProductView(' + jsInlineArg(p.id) + ')');
     
-    var eagerLimit = 4;
-    try {
-      if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) eagerLimit = 2;
-    } catch (e) {}
-    var lazyAttrs = (visibleCount <= eagerLimit && window.AYLEN_IMAGES)
-      ? window.AYLEN_IMAGES.eagerMainAttrs()
-      : (window.AYLEN_IMAGES ? window.AYLEN_IMAGES.lazyImgAttrs() : ' loading="lazy" decoding="async"');
+    var eagerLimit = MOBILE_SSR_EAGER_IMAGE_COUNT;
+    var lazyAttrs = productCardEagerImgAttrs(visibleCount, eagerLimit);
     
     var desc = p.description || p.desc || '';
     var isComingSoon = p.status === 'coming_soon' || p.stockStatus === 'coming_soon' || p.badge === 'COMING SOON';
@@ -1806,23 +2444,23 @@ function renderProductsNow() {
     h += '<div class="product-image-overlay">';
     var autoBadge = isComingSoon ? 'COMING SOON' : productAutoBadge(p);
     if (autoBadge) {
-      var badgeColor = '#e94560';
-      if (autoBadge === 'NEW' || autoBadge === 'THIS WEEK') badgeColor = '#00cc66';
-      else if (autoBadge === 'SALE') badgeColor = '#ff9800';
-      else if (autoBadge === 'HOT') badgeColor = '#ff6b6b';
-      h += '<span class="product-card-badge" style="background:' + badgeColor + '">' + escapeHtml(autoBadge) + '</span>';
+      var badgeClass = 'product-card-badge--default';
+      if (autoBadge === 'NEW' || autoBadge === 'THIS WEEK') badgeClass = 'product-card-badge--new';
+      else if (autoBadge === 'SALE') badgeClass = 'product-card-badge--sale';
+      else if (autoBadge === 'HOT') badgeClass = 'product-card-badge--hot';
+      h += '<span class="product-card-badge ' + badgeClass + '">' + escapeHtml(autoBadge) + '</span>';
     } else {
       h += '<span></span>';
     }
     h += '<div class="product-image-actions">';
     if (window.isAdminMode && p.active === false) {
-      h += '<span class="product-card-badge" style="background:#64748b">HIDDEN</span>';
+      h += '<span class="product-card-badge product-card-badge--hidden">HIDDEN</span>';
     }
     h += renderProductCardCartBadge(p, isComingSoon);
     h += '</div></div>';
     if (p.images && p.images.length > 1 && !useMobileProductScrollGallery()) {
-      h += '<button type="button" class="product-arrow left" data-carousel-prev="1" aria-label="Previous photo" onclick="prevImage(' + jsInlineArg(p.id) + ', event); return false;"><i class="fas fa-chevron-left"></i></button>';
-      h += '<button type="button" class="product-arrow right" data-carousel-next="1" aria-label="Next photo" onclick="nextImage(' + jsInlineArg(p.id) + ', event); return false;"><i class="fas fa-chevron-right"></i></button>';
+      h += '<button type="button" class="product-arrow left" data-carousel-prev="1" data-action="carousel-prev" data-product-id="' + escapeHtml(String(p.id)) + '" aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>';
+      h += '<button type="button" class="product-arrow right" data-carousel-next="1" data-action="carousel-next" data-product-id="' + escapeHtml(String(p.id)) + '" aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>';
     }
     h += '</div>';
     if (p.images && p.images.length > 1 && !useMobileProductScrollGallery()) {
@@ -1833,7 +2471,7 @@ function renderProductsNow() {
         var activeClass = (j === activeIndex) ? ' active' : '';
         var thumbRaw = (p.images[j] && p.images[j].trim() !== '') ? p.images[j] : THUMB_FALLBACK_IMAGE;
         var thumbSrc = productCardImageSrc(thumbRaw);
-        h += '<img src="' + escapeHtml(thumbSrc) + '" class="product-thumb' + activeClass + '" data-product-thumb="' + escapeHtml(p.id) + '" data-thumb-index="' + j + '" onclick="selectProductImage(' + jsInlineArg(p.id) + ',' + j + ', event); return false;" loading="lazy" decoding="async"' + antiTheftImageAttrs() + storefrontImageDataAttrs(thumbRaw, THUMB_FALLBACK_IMAGE) + ' alt="Photo ' + (j + 1) + '">';
+        h += '<img src="' + escapeHtml(thumbSrc) + '" class="product-thumb' + activeClass + '" width="48" height="48" data-product-thumb="' + escapeHtml(p.id) + '" data-thumb-index="' + j + '" data-action="select-image" data-product-id="' + escapeHtml(String(p.id)) + '" data-index="' + j + '" loading="lazy" decoding="async"' + antiTheftImageAttrs() + storefrontImageDataAttrs(thumbRaw, THUMB_FALLBACK_IMAGE) + ' alt="Photo ' + (j + 1) + '">';
       }
       if (p.images.length > maxThumbs) {
         h += '<div class="product-thumb more" onclick="selectProductImage(' + jsInlineArg(p.id) + ',' + maxThumbs + ')">+' + (p.images.length - maxThumbs) + '</div>';
@@ -1886,19 +2524,21 @@ function renderProductsNow() {
     h += '<div class="product-card-footer">';
     h += '<div class="product-card-actions action-buttons">';
     if (isComingSoon) {
-      h += '<button type="button" class="btn-action secondary" onclick="requestNotify(' + jsInlineArg(p.id) + ', \'email\')"><i class="fas fa-bell"></i> Reserve</button>';
+      h += '<button type="button" class="btn-action secondary" data-action="notify" data-product-id="' + escapeHtml(String(p.id)) + '" data-channel="email"><i class="fas fa-bell"></i> Reserve</button>';
     } else if (parseInt(p.stock) === 0) {
       h += '<div class="out-of-stock">Out of stock</div>';
     } else {
-      h += '<button type="button" class="btn-action primary" onclick="addToCart(' + jsInlineArg(p.id) + ')"><i class="fas fa-cart-plus"></i> Add to Cart</button>';
+      h += '<button type="button" class="btn-action primary" data-action="add-to-cart" data-action-stop="1" data-product-id="' + escapeHtml(String(p.id)) + '"><i class="fas fa-cart-plus"></i> Add to Cart</button>';
     }
-    h += '<button type="button" class="btn-action secondary product-view-details" onclick="openStorefrontProductModal(' + jsInlineArg(p.id) + '); return false;"><i class="fas fa-expand"></i> Quick view</button>';
+    h += '<button type="button" class="btn-action secondary product-view-details" data-action="product-modal" data-product-id="' + escapeHtml(String(p.id)) + '"><i class="fas fa-expand"></i> Quick view</button>';
     h += '</div>';
     if (hasDetailContent) {
       h += '<div class="product-card-detail-links">';
       h += '<button type="button" class="product-card-link-btn" onclick="openProductCardDetailsModal(' + jsInlineArg(p.id) + ');return false"><i class="fas fa-file-lines"></i> Condition &amp; Policy</button>';
       if (String(desc || '').trim()) {
-        h += '<a href="' + escapeHtml(detailUrl) + '" class="product-card-link-btn product-card-link-btn--quiet" onclick="trackProductView(' + jsInlineArg(p.id) + ')">Read more</a>';
+        var detailsName = String(p.name || 'Product').trim();
+        if (detailsName.length > 30) detailsName = detailsName.slice(0, 29).trim() + '…';
+        h += '<a href="' + escapeHtml(detailUrl) + '" class="product-card-link-btn product-card-link-btn--quiet" onclick="trackProductView(' + jsInlineArg(p.id) + ')">' + escapeHtml(detailsName + ' — details') + '</a>';
       }
       h += '</div>';
     }
@@ -1922,9 +2562,31 @@ function renderProductsNow() {
     stripHeavyTextFromProductCard(card);
     fragment.appendChild(card);
   }
+  function appendProductsToGrid() {
+    grid.querySelectorAll('.product-skeleton').forEach(function(el) {
+      el.remove();
+    });
+    grid.querySelectorAll('.product-card-grid-item:not([data-ssr-hydrate="1"])').forEach(function(el) {
+      el.remove();
+    });
+    while (fragment.firstChild) {
+      grid.appendChild(fragment.firstChild);
+    }
+  }
   function afterProductsGridSwap() {
+    if (window.AYLEN_ICONS) window.AYLEN_ICONS.upgrade(grid);
+    if (isMobileStorefrontLayout()) {
+      if (visibleCount > 0) {
+        if (window.AYLEN_CATALOG) window.AYLEN_CATALOG.renderFooter(catalogSlice);
+        syncProductCardCartBadges();
+      }
+      finalizeProductsGridSwap(grid, function() {
+        finalizeMobileSsrCatalog(grid, catalogSlice);
+      });
+      return;
+    }
     if (visibleCount > 0) {
-      initProductCardScrollGalleries(grid);
+      scheduleProductCardScrollGalleries(grid);
       measuredProductCardHeight = 0;
       var firstCard = grid.querySelector('.product-card-grid-item');
       if (firstCard) {
@@ -1951,9 +2613,11 @@ function renderProductsNow() {
         } else {
           productsRevealInitialized = true;
         }
-        if (window.AYLEN_SEO && window.AYLEN_SEO.refreshProductSchema) {
-          window.AYLEN_SEO.refreshProductSchema(products);
-        }
+        ensureStorefrontInteraction().then(function() {
+          if (window.AYLEN_SEO && window.AYLEN_SEO.refreshProductSchema) {
+            window.AYLEN_SEO.refreshProductSchema(products);
+          }
+        });
       });
     });
   }
@@ -1967,20 +2631,30 @@ function renderProductsNow() {
     return;
   }
 
-  lockProductsSectionShell();
-  reserveProductsGridHeight(grid, visibleCount);
   var section = document.getElementById('products');
-  var pinGrid = Math.ceil(Math.max(
-    grid.getBoundingClientRect().height,
-    parseInt(grid.style.getPropertyValue('--products-grid-reserved-h'), 10) || 0,
-    estimateProductsGridHeight(grid, visibleCount)
-  ));
-  syncProductsGridReserveVar(grid, pinGrid);
-  if (section) {
-    syncProductsSectionReserve(section, Math.max(measureProductsSectionHeight(), pinGrid + 200), false);
+  lockProductsSectionShell();
+  if (isMobileStorefrontLayout()) {
+    pinMobileProductsLayoutReserve(section, grid, visibleCount);
+  } else {
+    reserveProductsGridHeight(grid, visibleCount);
+    var pinGrid = Math.ceil(Math.max(
+      grid.getBoundingClientRect().height,
+      parseInt(grid.style.getPropertyValue('--products-grid-reserved-h'), 10) || 0,
+      estimateProductsGridHeight(grid, visibleCount)
+    ));
+    syncProductsGridReserveVar(grid, pinGrid);
+    if (section) {
+      syncProductsSectionReserve(section, Math.max(measureProductsSectionHeight(), pinGrid + 320), false);
+    }
   }
-  grid.replaceChildren(fragment);
+  if (keepSsrCard || hasSsrHydrate) {
+    appendProductsToGrid();
+    if (keepSsrCard) scheduleSsrScrollGalleryUpgrade(ssrExisting, firstProduct);
+  } else {
+    grid.replaceChildren(fragment);
+  }
   reserveProductsGridHeight(grid, visibleCount);
+  if (isMobileStorefrontLayout()) window._aylenMobileSsrCatalogHydrated = true;
   afterProductsGridSwap();
 }
 
@@ -2035,15 +2709,36 @@ function resolvedPriceListProducts() {
   return list.length ? list : priceListFromShopProducts();
 }
 
+function absoluteSiteUrl(path) {
+  var origin = 'https://aylensale.com';
+  try {
+    if (window.location && window.location.origin) origin = window.location.origin;
+  } catch (e) {}
+  if (!path) return origin;
+  if (path.indexOf('http://') === 0 || path.indexOf('https://') === 0) return path;
+  if (path.indexOf('//') === 0) return 'https:' + path;
+  return origin + (path.indexOf('/') === 0 ? path : '/' + path);
+}
+
+function priceListExportImageSrc(raw) {
+  var src = raw && String(raw).trim() ? raw : PRODUCT_FALLBACK_IMAGE;
+  if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.productDetailMainUrl) {
+    src = window.AYLEN_IMAGES.productDetailMainUrl(src);
+  } else {
+    src = productCardImageFullUrl(src);
+  }
+  return absoluteSiteUrl(src);
+}
+
 function priceListProductHtml(p) {
   var raw = (p.images && p.images.length > 0 && p.images[0]) ? p.images[0] : (p.photoUrl || '');
   if (!String(raw || '').trim()) raw = PRODUCT_FALLBACK_IMAGE;
-  var img = productCardImageSrc(raw);
+  var img = priceListExportImageSrc(raw);
   var retailPrice = Number(p.retailPrice || p.retail || p.price || 0);
   var minQty = Number(p.minQty || 1);
   var stockStatus = p.stockStatus || 'available';
   return '<div class="pl-card">' +
-    '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(p.name) + '"' + storefrontImageDataAttrs(raw) + '>' +
+    '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(p.name) + '" width="320" height="220" loading="eager" decoding="async"' + storefrontImageDataAttrs(raw) + '>' +
     '<div class="pl-info">' +
       '<h3>' + escapeHtml(p.name || 'Product') + '</h3>' +
       '<p>' + escapeHtml(p.desc || p.description || '') + '</p>' +
@@ -2057,27 +2752,35 @@ function priceListProductHtml(p) {
   '</div>';
 }
 
-function buildPriceListHtml() {
+function buildPriceListHtml(opts) {
+  opts = opts || {};
   var list = resolvedPriceListProducts();
   var generatedAt = new Date().toLocaleString('en-GB');
   var cards = list.map(priceListProductHtml).join('');
+  var baseHref = absoluteSiteUrl('/');
+  var autoPrintScript = opts.autoPrint
+    ? '<script>(function(){function run(){try{window.focus();window.print()}catch(e){}}function wait(){var imgs=Array.prototype.slice.call(document.images||[]),n=imgs.length;if(!n){run();return}var left=n;function done(){left--;if(left<=0)run()}imgs.forEach(function(img){if(img.complete)done();else{img.addEventListener("load",done,{once:true});img.addEventListener("error",done,{once:true})}});setTimeout(run,12000)}if(document.readyState==="complete")wait();else window.addEventListener("load",wait,{once:true})})();<\/script>'
+    : '';
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">' +
+    '<base href="' + escapeHtml(baseHref) + '">' +
     '<title>AYLENSALE Price List</title>' +
     '<style>' +
       'body{font-family:Arial,sans-serif;background:#f4f6f8;color:#1a1a2e;margin:0;padding:20px}' +
       '.pl-header{background:linear-gradient(135deg,#e94560,#1a1a2e);color:#fff;border-radius:14px;padding:22px;margin-bottom:18px;text-align:center}' +
       '.pl-header h1{margin:0 0 6px;font-size:28px;letter-spacing:1px}.pl-header p{margin:0;opacity:.9}' +
       '.pl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}' +
-      '.pl-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.08);break-inside:avoid}' +
+      '.pl-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.08);break-inside:avoid;page-break-inside:avoid}' +
       '.pl-card img{width:100%;height:190px;object-fit:cover;background:#1a1a2e}' +
       '.pl-info{padding:12px}.pl-info h3{margin:0 0 6px;font-size:16px}.pl-info p{margin:0 0 10px;color:#666;font-size:13px;min-height:34px}' +
       '.pl-prices{display:flex;flex-direction:column;gap:4px;color:#333;font-size:13px}.pl-prices b{color:#e94560;font-size:17px}.pl-old{text-decoration:line-through;color:#999}' +
       '.pl-footer{text-align:center;color:#777;font-size:12px;margin-top:20px}' +
-      '@media print{body{background:#fff;padding:10px}.pl-card{box-shadow:none;border:1px solid #ddd}.pl-header{border-radius:0}}' +
+      '@page{margin:12mm}' +
+      '@media print{body{background:#fff;padding:10px}.pl-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.pl-card{box-shadow:none;border:1px solid #ddd;border-radius:8px}.pl-header{border-radius:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}}' +
     '</style></head><body>' +
     '<div class="pl-header"><h1>AYLENSALE Price List</h1><p>Products with photos and latest prices</p><p>Generated: ' + escapeHtml(generatedAt) + '</p></div>' +
     '<div class="pl-grid">' + cards + '</div>' +
-    '<div class="pl-footer">AYLENSALE | Save this file or print to PDF</div>' +
+    '<div class="pl-footer">AYLENSALE | Print and choose Save as PDF</div>' +
+    autoPrintScript +
   '</body></html>';
 }
 
@@ -2093,12 +2796,17 @@ function openPriceList() {
 }
 
 function showPriceListModal(list) {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { showPriceListModal(list); });
+    return;
+  }
   var modalId = 'priceListModal_' + Date.now();
   var preview = list.slice(0, 12).map(function(p) {
-    var img = (p.images && p.images.length > 0 && p.images[0]) ? p.images[0] : PRODUCT_FALLBACK_IMAGE;
+    var raw = (p.images && p.images.length > 0 && p.images[0]) ? p.images[0] : (p.photoUrl || PRODUCT_FALLBACK_IMAGE);
+    var img = productCardImageSrc(raw);
     var price = Number(p.retailPrice || p.retail || p.price || 0);
     return '<div style="display:flex;gap:10px;align-items:center;padding:8px;border:1px solid #eee;border-radius:8px;background:#fff">' +
-      '<img src="' + escapeHtml(img) + '" style="width:58px;height:58px;object-fit:cover;border-radius:6px;background:#1a1a2e">' +
+      '<img src="' + escapeHtml(img) + '" alt="" width="58" height="58" loading="lazy" decoding="async" style="width:58px;height:58px;object-fit:cover;border-radius:6px;background:#1a1a2e"' + storefrontImageDataAttrs(raw) + '>' +
       '<div style="flex:1"><b>' + escapeHtml(p.name || 'Product') + '</b><div style="color:#e94560;font-weight:bold">£' + price.toFixed(2) + '</div></div>' +
     '</div>';
   }).join('');
@@ -2123,59 +2831,84 @@ function showPriceListModal(list) {
 window.openPriceList = openPriceList;
 
 function downloadPriceList() {
-  var blob = new Blob([buildPriceListHtml()], { type: 'text/html;charset=utf-8' });
-  var url = URL.createObjectURL(blob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = 'aylensale-price-list.html';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-  notify('Price list downloaded', 'success');
+  (async function() {
+    var list = await ensurePriceListReady();
+    if (!list.length) {
+      notify('Price list is empty. Check back soon or message us on WhatsApp.', 'info');
+      return;
+    }
+    var blob = new Blob([buildPriceListHtml()], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'aylensale-price-list.html';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    notify('Price list HTML downloaded', 'success');
+  })();
 }
 
 function printPriceList() {
-  var win = window.open('', '_blank');
-  if (!win) {
-    notify('Allow popups to print price list', 'error');
-    return;
-  }
-  win.document.open();
-  win.document.write(buildPriceListHtml());
-  win.document.close();
-  win.focus();
-  setTimeout(function() { win.print(); }, 500);
+  (async function() {
+    var list = await ensurePriceListReady();
+    if (!list.length) {
+      notify('Price list is empty. Check back soon or message us on WhatsApp.', 'info');
+      return;
+    }
+    var blob = new Blob([buildPriceListHtml({ autoPrint: true })], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var win = window.open(url, '_blank');
+    if (!win) {
+      URL.revokeObjectURL(url);
+      notify('Allow popups, then tap PDF again (Print → Save as PDF)', 'error');
+      return;
+    }
+    setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+    notify('In the print dialog choose Save as PDF', 'info');
+  })();
 }
 
 function downloadPriceListCsv() {
-  var rows = [['name', 'description', 'retail price', 'wholesale price', 'minimum quantity', 'stock/status', 'note', 'photo']];
-  resolvedPriceListProducts().forEach(function(item) {
-    rows.push([
-      item.name || '',
-      item.desc || '',
-      Number(item.retailPrice || 0).toFixed(2),
-      Number(item.wholesalePrice || 0).toFixed(2),
-      String(item.minQty || 1),
-      item.stockStatus || '',
-      item.note || '',
-      item.photoUrl || (item.images && item.images[0]) || ''
-    ]);
-  });
-  var csv = rows.map(function(row) {
-    return row.map(function(value) {
-      return '"' + String(value || '').replace(/"/g, '""') + '"';
-    }).join(',');
-  }).join('\n');
-  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  var url = URL.createObjectURL(blob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = 'aylensale-price-list.csv';
-  link.click();
-  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-  notify('Price list CSV downloaded', 'success');
+  (async function() {
+    var list = await ensurePriceListReady();
+    if (!list.length) {
+      notify('Price list is empty. Check back soon or message us on WhatsApp.', 'info');
+      return;
+    }
+    var rows = [['name', 'description', 'retail price', 'wholesale price', 'minimum quantity', 'stock/status', 'note', 'photo']];
+    list.forEach(function(item) {
+      rows.push([
+        item.name || '',
+        item.desc || '',
+        Number(item.retailPrice || 0).toFixed(2),
+        Number(item.wholesalePrice || 0).toFixed(2),
+        String(item.minQty || 1),
+        item.stockStatus || '',
+        item.note || '',
+        item.photoUrl || (item.images && item.images[0]) || ''
+      ]);
+    });
+    var csv = rows.map(function(row) {
+      return row.map(function(value) {
+        return '"' + String(value || '').replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'aylensale-price-list.csv';
+    link.click();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    notify('Price list CSV downloaded', 'success');
+  })();
 }
+
+window.downloadPriceList = downloadPriceList;
+window.printPriceList = printPriceList;
+window.downloadPriceListCsv = downloadPriceListCsv;
 
 function selectProductImage(productId, index) {
   var p = products.find(function(item) { return sameId(item.id, productId); });
@@ -2548,6 +3281,10 @@ function renderCart() {
 }
 
 function openCart() {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openCart(); });
+    return;
+  }
   renderCart();
   if (window.AYLEN_MODAL) window.AYLEN_MODAL.openStatic('cartModal');
   else document.getElementById('cartModal').classList.add('open');
@@ -2557,6 +3294,10 @@ function closeCart() {
   else document.getElementById('cartModal').classList.remove('open');
 }
 function openCheckout() {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openCheckout(); });
+    return;
+  }
   var started = document.getElementById('orderFormStartedAt');
   if (started) started.value = String(Date.now());
   if (window.AYLEN_SPAM && window.AYLEN_SPAM.initCheckout) {
@@ -2577,7 +3318,11 @@ function closeCheckout() {
 
 function sendOrder(e) {
   e.preventDefault();
-  
+  if (typeof SECURITY === 'undefined') {
+    ensureStorefrontInteraction().then(function() { sendOrder(e); });
+    return;
+  }
+
   // Check if cart is empty
   if (cart.length === 0) { 
     notify('Cart is empty!', 'error'); 
@@ -2656,6 +3401,22 @@ function sendOrder(e) {
     try {
       var data = JSON.parse(xhr.responseText);
       if (data.success) {
+        if (Array.isArray(data.stockAdjustments)) {
+          data.stockAdjustments.forEach(function(adj) {
+            if (!adj || !adj.productId) return;
+            var idx = window.AYLEN_PRODUCTION
+              ? window.AYLEN_PRODUCTION.findProductIndexById(products, adj.productId)
+              : products.findIndex(function(p) { return sameId(p.id, adj.productId); });
+            if (idx !== -1) products[idx].stock = Number(adj.after || 0);
+          });
+        }
+        if (window.FBDB && window.FBDB.refreshCatalogFirstPage) {
+          window.FBDB.refreshCatalogFirstPage().then(function() {
+            if (typeof renderProducts === 'function') renderProducts(true);
+          }).catch(function() {});
+        } else if (typeof renderProducts === 'function') {
+          renderProducts(true);
+        }
         if (window.FBDB && window.FBDB.saveOrder) {
           window.FBDB.saveOrder(Object.assign({}, orderData, {
             telegramMessageId: data.messageId || null
@@ -2762,6 +3523,146 @@ function formatAuctionBidTime(timestamp) {
   catch (e) { return String(timestamp); }
 }
 
+var AUCTION_DEPOSIT_GBP = 50;
+
+function auctionBuyNowPrice(auction) {
+  var price = Number(auction && auction.buyNowPrice || 0);
+  if (!price || price <= 0) return 0;
+  var current = Number(auction.currentPrice || auction.startingPrice || 0);
+  if (price <= current) return 0;
+  if (getAuctionStatus(auction) !== 'active') return 0;
+  return price;
+}
+
+function auctionBidderKey(bid) {
+  return String(
+    (bid && (bid.bidderKey || bid.bidderPhone || bid.bidderName || bid.bidder || bid.id)) || 'anonymous'
+  );
+}
+
+function buildAnonymousBidderMap(bids) {
+  var sorted = (bids || []).slice().sort(function(a, b) {
+    return new Date(a.timestamp || 0) - new Date(b.timestamp || 0);
+  });
+  var map = {};
+  var counter = 1;
+  sorted.forEach(function(b) {
+    var key = auctionBidderKey(b);
+    if (!map[key]) map[key] = 'Bidder #' + counter++;
+  });
+  return map;
+}
+
+function anonymousBidderLabel(bid, bidderMap) {
+  return (bidderMap && bidderMap[auctionBidderKey(bid)]) || 'Bidder';
+}
+
+function auctionHighestBidAmount(auction) {
+  var highest = highestAuctionBid(auction);
+  if (highest) return Number(highest.amount || 0);
+  return Number(auction.currentPrice || auction.startingPrice || 0);
+}
+
+function hasAuctionDepositPaid(auction) {
+  var stored = getStoredBidderContact() || {};
+  var phone = String(stored.phone || '').replace(/\D/g, '');
+  if (!phone || !auction || !Array.isArray(auction.deposits)) return false;
+  return auction.deposits.some(function(d) {
+    if (!d || d.status !== 'paid') return false;
+    return String(d.bidderPhone || '').replace(/\D/g, '') === phone;
+  });
+}
+
+function renderAuctionBidHistoryHtml(bids, opts) {
+  opts = opts || {};
+  var maxRows = opts.maxRows || 8;
+  var anonymous = opts.anonymous !== false;
+  var sorted = (bids || []).slice().sort(function(a, b) {
+    return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
+  });
+  if (!sorted.length) return '';
+  var bidderMap = anonymous ? buildAnonymousBidderMap(sorted) : null;
+  var html = '<details class="bid-history-details bid-history-details--public">';
+  html += '<summary><i class="fas fa-history"></i> Bid history (' + sorted.length + ')</summary>';
+  html += '<div class="bid-history-list">';
+  sorted.slice(0, maxRows).forEach(function(b) {
+    var label = anonymous
+      ? anonymousBidderLabel(b, bidderMap)
+      : escapeHtml(b.bidderName || b.bidder || 'Customer');
+    html += '<div class="bid-history-row"><span>' + label + '</span>' +
+      '<span>£' + Number(b.amount || 0).toFixed(2) + '</span>' +
+      '<span>' + formatAuctionBidTime(b.timestamp) + '</span></div>';
+  });
+  if (sorted.length > maxRows) {
+    html += '<div class="bid-history-more">+' + (sorted.length - maxRows) + ' older bids</div>';
+  }
+  html += '</div></details>';
+  return html;
+}
+
+function buildAuctionMarketHtml(a, domKey, ctx) {
+  ctx = ctx || {};
+  var isEnded = !!ctx.isEnded;
+  var timeLeft = ctx.timeLeft;
+  var isEnding = !!ctx.isEnding;
+  var isAdmin = !!ctx.isAdmin;
+  var bidStats = auctionParticipantStats(a);
+  var highestBid = highestAuctionBid(a);
+  var highAmount = auctionHighestBidAmount(a);
+  var bids = (auctionBids[String(a.id)] || a.bids || []).slice();
+  var isActive = getAuctionStatus(a) === 'active' && !isEnded;
+  var buyNow = auctionBuyNowPrice(a);
+  var depositPaid = hasAuctionDepositPaid(a);
+  var h = '';
+
+  h += '<div class="auction-price-section">';
+  h += '<div class="auction-price-label">Current highest bid</div>';
+  h += '<div class="auction-current-price">£' + highAmount.toFixed(2) + '</div>';
+  h += '<div class="auction-bids">Start £' + Number(a.startingPrice || 0).toFixed(2) +
+    ' · ' + (a.bidsCount || bidStats.totalBids || 0) + ' bids</div>';
+  if (isAdmin && highestBid) {
+    h += '<div class="auction-highest-bid auction-highest-bid--admin"><i class="fas fa-crown" style="color:#f5af02"></i> Leading: <b>' +
+      escapeHtml(highestBid.bidderName || highestBid.bidder || 'Customer') + '</b></div>';
+  }
+  h += '</div>';
+
+  if (!isEnded) {
+    h += '<div class="auction-timer auction-timer--visible ' + (isEnding ? 'ending' : '') + '" role="timer" aria-live="polite">';
+    h += '<div class="timer-label"><i class="fas fa-hourglass-end"></i> Countdown</div>';
+    h += '<div class="timer-display" id="timer-' + domKey + '" aria-atomic="true">' + formatTimeLeft(timeLeft) + '</div>';
+    h += '</div>';
+  } else {
+    h += '<div class="auction-timer ending">';
+    h += '<div class="timer-label"><i class="fas fa-check-circle"></i> Auction Ended</div>';
+    h += '</div>';
+  }
+
+  if (isActive) {
+    h += '<div class="auction-card-actions">';
+    h += '<div class="bid-input-section">';
+    h += '<input type="number" id="bid-amount-' + domKey + '" inputmode="decimal" placeholder="Min £' +
+      (Number(a.currentPrice || 0) + 1).toFixed(2) + '" min="' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" step="0.01">';
+    h += '<button type="button" class="auction-btn auction-btn--bid" data-action="open-bid" data-auction-id="' +
+      escapeHtml(String(a.id)) + '"><i class="fas fa-gavel"></i> Place Bid</button>';
+    h += '</div>';
+    h += '<button type="button" class="auction-btn auction-btn--deposit' + (depositPaid ? ' is-done' : '') +
+      '" data-action="auction-deposit" data-auction-id="' + escapeHtml(String(a.id)) + '"' +
+      (depositPaid ? ' disabled' : '') + '><i class="fas fa-credit-card"></i> ' +
+      (depositPaid ? 'Deposit paid' : 'Pay £' + AUCTION_DEPOSIT_GBP + ' Deposit') + '</button>';
+    if (buyNow > 0) {
+      h += '<button type="button" class="auction-btn auction-btn--buynow" data-action="auction-buy-now" data-auction-id="' +
+        escapeHtml(String(a.id)) + '"><i class="fas fa-bolt"></i> Buy Now · £' + buyNow.toFixed(2) + '</button>';
+    }
+    h += '</div>';
+  }
+
+  if (bids.length) {
+    h += renderAuctionBidHistoryHtml(bids, { maxRows: isAdmin ? 12 : 8, anonymous: !isAdmin });
+  }
+
+  return h;
+}
+
 function findAuctionById(auctionId) {
   return (auctions || []).find(function(a) { return sameId(a.id, auctionId); });
 }
@@ -2802,18 +3703,15 @@ function buildAuctionModalInfoHtml(a) {
   html += '<h3 id="pdpModalTitle">' + escapeHtml(a.name || 'Auction') + '</h3>';
   html += '<p class="pdp-modal__meta">Live auction · <b>' + escapeHtml(bidStats.totalBids) + '</b> bids · ' +
     escapeHtml(bidStats.participants) + ' bidders · ' + escapeHtml(formatViewCount(aViews)) + '</p>';
-  html += '<p class="pdp-modal__price">£' + Number(a.currentPrice || 0).toFixed(2) +
+  var highAmount = auctionHighestBidAmount(a);
+  html += '<p class="pdp-modal__price">£' + highAmount.toFixed(2) +
     '<span class="pdp-modal__price-original">Start £' + Number(a.startingPrice || 0).toFixed(2) + '</span></p>';
-
-  if (highestBid) {
-    html += '<p class="pdp-auction-leader"><i class="fas fa-crown"></i> Leading bidder: <b>' +
-      escapeHtml(highestBid.bidderName || highestBid.bidder || 'Customer') + '</b></p>';
-  }
+  html += '<p class="pdp-modal__meta pdp-auction-high-bid"><i class="fas fa-chart-line"></i> Current highest bid</p>';
 
   if (!isEnded) {
-    html += '<div class="pdp-auction-timer' + (isEnding ? ' is-ending' : '') + '">' +
-      '<span><i class="fas fa-hourglass-half"></i> Ends in</span>' +
-      '<strong id="pdp-timer-' + domKey + '">' + formatTimeLeft(timeLeft) + '</strong></div>';
+    html += '<div class="pdp-auction-timer pdp-auction-timer--visible' + (isEnding ? ' is-ending' : '') + '" role="timer" aria-live="polite">' +
+      '<span><i class="fas fa-hourglass-half"></i> Countdown</span>' +
+      '<strong id="pdp-timer-' + domKey + '" aria-atomic="true">' + formatTimeLeft(timeLeft) + '</strong></div>';
   } else {
     html += '<div class="pdp-auction-timer is-ended"><i class="fas fa-flag-checkered"></i> Auction ended</div>';
   }
@@ -2826,10 +3724,11 @@ function buildAuctionModalInfoHtml(a) {
     return new Date(y.timestamp || 0) - new Date(x.timestamp || 0);
   });
   if (bids.length) {
-    html += '<div class="pdp-auction-history"><div class="pdp-auction-history__title"><i class="fas fa-history"></i> Bid history</div>';
+    var bidderMap = buildAnonymousBidderMap(bids);
+    html += '<div class="pdp-auction-history"><div class="pdp-auction-history__title"><i class="fas fa-history"></i> Bid history (anonymous)</div>';
     bids.slice(0, 15).forEach(function(b) {
       html += '<div class="pdp-auction-history__row">' +
-        '<span>' + escapeHtml(b.bidderName || b.bidder || 'Customer') + '</span>' +
+        '<span>' + escapeHtml(anonymousBidderLabel(b, bidderMap)) + '</span>' +
         '<span>£' + Number(b.amount || 0).toFixed(2) + '</span>' +
         '<span>' + escapeHtml(formatAuctionBidTime(b.timestamp)) + '</span></div>';
     });
@@ -2844,7 +3743,9 @@ function buildAuctionModalInfoHtml(a) {
       ' · £' + Number(a.winner.amount || a.currentPrice || 0).toFixed(2) + '</p>';
   }
 
-  if (getAuctionStatus(a) === 'active') {
+  if (getAuctionStatus(a) === 'active' && !isEnded) {
+    var depositPaidModal = hasAuctionDepositPaid(a);
+    var buyNowModal = auctionBuyNowPrice(a);
     html += '<div class="pdp-auction-bid">' +
       '<label class="pdp-auction-bid__label" for="bid-amount-modal-' + domKey + '">Your bid (£)</label>' +
       '<div class="pdp-auction-bid__row">' +
@@ -2852,8 +3753,17 @@ function buildAuctionModalInfoHtml(a) {
           'placeholder="Min £' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" ' +
           'min="' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" step="0.01" inputmode="decimal">' +
         '<button type="button" class="pdp-modal__btn pdp-modal__btn--bid" data-auction-bid="' + escapeHtml(String(a.id)) + '">' +
-          '<i class="fas fa-gavel"></i> Place bid</button>' +
+          '<i class="fas fa-gavel"></i> Place Bid</button>' +
       '</div></div>';
+    html += '<div class="pdp-auction-pay-row">';
+    html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--deposit" data-auction-deposit="' +
+      escapeHtml(String(a.id)) + '"' + (depositPaidModal ? ' disabled' : '') + '>' +
+      '<i class="fas fa-credit-card"></i> ' + (depositPaidModal ? 'Deposit paid' : 'Pay £' + AUCTION_DEPOSIT_GBP + ' Deposit') + '</button>';
+    if (buyNowModal > 0) {
+      html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--buynow" data-auction-buy-now="' +
+        escapeHtml(String(a.id)) + '"><i class="fas fa-bolt"></i> Buy Now · £' + buyNowModal.toFixed(2) + '</button>';
+    }
+    html += '</div>';
   }
 
   if (getAuctionStatus(a) === 'winner_pending' && !a.winnerOrder) {
@@ -2888,6 +3798,18 @@ function bindAuctionModalActions(modal, auction) {
   if (claimBtn) {
     claimBtn.addEventListener('click', function() {
       openWinnerClaimModal(auction.id);
+    });
+  }
+  var depositBtn = modal.querySelector('[data-auction-deposit]');
+  if (depositBtn) {
+    depositBtn.addEventListener('click', function() {
+      startAuctionDepositCheckout(auction.id);
+    });
+  }
+  var buyNowBtn = modal.querySelector('[data-auction-buy-now]');
+  if (buyNowBtn) {
+    buyNowBtn.addEventListener('click', function() {
+      openAuctionBuyNowModal(auction.id);
     });
   }
 }
@@ -2992,7 +3914,7 @@ function renderProductCardCartBadge(p, isComingSoon) {
   var stock = parseInt(p.stock, 10) || 0;
   var pid = String(p.id);
   if (isComingSoon) {
-    return '<button type="button" class="product-badge product-badge--cart product-badge--reserve" onclick="event.stopPropagation();requestNotify(' + jsInlineArg(p.id) + ', \'email\'); return false;" aria-label="Reserve" title="Reserve"><i class="fas fa-bell" aria-hidden="true"></i></button>';
+    return '<button type="button" class="product-badge product-badge--cart product-badge--reserve" data-action="notify" data-action-stop="1" data-product-id="' + escapeHtml(String(p.id)) + '" data-channel="email" aria-label="Reserve" title="Reserve"><i class="fas fa-bell" aria-hidden="true"></i></button>';
   }
   if (stock === 0) {
     return '<button type="button" class="product-badge product-badge--cart product-badge--disabled" disabled aria-label="Out of stock" title="Out of stock"><i class="fas fa-cart-plus" aria-hidden="true"></i></button>';
@@ -3000,17 +3922,32 @@ function renderProductCardCartBadge(p, isComingSoon) {
   var qty = cartQtyForProduct(p.id);
   if (qty > 0) {
     var qtyHtml = qty > 1 ? ('<span class="product-badge__qty">' + qty + '</span>') : '';
-    return '<button type="button" class="product-badge product-badge--cart product-badge--in-cart" data-product-cart-badge="' + escapeHtml(pid) + '" onclick="event.stopPropagation();openCart(); return false;" aria-label="' + escapeHtml(qty > 1 ? ('In cart, ' + qty + ' items') : 'In cart') + '" title="In cart — tap to view"><i class="fas fa-check" aria-hidden="true"></i>' + qtyHtml + '</button>';
+    return '<button type="button" class="product-badge product-badge--cart product-badge--in-cart" data-product-cart-badge="' + escapeHtml(pid) + '" data-action="open-cart-modal" data-action-stop="1" aria-label="' + escapeHtml(qty > 1 ? ('In cart, ' + qty + ' items') : 'In cart') + '" title="In cart — tap to view"><i class="fas fa-check" aria-hidden="true"></i>' + qtyHtml + '</button>';
   }
-  return '<button type="button" class="product-badge product-badge--cart" data-product-cart-badge="' + escapeHtml(pid) + '" onclick="event.stopPropagation();addToCart(' + jsInlineArg(p.id) + '); return false;" aria-label="Add to cart" title="Add to cart"><i class="fas fa-cart-plus" aria-hidden="true"></i></button>';
+  return '<button type="button" class="product-badge product-badge--cart" data-product-cart-badge="' + escapeHtml(pid) + '" data-action="add-to-cart" data-action-stop="1" data-product-id="' + escapeHtml(String(p.id)) + '" aria-label="Add to cart" title="Add to cart"><i class="fas fa-cart-plus" aria-hidden="true"></i></button>';
 }
 
 function useMobileProductScrollGallery() {
-  try {
-    return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-  } catch (e) {
-    return false;
+  return false;
+}
+
+function pickupCardImageSrc(raw) {
+  var src = raw && String(raw).trim() ? raw : LOCATION_FALLBACK_IMAGE;
+  if (window.AYLEN_IMAGES && window.AYLEN_IMAGES.pickupCardImageUrl) {
+    return window.AYLEN_IMAGES.pickupCardImageUrl(src);
   }
+  return productCardImageSrc(src);
+}
+
+function productCardEagerImgAttrs(visibleCount, eagerLimit) {
+  eagerLimit = eagerLimit || MOBILE_SSR_EAGER_IMAGE_COUNT;
+  if (visibleCount > eagerLimit) {
+    return window.AYLEN_IMAGES ? window.AYLEN_IMAGES.lazyImgAttrs() : ' loading="lazy" decoding="async" fetchpriority="low"';
+  }
+  if (visibleCount === 1) {
+    return window.AYLEN_IMAGES ? window.AYLEN_IMAGES.eagerMainAttrs() : ' loading="eager" decoding="async" fetchpriority="high"';
+  }
+  return ' loading="eager" decoding="async" fetchpriority="low"';
 }
 
 function productCardImageSrc(raw) {
@@ -3040,37 +3977,56 @@ function renderProductCardImageMedia(p, activeIndex, lazyAttrs, isComingSoon, de
   if (!images.length) images = [PRODUCT_FALLBACK_IMAGE];
   var scrollGallery = useMobileProductScrollGallery() && images.length > 1;
   var blur = isComingSoon ? ' style="filter:blur(3px)"' : '';
-  var modalClick = 'onclick="openStorefrontProductModal(' + jsInlineArg(p.id) + '); trackProductView(' + jsInlineArg(p.id) + '); return false;"';
+  var modalClick = 'data-action="product-modal" data-product-id="' + escapeHtml(String(p.id)) + '"';
+  var dims = productCardDisplayDims();
 
   if (scrollGallery) {
-    var out = '<div class="product-image-scroll" data-product-scroll="' + escapeHtml(String(p.id)) + '" tabindex="0" aria-label="Swipe photos">';
-    out += '<div class="product-image-scroll-track" role="group" aria-label="Product photos">';
+    var out = '<a href="' + escapeHtml(detailUrl) + '" class="product-card-media-link product-image-scroll-link" ' + modalClick + ' aria-label="View ' + escapeHtml(p.name || 'product') + '">';
+    out += '<div class="product-image-scroll" data-product-scroll="' + escapeHtml(String(p.id)) + '" tabindex="-1" aria-hidden="true">';
+    out += '<div class="product-image-scroll-track">';
     for (var j = 0; j < images.length; j++) {
       var src = productCardImageSrc(images[j]);
       var slideAttrs;
-      if (j === 0 && visibleCount <= eagerLimit && window.AYLEN_IMAGES) {
-        slideAttrs = window.AYLEN_IMAGES.eagerMainAttrs();
+      if (j === 0 && visibleCount <= eagerLimit) {
+        slideAttrs = productCardEagerImgAttrs(visibleCount, eagerLimit);
       } else if (window.AYLEN_IMAGES) {
         slideAttrs = window.AYLEN_IMAGES.lazyImgAttrs();
       } else {
-        slideAttrs = (j === 0 && visibleCount <= eagerLimit)
-          ? ' loading="eager" decoding="async" fetchpriority="high"'
-          : ' loading="lazy" decoding="async" fetchpriority="low"';
+        slideAttrs = ' loading="lazy" decoding="async" fetchpriority="low"';
       }
-      out += '<a href="' + escapeHtml(detailUrl) + '" class="product-image-slide product-card-media-link" ' + modalClick + '>';
-      out += '<img data-main-product-image="' + escapeHtml(p.id) + '" data-slide-index="' + j + '" src="' + escapeHtml(src) + '" alt="' + escapeHtml(p.name) + ' — photo ' + (j + 1) + '" width="400" height="400"' + productCardResponsiveImgAttrs(images[j]) + slideAttrs + antiTheftImageAttrs() + storefrontImageDataAttrs(images[j]) + blur + ' />';
-      out += '</a>';
+      out += '<div class="product-image-slide">';
+      if (j > 0) {
+        out += '<img data-main-product-image="' + escapeHtml(p.id) + '" data-slide-index="' + j + '" data-deferred-src="' + escapeHtml(src) + '" src="' + DEFERRED_GALLERY_IMG + '" alt="" width="' + dims.w + '" height="' + dims.h + '"' + slideAttrs + antiTheftImageAttrs() + storefrontImageDataAttrs(images[j]) + blur + ' />';
+      } else {
+        out += productCardPictureHtml(images[j], slideAttrs + antiTheftImageAttrs() + storefrontImageDataAttrs(images[j]) + blur, dims);
+      }
+      out += '</div>';
     }
-    out += '</div></div>';
+    out += '</div></div></a>';
     return out;
   }
 
   var img = productCardImageSrc(images[activeIndex] || images[0]);
   var single = '<a href="' + escapeHtml(detailUrl) + '" class="product-card-media-link" ' + modalClick + '>';
-  single += '<img data-main-product-image="' + escapeHtml(p.id) + '" src="' + escapeHtml(img) + '" alt="' + escapeHtml(p.name) + '" width="400" height="400"' + productCardResponsiveImgAttrs(images[activeIndex] || images[0]) + lazyAttrs + antiTheftImageAttrs() + storefrontImageDataAttrs(images[activeIndex] || images[0]) + blur + ' />';
+  single += productCardPictureHtml(images[activeIndex] || images[0], ' data-main-product-image="' + escapeHtml(p.id) + '" alt="' + escapeHtml(p.name) + '"' + lazyAttrs + antiTheftImageAttrs() + storefrontImageDataAttrs(images[activeIndex] || images[0]) + blur, dims);
   single += '<div class="product-card-open-overlay" aria-hidden="true"><span>View product</span></div>';
   single += '</a>';
   return single;
+}
+
+function productScrollSlideWidth(scroller) {
+  return (scroller && scroller.clientWidth) || 1;
+}
+
+function scheduleProductCardScrollGalleries(grid) {
+  if (isMobileStorefrontLayout()) return;
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(function() {
+      initProductCardScrollGalleries(grid);
+    }, { timeout: 2500 });
+    return;
+  }
+  initProductCardScrollGalleries(grid);
 }
 
 function initProductCardScrollGalleries(root) {
@@ -3081,23 +4037,23 @@ function initProductCardScrollGalleries(root) {
     var productId = scroller.getAttribute('data-product-scroll');
     var syncTimer;
     function syncScrollIndex() {
-      var slide = scroller.querySelector('.product-image-slide');
-      if (!slide) return;
-      var w = slide.getBoundingClientRect().width || slide.offsetWidth || 1;
+      var w = productScrollSlideWidth(scroller);
       var idx = Math.round(scroller.scrollLeft / w);
       var slides = scroller.querySelectorAll('[data-slide-index]');
       idx = Math.max(0, Math.min(idx, slides.length - 1));
       if (productId) selectedProductImage[productId] = idx;
     }
     scroller.addEventListener('scroll', function() {
+      hydrateProductScrollGalleryImages(scroller);
       clearTimeout(syncTimer);
       syncTimer = setTimeout(syncScrollIndex, 48);
     }, { passive: true });
+    scroller.addEventListener('touchstart', function() {
+      hydrateProductScrollGalleryImages(scroller);
+    }, { once: true, passive: true });
     var start = productId && selectedProductImage[productId] ? selectedProductImage[productId] : 0;
     requestAnimationFrame(function() {
-      var slide = scroller.querySelector('.product-image-slide');
-      if (!slide) return;
-      var w = slide.getBoundingClientRect().width || slide.offsetWidth;
+      var w = productScrollSlideWidth(scroller);
       if (w > 0) scroller.scrollLeft = start * w;
     });
   });
@@ -3169,6 +4125,10 @@ function openStorefrontProductModal(productId) {
 }
 
 function openProductCardDetailsModal(productId) {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openProductCardDetailsModal(productId); });
+    return;
+  }
   var p = typeof findProductById === 'function' ? findProductById(productId) : null;
   if (!p) {
     notify('Product not found', 'error');
@@ -3316,7 +4276,11 @@ function renderAuctionImageMedia(a, cardIndex, activeImgIdx) {
         ? window.AYLEN_IMAGES.eagerMainAttrs()
         : (window.AYLEN_IMAGES ? window.AYLEN_IMAGES.lazyImgAttrs() : ' loading="lazy" decoding="async"');
       out += '<div class="auction-image-slide">';
-      out += '<img class="auction-card-img" data-auction-main-image="' + escapeHtml(String(a.id)) + '" data-slide-index="' + j + '" src="' + escapeHtml(slideSrc) + '" alt="' + escapeHtml(a.name) + ' — photo ' + (j + 1) + '" width="520" height="520"' + slideLazy + antiTheftImageAttrs() + auctionImageDataAttrs(slideRaw) + ' onload="auctionImageLoaded(this)" onerror="auctionImageFailed(this)">';
+      if (j > 0) {
+        out += '<img class="auction-card-img" data-auction-main-image="' + escapeHtml(String(a.id)) + '" data-slide-index="' + j + '" data-deferred-src="' + escapeHtml(slideSrc) + '" src="' + DEFERRED_GALLERY_IMG + '" alt="' + escapeHtml(a.name) + ' — photo ' + (j + 1) + '" width="200" height="112"' + slideLazy + antiTheftImageAttrs() + auctionImageDataAttrs(slideRaw) + ' onload="auctionImageLoaded(this)" onerror="auctionImageFailed(this)">';
+      } else {
+        out += '<img class="auction-card-img" data-auction-main-image="' + escapeHtml(String(a.id)) + '" data-slide-index="' + j + '" src="' + escapeHtml(slideSrc) + '" alt="' + escapeHtml(a.name) + ' — photo ' + (j + 1) + '" width="200" height="112"' + slideLazy + antiTheftImageAttrs() + auctionImageDataAttrs(slideRaw) + ' onload="auctionImageLoaded(this)" onerror="auctionImageFailed(this)">';
+      }
       out += '</div>';
     }
     out += '</div></div>';
@@ -3329,7 +4293,7 @@ function renderAuctionImageMedia(a, cardIndex, activeImgIdx) {
   var auctionLazy = (cardIndex === 0 && window.AYLEN_IMAGES)
     ? window.AYLEN_IMAGES.eagerMainAttrs()
     : (window.AYLEN_IMAGES ? window.AYLEN_IMAGES.lazyImgAttrs() : ' loading="lazy" decoding="async"');
-  return '<img class="auction-card-img" data-auction-main-image="' + escapeHtml(String(a.id)) + '" src="' + escapeHtml(img) + '" alt="' + escapeHtml(a.name) + '" width="520" height="293"' + auctionLazy + antiTheftImageAttrs() + auctionImageDataAttrs(imgRaw) + ' onload="auctionImageLoaded(this)" onerror="auctionImageFailed(this)">' +
+  return '<img class="auction-card-img" data-auction-main-image="' + escapeHtml(String(a.id)) + '" src="' + escapeHtml(img) + '" alt="' + escapeHtml(a.name) + '" width="200" height="112"' + auctionLazy + antiTheftImageAttrs() + auctionImageDataAttrs(imgRaw) + ' onload="auctionImageLoaded(this)" onerror="auctionImageFailed(this)">' +
     '<div class="auction-image-placeholder" hidden aria-hidden="true"><i class="fas fa-gavel"></i></div>';
 }
 
@@ -3341,9 +4305,7 @@ function initAuctionScrollGalleries(root) {
     var auctionId = scroller.getAttribute('data-auction-scroll');
     var syncTimer;
     function syncScrollIndex() {
-      var slide = scroller.querySelector('.auction-image-slide');
-      if (!slide) return;
-      var w = slide.getBoundingClientRect().width || slide.offsetWidth || 1;
+      var w = productScrollSlideWidth(scroller);
       var idx = Math.round(scroller.scrollLeft / w);
       var slides = scroller.querySelectorAll('[data-slide-index]');
       idx = Math.max(0, Math.min(idx, slides.length - 1));
@@ -3357,14 +4319,13 @@ function initAuctionScrollGalleries(root) {
       }
     }
     scroller.addEventListener('scroll', function() {
+      scroller.querySelectorAll('img[data-deferred-src]').forEach(hydrateDeferredGalleryImage);
       clearTimeout(syncTimer);
       syncTimer = setTimeout(syncScrollIndex, 48);
     }, { passive: true });
     var start = auctionId && selectedAuctionImage[auctionId] ? selectedAuctionImage[auctionId] : 0;
     requestAnimationFrame(function() {
-      var slide = scroller.querySelector('.auction-image-slide');
-      if (!slide) return;
-      var w = slide.getBoundingClientRect().width || slide.offsetWidth;
+      var w = productScrollSlideWidth(scroller);
       if (w > 0) scroller.scrollLeft = start * w;
     });
   });
@@ -3412,11 +4373,8 @@ function updateAuctionCardImage(auctionId, index) {
   if (!card) return;
   var scroller = card.querySelector('.auction-image-scroll[data-auction-scroll]');
   if (scroller) {
-    var slide = scroller.querySelector('.auction-image-slide');
-    if (slide) {
-      var w = slide.getBoundingClientRect().width || slide.offsetWidth || 1;
-      scroller.scrollLeft = safeIndex * w;
-    }
+    var w = productScrollSlideWidth(scroller);
+    if (w > 0) scroller.scrollLeft = safeIndex * w;
     card.querySelectorAll('[data-auction-thumb]').forEach(function(thumb) {
       var ti = Number(thumb.getAttribute('data-auction-thumb-index') || 0);
       thumb.classList.toggle('active', ti === safeIndex);
@@ -3495,19 +4453,19 @@ function patchAuctionCardsDynamic(list) {
       badgeEl.innerHTML = (a.bidsCount || bidStats.totalBids || 0) + ' bids · ' + bidStats.participants + ' users · ' + formatViewCount(aViews);
     }
     var priceEl = card.querySelector('.auction-current-price');
-    if (priceEl) priceEl.textContent = '£' + Number(a.currentPrice || 0).toFixed(2);
+    if (priceEl) priceEl.textContent = '£' + auctionHighestBidAmount(a).toFixed(2);
     var statusEl = card.querySelector('.auction-status');
     if (statusEl) {
       statusEl.textContent = statusLabel;
       statusEl.style.background = auctionStatusColor(statusLabel);
     }
-    var highestEl = card.querySelector('.auction-highest-bid');
-    if (highestBid) {
+    var highestEl = card.querySelector('.auction-highest-bid--admin');
+    if (highestBid && typeof window.isAdminMode !== 'undefined' && window.isAdminMode) {
       if (!highestEl) {
         var priceSection = card.querySelector('.auction-price-section');
         if (priceSection) {
           priceSection.insertAdjacentHTML('beforeend',
-            '<div class="auction-highest-bid"><i class="fas fa-crown" style="color:#f5af02"></i> Leading: <b>' +
+            '<div class="auction-highest-bid auction-highest-bid--admin"><i class="fas fa-crown" style="color:#f5af02"></i> Leading: <b>' +
             escapeHtml(highestBid.bidderName || highestBid.bidder || 'Customer') + '</b></div>');
         }
       } else {
@@ -3517,10 +4475,16 @@ function patchAuctionCardsDynamic(list) {
     } else if (highestEl) {
       highestEl.remove();
     }
-    var timerWrap = card.querySelector('.auction-timer');
-    if (timerWrap && isEnded) {
-      timerWrap.className = 'auction-timer ending';
-      timerWrap.innerHTML = '<div class="timer-label"><i class="fas fa-check-circle"></i> Auction Ended</div>';
+    if (!isEnded) {
+      updateAuctionTimerDom(a, timeLeft, isEnding, false);
+    } else {
+      var timerWrap = card.querySelector('.auction-timer');
+      if (timerWrap) {
+        timerWrap.className = 'auction-timer auction-timer--visible ending';
+        timerWrap.innerHTML = '<div class="timer-label"><i class="fas fa-check-circle"></i> Auction Ended</div>';
+      }
+      var overlay = card.querySelector('.auction-countdown-overlay');
+      if (overlay) overlay.remove();
     }
   });
   startAuctionTimers();
@@ -3580,7 +4544,7 @@ function renderAuctions() {
     h += '<span class="auction-badge">' + (a.bidsCount || bidStats.totalBids || 0) + ' bids · ' + bidStats.participants + ' users · ' + formatViewCount(aViews) + '</span>';
     h += '</div>';
     
-    h += '<div class="auction-image is-loading auction-card-hit" onclick="openStorefrontAuctionModal(' + jsInlineArg(a.id) + '); return false;" role="button" tabindex="0" aria-label="View auction">';
+    h += '<div class="auction-image is-loading auction-card-hit" onclick="openStorefrontAuctionModal(' + jsInlineArg(a.id) + '); return false;" aria-hidden="true">';
     if (!a.images) a.images = [];
     var activeImgIdx = selectedAuctionImage[a.id] !== undefined ? selectedAuctionImage[a.id] : 0;
     if (activeImgIdx < 0 || activeImgIdx >= a.images.length) activeImgIdx = 0;
@@ -3590,6 +4554,7 @@ function renderAuctions() {
       h += '<span class="auction-photo-count"><i class="fas fa-images"></i> ' + a.images.length + '</span>';
     }
     h += '<div class="auction-status" style="background:' + auctionStatusColor(statusLabel) + '">' + escapeHtml(statusLabel) + '</div>';
+    h += renderAuctionCountdownOverlayHtml(domKey, timeLeft, isEnding, isEnded);
     h += '</div>';
 
     if (a.images.length > 1 && !useMobileProductScrollGallery()) {
@@ -3609,55 +4574,16 @@ function renderAuctions() {
     h += '<div class="auction-info">';
     h += '<div class="auction-title" onclick="openStorefrontAuctionModal(' + jsInlineArg(a.id) + ')" role="button" tabindex="0" style="cursor:pointer">' + escapeHtml(a.name || 'Untitled auction') + '</div>';
     if (a.desc) h += '<div class="auction-desc">' + escapeHtml(a.desc.length > 96 ? a.desc.slice(0, 96) + '…' : a.desc) + '</div>';
-    
-    h += '<div class="auction-price-section">';
-    h += '<div class="auction-price-label">Current bid</div>';
-    h += '<div class="auction-current-price">£' + Number(a.currentPrice || 0).toFixed(2) + '</div>';
-    h += '<div class="auction-bids">Start £' + Number(a.startingPrice || 0).toFixed(2) + '</div>';
-    if (highestBid) {
-      h += '<div class="auction-highest-bid"><i class="fas fa-crown" style="color:#f5af02"></i> Leading: <b>' + escapeHtml(highestBid.bidderName || highestBid.bidder || 'Customer') + '</b></div>';
-    }
-    h += '</div>';
-    
-    if (!isEnded) {
-      h += '<div class="auction-timer ' + (isEnding ? 'ending' : '') + '">';
-      h += '<div class="timer-label"><i class="fas fa-hourglass-end"></i> Ends in</div>';
-      h += '<div class="timer-display" id="timer-' + domKey + '">' + formatTimeLeft(timeLeft) + '</div>';
-      h += '</div>';
-    } else {
-      h += '<div class="auction-timer ending">';
-      h += '<div class="timer-label"><i class="fas fa-check-circle"></i> Auction Ended</div>';
-      h += '</div>';
-    }
+
+    var isAdminAuctionCard = typeof window.isAdminMode !== 'undefined' && window.isAdminMode;
+    h += buildAuctionMarketHtml(a, domKey, {
+      isEnded: isEnded,
+      timeLeft: timeLeft,
+      isEnding: isEnding,
+      isAdmin: isAdminAuctionCard
+    });
 
     h += '<button type="button" class="btn-action secondary auction-card-quick" onclick="openStorefrontAuctionModal(' + jsInlineArg(a.id) + '); return false;"><i class="fas fa-expand"></i> Quick view</button>';
-    
-    var isAdminAuctionCard = typeof window.isAdminMode !== 'undefined' && window.isAdminMode;
-    if (isAdminAuctionCard && getAuctionStatus(a) === 'active') {
-      h += '<div class="bid-input-section">';
-      h += '<input type="number" id="bid-amount-' + domKey + '" placeholder="Enter bid amount" min="' + (Number(a.currentPrice || 0) + 1).toFixed(2) + '" step="0.01">';
-      h += '<button onclick="openBidModal(' + jsInlineArg(a.id) + ')"><i class="fas fa-gavel"></i> Bid</button>';
-      h += '</div>';
-    }
-    
-    var bids = (auctionBids[String(a.id)] || a.bids || []).slice().sort(function(x, y) {
-      return new Date(y.timestamp || 0) - new Date(x.timestamp || 0);
-    });
-    if (isAdminAuctionCard && bids.length > 0) {
-      h += '<details class="bid-history-details">';
-      h += '<summary><i class="fas fa-history"></i> Bid history (' + bids.length + ') · latest £' +
-        Number(bids[0].amount || 0).toFixed(2) + '</summary>';
-      h += '<div class="bid-history-list">';
-      bids.slice(0, 12).forEach(function(b) {
-        h += '<div class="bid-history-row"><span>' + escapeHtml(b.bidderName || b.bidder || 'Customer') + '</span>' +
-          '<span>£' + Number(b.amount || 0).toFixed(2) + '</span>' +
-          '<span>' + formatAuctionBidTime(b.timestamp) + '</span></div>';
-      });
-      if (bids.length > 12) {
-        h += '<div style="font-size:11px;color:#888;margin-top:4px">+' + (bids.length - 12) + ' older bids</div>';
-      }
-      h += '</div></details>';
-    }
 
     if (a.winner) {
       h += '<div class="bid-history" style="background:#f8fafc;border-radius:6px;padding:8px;border-top:none">';
@@ -3667,7 +4593,7 @@ function renderAuctions() {
     }
 
     if (getAuctionStatus(a) === 'winner_pending' && !a.winnerOrder) {
-      h += '<button onclick="openWinnerClaimModal(' + jsInlineArg(a.id) + ')" style="width:100%;padding:10px;background:#00cc66;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;margin-top:8px"><i class="fas fa-trophy"></i> Claim winning order</button>';
+      h += '<button type="button" class="auction-claim-btn" onclick="openWinnerClaimModal(' + jsInlineArg(a.id) + ')"><i class="fas fa-trophy" aria-hidden="true"></i> Claim winning order</button>';
     }
 
     if (a.winnerOrder) {
@@ -3713,6 +4639,33 @@ function formatTimeLeft(ms) {
   return (hours < 10 ? '0' : '') + hours + ':' + (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
 }
 
+function renderAuctionCountdownOverlayHtml(domKey, timeLeft, isEnding, isEnded) {
+  if (isEnded) return '';
+  return '<div class="auction-countdown-overlay' + (isEnding ? ' is-ending' : '') + '" aria-live="polite" role="timer">' +
+    '<span class="auction-countdown-overlay__label"><i class="fas fa-hourglass-half" aria-hidden="true"></i> Ends in</span>' +
+    '<span class="auction-countdown-overlay__time" id="timer-overlay-' + domKey + '" aria-atomic="true">' +
+    formatTimeLeft(timeLeft) + '</span></div>';
+}
+
+function updateAuctionTimerDom(auction, timeLeft, isEnding, isEnded) {
+  if (!auction) return;
+  var domKey = auctionDomKey(auction.id);
+  var label = formatTimeLeft(timeLeft);
+  var cardTimer = document.getElementById('timer-' + domKey);
+  var overlayTimer = document.getElementById('timer-overlay-' + domKey);
+  var modalTimer = document.getElementById('pdp-timer-' + domKey);
+  if (cardTimer) cardTimer.textContent = isEnded ? '00:00:00' : label;
+  if (overlayTimer) overlayTimer.textContent = isEnded ? 'ENDED' : label;
+  if (modalTimer) modalTimer.textContent = isEnded ? '00:00:00' : label;
+
+  var card = document.getElementById('auction-' + domKey);
+  if (!card) return;
+  var timerWrap = card.querySelector('.auction-timer');
+  var overlay = card.querySelector('.auction-countdown-overlay');
+  if (timerWrap && !isEnded) timerWrap.classList.toggle('ending', !!isEnding);
+  if (overlay && !isEnded) overlay.classList.toggle('is-ending', !!isEnding);
+}
+
 function startAuctionTimers() {
   if (window.auctionTimerInterval) clearInterval(window.auctionTimerInterval);
   if (!window._auctionEndedHandled) window._auctionEndedHandled = {};
@@ -3724,14 +4677,14 @@ function startAuctionTimers() {
       var domKey = auctionDomKey(a.id);
       var el = document.getElementById('timer-' + domKey);
       var modalEl = document.getElementById('pdp-timer-' + domKey);
-      if (!el && !modalEl) continue;
+      var overlayEl = document.getElementById('timer-overlay-' + domKey);
+      if (!el && !modalEl && !overlayEl) continue;
 
       var endTime = new Date(a.endTime);
       var timeLeft = endTime - now;
-      var label = formatTimeLeft(timeLeft);
-
-      if (el) el.textContent = timeLeft <= 0 ? '00:00:00' : label;
-      if (modalEl) modalEl.textContent = timeLeft <= 0 ? '00:00:00' : label;
+      var isEnding = timeLeft > 0 && timeLeft < 3600000;
+      var isEnded = timeLeft <= 0;
+      updateAuctionTimerDom(a, timeLeft, isEnding, isEnded);
 
       if (timeLeft <= 0) {
         var aid = String(a.id);
@@ -3752,6 +4705,10 @@ function startAuctionTimers() {
 }
 
 function openBidModal(auctionId) {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openBidModal(auctionId); });
+    return;
+  }
   var a = auctions.find(function(item) { return sameId(item.id, auctionId); });
   if (!a) { notify('Auction not found!', 'error'); return; }
   var domKey = auctionDomKey(auctionId);
@@ -3788,7 +4745,127 @@ function openBidModal(auctionId) {
   else document.body.insertAdjacentHTML('beforeend', html);
 }
 
+function openAuctionDepositModal(auctionId) {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openAuctionDepositModal(auctionId); });
+    return;
+  }
+  var a = findAuctionById(auctionId);
+  if (!a) { notify('Auction not found', 'error'); return; }
+  var stored = getStoredBidderContact() || {};
+  var modalId = 'auctionDepositModal_' + Date.now();
+  var html = '<div id="' + modalId + '" class="modal" style="display:flex">' +
+    '<div class="modal-content">' +
+      '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
+      '<h2><i class="fas fa-credit-card"></i> Pay £' + AUCTION_DEPOSIT_GBP + ' Deposit</h2>' +
+      '<p style="margin-bottom:12px;color:#666">Refundable deposit to bid on <b>' + escapeHtml(a.name || 'this lot') + '</b>. Card payment via Stripe.</p>' +
+      '<input type="text" id="depName_' + modalId + '" placeholder="Your Name *" value="' + escapeHtml(stored.name || '') + '">' +
+      '<input type="tel" id="depPhone_' + modalId + '" placeholder="Phone *" value="' + escapeHtml(stored.phone || '') + '">' +
+      '<input type="email" id="depEmail_' + modalId + '" placeholder="Email (optional)" value="">' +
+      '<button class="btn-order" onclick="startAuctionDepositCheckout(' + jsInlineArg(auctionId) + ',' + jsInlineArg(modalId) + ')">' +
+        '<i class="fas fa-lock"></i> Continue to payment</button>' +
+    '</div></div>';
+  if (window.AYLEN_MODAL) window.AYLEN_MODAL.open(html, { id: modalId });
+}
+
+async function startAuctionDepositCheckout(auctionId, modalId) {
+  var nameEl = modalId ? document.getElementById('depName_' + modalId) : null;
+  var phoneEl = modalId ? document.getElementById('depPhone_' + modalId) : null;
+  var emailEl = modalId ? document.getElementById('depEmail_' + modalId) : null;
+  var stored = getStoredBidderContact() || {};
+  var name = (nameEl ? nameEl.value : stored.name || '').trim();
+  var phone = (phoneEl ? phoneEl.value : stored.phone || '').trim();
+  var email = (emailEl ? emailEl.value : '').trim();
+  if (!name || name.length < 2) { notify('Name is required', 'error'); return; }
+  if (phone.replace(/\D/g, '').length < 8) { notify('Valid phone is required', 'error'); return; }
+  saveStoredBidderContact({ name: name, phone: phone, contact: stored.contact || '' });
+  notify('Opening secure checkout…', 'info');
+  try {
+    var response = await fetch('/api/auction-deposit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auctionId: auctionId, name: name, phone: phone, email: email })
+    });
+    var data = await response.json();
+    if (!response.ok || !data.url) {
+      notify(data.error || 'Deposit checkout failed', 'error');
+      return;
+    }
+    window.location.href = data.url;
+  } catch (e) {
+    notify('Network error — try again', 'error');
+  }
+}
+
+function openAuctionBuyNowModal(auctionId) {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openAuctionBuyNowModal(auctionId); });
+    return;
+  }
+  var a = findAuctionById(auctionId);
+  if (!a) { notify('Auction not found', 'error'); return; }
+  var price = auctionBuyNowPrice(a);
+  if (!price) { notify('Buy now is not available on this lot', 'error'); return; }
+  var stored = getStoredBidderContact() || {};
+  var modalId = 'auctionBuyNowModal_' + Date.now();
+  var html = '<div id="' + modalId + '" class="modal" style="display:flex">' +
+    '<div class="modal-content">' +
+      '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
+      '<h2><i class="fas fa-bolt"></i> Buy Now</h2>' +
+      '<p style="margin-bottom:12px;color:#666">Instant win for <b>' + escapeHtml(a.name || 'this lot') + '</b> at <b>£' + price.toFixed(2) + '</b>. Auction ends immediately.</p>' +
+      '<input type="text" id="bnName_' + modalId + '" placeholder="Your Name *" value="' + escapeHtml(stored.name || '') + '">' +
+      '<input type="tel" id="bnPhone_' + modalId + '" placeholder="Phone *" value="' + escapeHtml(stored.phone || '') + '">' +
+      '<input type="text" id="bnContact_' + modalId + '" placeholder="Telegram / WhatsApp (optional)" value="' + escapeHtml(stored.contact || '') + '">' +
+      '<button class="btn-order" onclick="submitAuctionBuyNow(' + jsInlineArg(auctionId) + ',' + jsInlineArg(modalId) + ')">' +
+        '<i class="fas fa-bolt"></i> Buy Now · £' + price.toFixed(2) + '</button>' +
+    '</div></div>';
+  if (window.AYLEN_MODAL) window.AYLEN_MODAL.open(html, { id: modalId });
+}
+
+async function submitAuctionBuyNow(auctionId, modalId) {
+  if (typeof SECURITY === 'undefined') await ensureStorefrontInteraction();
+  var name = document.getElementById('bnName_' + modalId).value.trim();
+  var phone = document.getElementById('bnPhone_' + modalId).value.trim();
+  var contact = document.getElementById('bnContact_' + modalId).value.trim();
+  if (!name || name.length < 2) { notify('Name is required', 'error'); return; }
+  if (phone.replace(/\D/g, '').length < 8) { notify('Valid phone is required', 'error'); return; }
+  notify('Processing buy now…', 'info');
+  try {
+    var response = await fetch('/api/auction-buy-now', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auctionId: auctionId,
+        name: name,
+        phone: phone,
+        contact: contact,
+        cardCode: (typeof currentUser !== 'undefined' && currentUser && currentUser.card) ? currentUser.card : ''
+      })
+    });
+    var data = await response.json();
+    if (!response.ok || !data.success) {
+      notify(data.error || 'Buy now failed', 'error');
+      return;
+    }
+    saveStoredBidderContact({ name: name, phone: phone, contact: contact });
+    if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
+    notify('You won this lot at £' + Number(data.currentPrice || 0).toFixed(2) + '! Claim your order below.', 'success');
+    renderAuctions();
+    refreshAuctionModalContent(auctionId);
+  } catch (e) {
+    notify('Network error — try again', 'error');
+  }
+}
+
+window.openAuctionDepositModal = openAuctionDepositModal;
+window.startAuctionDepositCheckout = startAuctionDepositCheckout;
+window.openAuctionBuyNowModal = openAuctionBuyNowModal;
+window.submitAuctionBuyNow = submitAuctionBuyNow;
+
 async function submitBid(auctionId, bidAmount, modalId) {
+  if (typeof SECURITY === 'undefined') {
+    await ensureStorefrontInteraction();
+  }
   var name = document.getElementById('bidName_' + modalId).value.trim();
   var phone = document.getElementById('bidPhone_' + modalId).value.trim();
   var contact = document.getElementById('bidContact_' + modalId).value.trim();
@@ -3842,6 +4919,10 @@ function toggleWinnerDeliveryFields(modalId) {
 }
 
 function openWinnerClaimModal(auctionId) {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openWinnerClaimModal(auctionId); });
+    return;
+  }
   var auction = auctions.find(function(item) { return sameId(item.id, auctionId); });
   if (!auction) { notify('Auction not found', 'error'); return; }
   if (!auction.winner) { notify('Winner is not ready yet', 'error'); return; }
@@ -3871,6 +4952,9 @@ function openWinnerClaimModal(auctionId) {
 }
 
 async function submitAuctionWinnerOrder(auctionId, modalId) {
+  if (typeof SECURITY === 'undefined') {
+    await ensureStorefrontInteraction();
+  }
   var auction = auctions.find(function(item) { return sameId(item.id, auctionId); });
   if (!auction || !auction.winner) { notify('Winner not found', 'error'); return; }
   var name = document.getElementById('winnerName_' + modalId).value.trim();

@@ -3,9 +3,8 @@
  */
 @media (max-width: 768px) {
   :root {
-    --aylen-bottom-nav-h: 52px;
+    --aylen-bottom-nav-h: 58px;
     --aylen-bottom-nav: calc(var(--aylen-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
-    --aylen-page-pad-bottom: var(--aylen-bottom-nav);
   }
 
   /* —— Dock tab bar (edge-to-edge, not floating mid-page) —— */

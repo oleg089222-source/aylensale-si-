@@ -91,10 +91,11 @@ if (home.ok) {
 
 const critical = [
   baseUrl,
-  new URL('js/app.js', baseUrl).href,
-  new URL('js/firebase-db.js', baseUrl).href,
-  new URL('js/pdp-modal.js', baseUrl).href,
-  new URL('css/products-section.css', baseUrl).href
+  new URL('css/storefront-shell-critical.bundle.css', baseUrl).href,
+  new URL('js/storefront-core.bundle.js', baseUrl).href,
+  new URL('js/storefront-catalog-api.js', baseUrl).href,
+  new URL('js/storefront-actions.js', baseUrl).href,
+  new URL('js/storefront-icons.js', baseUrl).href
 ];
 
 if (home.ok) {

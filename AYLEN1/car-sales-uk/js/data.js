@@ -18,7 +18,7 @@ var siteSettings = {
     enabled: false,
     url: '',
     buttonText: 'Shop on eBay',
-    description: 'Prefer eBay? You can also buy from our official AYLENSALE eBay store.'
+    description: 'Prefer eBay? Shop our AYLENSALE store on eBay.co.uk.'
   },
   marketplace: {
     newArrivalsEnabled: false,
@@ -99,14 +99,17 @@ function applyStorefrontApiPayload(payload) {
   var prodBlock = payload.products || {};
   var items = prodBlock.items || [];
   products = window.AYLEN_PRODUCTION
-    ? window.AYLEN_PRODUCTION.filterProductionProducts(items)
+    ? window.AYLEN_PRODUCTION.dedupeProductionProducts(items)
     : items;
   window.AYLEN_CATALOG_HAS_MORE = !!prodBlock.hasMore;
   window.AYLEN_CATALOG_LAST_ID = prodBlock.lastId || null;
   window.AYLEN_CATALOG_LAST_DOC = null;
   window.AYLEN_CATALOG_FROM_API = true;
 
-  auctions = Array.isArray(payload.auctions) ? payload.auctions : [];
+  var auctionItems = Array.isArray(payload.auctions) ? payload.auctions : [];
+  auctions = window.AYLEN_PRODUCTION
+    ? window.AYLEN_PRODUCTION.dedupeProductionAuctions(auctionItems)
+    : auctionItems;
   applyAuctionBidsFromList(auctions);
 
   locations = Array.isArray(payload.locations) ? payload.locations : [];
@@ -119,6 +122,8 @@ function applyStorefrontApiPayload(payload) {
       siteSettings.marketplace = Object.assign({}, siteSettings.marketplace, payload.settings.marketplace);
     }
   }
+  if (typeof renderEbayPromo === 'function') renderEbayPromo();
+  if (typeof renderTelegramLinks === 'function') renderTelegramLinks();
 
   if (window.AYLEN_PRODUCTION) {
     window.AYLEN_PRODUCTION.markHydrated('products', products.length);
@@ -133,6 +138,15 @@ function applyStorefrontApiPayload(payload) {
   }
 }
 
+function catalogBootstrapHref() {
+  var meta = document.querySelector('meta[name="aylen-catalog-bootstrap"]');
+  if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
+  return '/data/catalog-bootstrap.json';
+}
+
+var catalogBootstrapCache = null;
+var catalogBootstrapPromise = null;
+
 function readInlineCatalogBootstrap() {
   var el = document.getElementById('aylen-catalog-bootstrap');
   if (!el || !el.textContent) return null;
@@ -143,13 +157,69 @@ function readInlineCatalogBootstrap() {
   return null;
 }
 
+function fetchCatalogBootstrapFile() {
+  if (catalogBootstrapCache) return Promise.resolve(catalogBootstrapCache);
+  if (catalogBootstrapPromise) return catalogBootstrapPromise;
+  if (window.__aylenCatalogPrefetch) {
+    catalogBootstrapPromise = window.__aylenCatalogPrefetch.then(function(data) {
+      if (data && data.ok === true && data.products) {
+        catalogBootstrapCache = data;
+        return data;
+      }
+      return fetch(catalogBootstrapHref(), { credentials: 'same-origin' })
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(payload) {
+          if (payload && payload.ok === true && payload.products) {
+            catalogBootstrapCache = payload;
+            return payload;
+          }
+          return null;
+        });
+    }).catch(function() {
+      return fetch(catalogBootstrapHref(), { credentials: 'same-origin' })
+        .then(function(res) { return res.ok ? res.json() : null; })
+        .then(function(data) {
+          if (data && data.ok === true && data.products) catalogBootstrapCache = data;
+          return data;
+        })
+        .catch(function() { return null; });
+    });
+    return catalogBootstrapPromise;
+  }
+  catalogBootstrapPromise = fetch(catalogBootstrapHref(), { credentials: 'same-origin' })
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(data) {
+      if (data && data.ok === true && data.products) {
+        catalogBootstrapCache = data;
+        return data;
+      }
+      return null;
+    })
+    .catch(function() {
+      return null;
+    });
+  return catalogBootstrapPromise;
+}
+
+async function readCatalogBootstrap() {
+  var inline = readInlineCatalogBootstrap();
+  if (inline) return inline;
+  return fetchCatalogBootstrapFile();
+}
+
 async function hydrateFromStorefrontApi() {
   if (!window.AYLEN_STOREFRONT_CATALOG_API || !window.AYLEN_STOREFRONT_CATALOG_API.isEnabled()) {
     return false;
   }
   try {
     var api = window.AYLEN_STOREFRONT_CATALOG_API;
-    var inline = readInlineCatalogBootstrap();
+    var inline = await readCatalogBootstrap();
     var payload = null;
 
     if (api.getPrefetch) {
@@ -157,7 +227,7 @@ async function hydrateFromStorefrontApi() {
     }
     if (!payload && inline) {
       payload = inline;
-      console.log('✅ Using inline catalog bootstrap');
+      console.log('✅ Using catalog bootstrap file');
     }
     if (!payload) {
       var limit = api.DEFAULT_LIMIT || 36;
@@ -169,7 +239,7 @@ async function hydrateFromStorefrontApi() {
     }
     return products.length > 0;
   } catch (error) {
-    var fallback = readInlineCatalogBootstrap();
+    var fallback = await readCatalogBootstrap();
     if (fallback) {
       applyStorefrontApiPayload(fallback);
       console.warn('⚠️ Catalog API failed — inline bootstrap fallback:', error.message);
@@ -347,7 +417,27 @@ async function loadAllData() {
 
 // Product functions
 function sameId(a, b) {
-  return String(a) === String(b);
+  if (window.AYLEN_PRODUCTION && window.AYLEN_PRODUCTION.canonicalProductKey) {
+    return window.AYLEN_PRODUCTION.canonicalProductKey(a) === window.AYLEN_PRODUCTION.canonicalProductKey(b);
+  }
+  var na = String(a || '');
+  var nb = String(b || '');
+  if (na === nb) return true;
+  if (na.indexOf('prod_') === 0) na = na.slice(5);
+  if (nb.indexOf('prod_') === 0) nb = nb.slice(5);
+  return na === nb;
+}
+
+function sameAuctionId(a, b) {
+  if (window.AYLEN_PRODUCTION && window.AYLEN_PRODUCTION.canonicalAuctionKey) {
+    return window.AYLEN_PRODUCTION.canonicalAuctionKey(a) === window.AYLEN_PRODUCTION.canonicalAuctionKey(b);
+  }
+  var na = String(a || '');
+  var nb = String(b || '');
+  if (na === nb) return true;
+  if (na.indexOf('auction_') === 0) na = na.slice(8);
+  if (nb.indexOf('auction_') === 0) nb = nb.slice(8);
+  return na === nb;
 }
 
 function getStoredBidderContact() {
@@ -488,9 +578,13 @@ function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, du
   };
   if (window.FBDB && window.FBDB.saveAuction) {
     return window.FBDB.saveAuction(auction).then(function(saved) {
-      var idx = auctions.findIndex(function(a) { return sameId(a.id, saved.id); });
-      if (idx === -1) auctions.push(saved);
-      else auctions[idx] = saved;
+      if (typeof applyCatalogSnapshot === 'function') {
+        applyCatalogSnapshot('auctions', [saved], { fromServer: true, merge: true });
+      } else {
+        var idx = auctions.findIndex(function(a) { return sameAuctionId(a.id, saved.id); });
+        if (idx === -1) auctions.push(saved);
+        else auctions[idx] = saved;
+      }
       return saved;
     }).catch(function(e) {
       console.error('Error saving auction to Firestore:', e);
@@ -502,7 +596,7 @@ function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, du
 }
 
 function deleteAuctionById(id) {
-  auctions = auctions.filter(function(a) { return !sameId(a.id, id); });
+  auctions = auctions.filter(function(a) { return !sameAuctionId(a.id, id); });
   if (auctionBids[String(id)]) delete auctionBids[String(id)];
   
   // Delete from Firestore
@@ -514,7 +608,7 @@ function deleteAuctionById(id) {
 }
 
 function duplicateAuctionById(id) {
-  var source = auctions.find(function(a) { return sameId(a.id, id); });
+  var source = auctions.find(function(a) { return sameAuctionId(a.id, id); });
   if (!source) return Promise.resolve(null);
   var durationHours = 24;
   var endMs = new Date(source.endTime || Date.now()).getTime();

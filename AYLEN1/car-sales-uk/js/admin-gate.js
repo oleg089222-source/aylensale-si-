@@ -93,6 +93,23 @@
     if (el) el.classList.remove('is-visible');
   }
 
+  function scheduleAdminAuthOverlaySafety() {
+    if (global._aylenAdminOverlaySafety) {
+      clearTimeout(global._aylenAdminOverlaySafety);
+    }
+    global._aylenAdminOverlaySafety = setTimeout(function() {
+      hideAdminAuthOverlay();
+      global._aylenAdminOverlaySafety = null;
+    }, 15000);
+  }
+
+  function clearAdminAuthOverlaySafety() {
+    if (global._aylenAdminOverlaySafety) {
+      clearTimeout(global._aylenAdminOverlaySafety);
+      global._aylenAdminOverlaySafety = null;
+    }
+  }
+
   function closeAdminLoginModalAsync() {
     if (global.AYLEN_MODAL && global.AYLEN_MODAL.close) {
       return Promise.resolve(global.AYLEN_MODAL.close('adminLoginModal'));
@@ -102,8 +119,33 @@
   }
 
   function bindAdminLoginForm() {
+    var form = document.getElementById('adminLoginForm');
     var passEl = document.getElementById('adminPass');
     var toggleBtn = document.getElementById('adminPassToggle');
+    var loginBtn = document.getElementById('adminLoginSubmit');
+    var cancelBtn = document.getElementById('adminLoginCancel');
+
+    if (form && !form._aylenBound) {
+      form._aylenBound = true;
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        verifyAdminLogin();
+      });
+    }
+    if (loginBtn && !loginBtn._aylenBound) {
+      loginBtn._aylenBound = true;
+      loginBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        verifyAdminLogin();
+      });
+    }
+    if (cancelBtn && !cancelBtn._aylenBound) {
+      cancelBtn._aylenBound = true;
+      cancelBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        closeAdminLoginModal();
+      });
+    }
     if (toggleBtn && passEl && !toggleBtn._aylenBound) {
       toggleBtn._aylenBound = true;
       toggleBtn.addEventListener('click', function(e) {
@@ -120,14 +162,20 @@
     if (passEl && !passEl._aylenEnterBound) {
       passEl._aylenEnterBound = true;
       passEl.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') verifyAdminLogin();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          verifyAdminLogin();
+        }
       });
     }
     var userEl = document.getElementById('adminUser');
     if (userEl && !userEl._aylenEnterBound) {
       userEl._aylenEnterBound = true;
       userEl.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') verifyAdminLogin();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          verifyAdminLogin();
+        }
       });
     }
   }
@@ -152,10 +200,11 @@
       }
       var loginHtml =
         '<div id="adminLoginModal" class="modal" style="display:flex">' +
-          '<div class="modal-content" style="width:380px">' +
+          '<div class="modal-content aylen-admin-login-panel" style="width:min(94vw,380px)">' +
+            '<form id="adminLoginForm" novalidate>' +
             '<h2 style="color:#e94560;text-align:center">Admin Login</h2>' +
             '<p style="color:#888;font-size:12px;margin:0 0 10px;text-align:center">Use <b style="color:#ccc">admin</b> or <b style="color:#ccc">admin@aylensale.com</b></p>' +
-            '<input type="text" id="adminUser" value="' + (savedLogin.replace(/"/g, '&quot;')) + '" autocomplete="username" placeholder="admin or admin@aylensale.com" style="width:100%;padding:12px;margin:10px 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
+            '<input type="text" id="adminUser" value="' + (savedLogin.replace(/"/g, '&quot;')) + '" autocomplete="username" placeholder="admin or admin@aylensale.com" style="width:100%;padding:12px;margin:10px 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;box-sizing:border-box">' +
             '<div class="aylen-password-wrap">' +
               '<input type="password" id="adminPass" autocomplete="current-password" placeholder="Password" class="aylen-password-input">' +
               '<button type="button" id="adminPassToggle" class="aylen-password-toggle" aria-label="Show password" aria-pressed="false">' +
@@ -166,8 +215,9 @@
             '<label style="display:flex;align-items:center;gap:8px;color:#aab4c8;font-size:12px;margin:4px 0 12px;cursor:pointer">' +
               '<input type="checkbox" id="adminRememberDevice" ' + (rememberChecked ? 'checked' : '') + ' style="width:16px;height:16px">' +
               ' Remember this phone / computer</label>' +
-            '<button onclick="verifyAdminLogin()" style="width:100%;padding:12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold;margin:10px 0">Login</button>' +
-            '<button onclick="closeAdminLoginModal()" style="width:100%;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;margin:5px 0">Cancel</button>' +
+            '<button type="submit" id="adminLoginSubmit" style="width:100%;padding:12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold;margin:10px 0">Login</button>' +
+            '<button type="button" id="adminLoginCancel" style="width:100%;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;margin:5px 0">Cancel</button>' +
+            '</form>' +
           '</div>' +
         '</div>';
       if (global.AYLEN_MODAL) {
@@ -194,9 +244,9 @@
         return Promise.resolve(false);
       }
       showAdminAuthOverlay('Opening admin…');
+      scheduleAdminAuthOverlaySafety();
       return global.AYLEN_ADMIN_SESSION.openAdminIfReady('dashboard')
         .then(function(ok) {
-          hideAdminAuthOverlay();
           if (ok) {
             if (global.AYLEN_ADMIN_GATE) global.AYLEN_ADMIN_GATE.setGateLoggedIn(true);
             notify('Admin CMS ready', 'success');
@@ -204,8 +254,11 @@
           return ok;
         })
         .catch(function() {
-          hideAdminAuthOverlay();
           return false;
+        })
+        .finally(function() {
+          clearAdminAuthOverlaySafety();
+          hideAdminAuthOverlay();
         });
     }
 
@@ -232,8 +285,10 @@
   }
 
   async function verifyAdminLogin() {
-    var user = (document.getElementById('adminUser').value || '').trim();
-    var pass = document.getElementById('adminPass').value;
+    var userEl = document.getElementById('adminUser');
+    var passEl = document.getElementById('adminPass');
+    var user = (userEl && userEl.value ? userEl.value : '').trim();
+    var pass = passEl && passEl.value ? passEl.value : '';
 
     if (!isValidAdminLoginId(user)) {
       notify('Use admin or admin@aylensale.com', 'error');
@@ -285,6 +340,7 @@
       setAdminAuthBusy(true);
       await closeAdminLoginModalAsync();
       showAdminAuthOverlay('Loading admin tools…');
+      scheduleAdminAuthOverlaySafety();
 
       await ensureBundle();
       await global.FBDB.signInAdmin(pass, user);
@@ -301,9 +357,10 @@
         } catch (e) {}
       }
 
-      hideAdminAuthOverlay();
       window.isAdminMode = true;
-      if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.enterCms) {
+      if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.enterCmsAsync) {
+        await global.AyelenAdminDashboard.enterCmsAsync('dashboard');
+      } else if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.enterCms) {
         global.AyelenAdminDashboard.enterCms('dashboard');
       } else if (typeof global.__aylenToggleAdminMode === 'function') {
         await global.__aylenToggleAdminMode();
@@ -311,9 +368,10 @@
       notify('Admin CMS ready', 'success');
     } catch (error) {
       console.error('Admin login failed:', error);
-      hideAdminAuthOverlay();
       notify(error.message || 'Authentication failed. Please try again.', 'error');
     } finally {
+      clearAdminAuthOverlaySafety();
+      hideAdminAuthOverlay();
       setAdminAuthBusy(false);
     }
     updateAdminAccessVisibility();
@@ -479,7 +537,9 @@
     onFirebaseAuth: onFirebaseAuth,
     onBundleReady: onBundleReady,
     isGateLoggedIn: function() { return adminLoggedIn; },
-    setGateLoggedIn: function(v) { adminLoggedIn = !!v; }
+    setGateLoggedIn: function(v) { adminLoggedIn = !!v; },
+    hideAuthOverlay: hideAdminAuthOverlay,
+    showAuthOverlay: showAdminAuthOverlay
   };
 
   if (document.readyState === 'loading') {

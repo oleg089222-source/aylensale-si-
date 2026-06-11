@@ -7,8 +7,11 @@
 }
 
 @media (max-width: 768px) {
-  .hero-marketplace {
-    min-height: 0 !important;
+  #hero.hero-marketplace.hero-phase1 {
+    height: 108px !important;
+    min-height: 108px !important;
+    max-height: 108px !important;
+    overflow: hidden !important;
     background-image: linear-gradient(115deg, rgba(7, 10, 20, 0.98), rgba(7, 10, 20, 0.88)) !important;
   }
 
@@ -34,11 +37,17 @@
     padding: 0 10px !important;
   }
 
-  .site-header .header-top {
+  .site-header .header-top:not(.header-top--unified) {
     padding: 6px 0 !important;
     gap: 6px !important;
     flex-wrap: nowrap !important;
     min-height: 0 !important;
+  }
+
+  .site-header .header-top.header-top--unified {
+    padding: 0 !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
   }
 
   .site-header.site-header--compact .header-top {
@@ -117,7 +126,12 @@
     display: flex !important;
   }
 
-  .site-header .login-box {
+  .site-header .header-top--unified .login-box {
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .site-header .header-top:not(.header-top--unified) .login-box {
     max-width: 150px !important;
   }
 
@@ -149,12 +163,14 @@
     font-size: 11px !important;
   }
 
-  /* —— Compact hero — products visible on first screen —— */
-  .hero-marketplace.hero-phase1 {
-    min-height: 0 !important;
-    max-height: none !important;
+  /* —— Compact hero — fixed height (critical CSS parity) —— */
+  #hero.hero-marketplace.hero-phase1 {
+    height: 108px !important;
+    min-height: 108px !important;
+    max-height: 108px !important;
     padding: 14px 12px 12px !important;
     align-items: flex-end !important;
+    overflow: hidden !important;
   }
 
   .hero-title-full {
@@ -207,9 +223,12 @@
   #auctions,
   #pickup,
   #ebayPromoWrap,
-  #newArrivalsSection,
-  .site-footer {
+  #newArrivalsSection {
     padding-bottom: 24px !important;
+  }
+
+  .site-footer {
+    padding-bottom: calc(var(--aylen-page-pad-bottom, 94px) + 16px) !important;
   }
 
   #pickup.pickup-section {
@@ -270,24 +289,7 @@
     color: #94a3b8 !important;
   }
 
-  #auctionsGrid.auctions-rail {
-    display: flex !important;
-    flex-direction: column !important;
-    flex-wrap: nowrap !important;
-    overflow-x: visible !important;
-    overflow-y: visible !important;
-    gap: 14px !important;
-    padding: 0 0 8px !important;
-    scroll-snap-type: none !important;
-  }
-
-  #auctionsGrid.auctions-rail .auction-card {
-    flex: 1 1 auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    border-radius: 16px !important;
-  }
+  /* Mobile auctions layout — product-card-compact-guard.css (critical bundle) */
 
   .auction-card .auction-image {
     height: 200px !important;

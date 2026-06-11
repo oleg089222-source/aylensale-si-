@@ -132,26 +132,36 @@
   }
 
   async function openAdminIfReady(startPanel) {
-    if (!isAdminReady()) {
-      var ok = await restoreSilent();
-      if (!ok) return false;
-    }
-    if (global.AYLEN_ADMIN_GATE && global.AYLEN_ADMIN_GATE.setGateLoggedIn) {
-      global.AYLEN_ADMIN_GATE.setGateLoggedIn(true);
-    }
-    if (global.AYLEN_ADMIN_LOADER && global.AYLEN_ADMIN_LOADER.load) {
-      try {
-        await global.AYLEN_ADMIN_LOADER.load();
-      } catch (e) {
-        console.warn('[AYLEN] Admin bundle load failed:', e.message);
-        return false;
+    try {
+      if (!isAdminReady()) {
+        var ok = await restoreSilent();
+        if (!ok) return false;
+      }
+      if (global.AYLEN_ADMIN_GATE && global.AYLEN_ADMIN_GATE.setGateLoggedIn) {
+        global.AYLEN_ADMIN_GATE.setGateLoggedIn(true);
+      }
+      if (global.AYLEN_ADMIN_LOADER && global.AYLEN_ADMIN_LOADER.load) {
+        try {
+          await global.AYLEN_ADMIN_LOADER.load();
+        } catch (e) {
+          console.warn('[AYLEN] Admin bundle load failed:', e.message);
+          return false;
+        }
+      }
+      if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.enterCmsAsync) {
+        await global.AyelenAdminDashboard.enterCmsAsync(startPanel || 'dashboard');
+        return true;
+      }
+      if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.enterCms) {
+        global.AyelenAdminDashboard.enterCms(startPanel || 'dashboard');
+        return true;
+      }
+      return false;
+    } finally {
+      if (global.AYLEN_ADMIN_GATE && global.AYLEN_ADMIN_GATE.hideAuthOverlay) {
+        global.AYLEN_ADMIN_GATE.hideAuthOverlay();
       }
     }
-    if (global.AyelenAdminDashboard && global.AyelenAdminDashboard.enterCms) {
-      global.AyelenAdminDashboard.enterCms(startPanel || 'dashboard');
-      return true;
-    }
-    return false;
   }
 
   hydrateFromRemember();

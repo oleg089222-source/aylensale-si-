@@ -122,7 +122,10 @@ async function httpChecks() {
       hasCoreBundle: html.includes('storefront-core.bundle.js'),
       hasFirebaseLoader: html.includes('firebase-loader.js'),
       hasCatalogBootstrap: html.includes('aylen-catalog-bootstrap'),
-      hasSrcsetReady: html.includes('productCardImageSrcset') || html.includes('storefront-core.bundle.js'),
+      hasActions: html.includes('storefront-actions.js'),
+      hasIcons: html.includes('storefront-icons.js'),
+      hasPictureSsr: html.includes('product-card-picture'),
+      noCdnjs: !html.includes('cdnjs.cloudflare.com'),
       noStorageOnBoot: !html.includes('firebase-storage-compat.js')
     });
   }
@@ -137,7 +140,7 @@ console.log('URL:', url);
 const http = await httpChecks();
 console.log('\nHTTP smoke:');
 http.forEach(function(row) {
-  const ok = row.status === 200 && row.hasCoreBundle && row.hasFirebaseLoader;
+  const ok = row.status === 200 && row.hasCoreBundle && row.hasFirebaseLoader && row.hasActions && row.hasIcons;
   console.log(
     (ok ? '  OK' : ' FAIL'),
     row.page,

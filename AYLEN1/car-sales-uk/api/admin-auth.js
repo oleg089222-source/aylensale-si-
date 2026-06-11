@@ -6,8 +6,9 @@
 import {
   changeAdminPassword,
   isAdminPasswordConfigured,
+  syncFirebaseAdminPassword,
   verifyAdminPassword
-} from './lib/admin-password.mjs';
+} from '../lib/server/admin-password.mjs';
 
 const adminLoginLimits = new Map();
 const changePasswordLimits = new Map();
@@ -92,6 +93,38 @@ export default async function handler(req, res) {
     const body = parseBody(req);
     if (body.action === 'change-password') {
       return handleChangePassword(req, res, body);
+    }
+    if (body.action === 'sync-firebase-admin') {
+      const clientIP = getClientIP(req);
+      if (!checkRateLimit(changePasswordLimits, clientIP, 8)) {
+        return res.status(429).json({ error: 'Too many attempts. Please wait and try again.' });
+      }
+      if (!(await isAdminPasswordConfigured())) {
+        return res.status(503).json({ error: 'Admin password is not configured on server.' });
+      }
+      const password = body.password;
+      if (!password) {
+        return res.status(400).json({ error: 'Password required' });
+      }
+      try {
+        const result = await syncFirebaseAdminPassword(password);
+        return res.status(200).json({
+          success: true,
+          message: 'Firebase admin password synced.',
+          email: result.email,
+          firebaseCreated: result.created,
+          firebaseUpdated: result.updated
+        });
+      } catch (err) {
+        console.error('[admin-auth] sync-firebase-admin', err);
+        const msg = err.message || 'Could not sync Firebase admin password.';
+        const status = /incorrect|required|configured|characters/i.test(msg) ? 400 : 500;
+        return res.status(status).json({ error: msg });
+      }
+    }
+    if (body.action === 'audit') {
+      const { handleAdminAudit } = await import('../lib/server/admin-audit-handlers.mjs');
+      return handleAdminAudit(req, res);
     }
 
     const clientIP = getClientIP(req);

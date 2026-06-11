@@ -43,6 +43,7 @@ export default async function handler(req, res) {
   const width = clampDim(req.query.w, 320);
   const height = clampDim(req.query.h, 320);
   const quality = clampDim(req.query.q, 78);
+  const fmtParam = String(req.query.fmt || '').toLowerCase();
 
   let fetchUrl;
   try {
@@ -68,16 +69,25 @@ export default async function handler(req, res) {
     }
 
     const accept = String(req.headers.accept || '').toLowerCase();
-    const preferAvif = accept.indexOf('image/avif') !== -1;
-    const preferWebp = accept.indexOf('image/webp') !== -1;
+    const smallThumb = width <= 220 && height <= 220;
+    let preferAvif = false;
+    let preferWebp = false;
+    if (fmtParam === 'avif') {
+      preferAvif = true;
+    } else if (fmtParam === 'webp') {
+      preferWebp = true;
+    } else if (fmtParam !== 'jpeg' && fmtParam !== 'jpg') {
+      preferAvif = !smallThumb && accept.indexOf('image/avif') !== -1;
+      preferWebp = preferAvif || accept.indexOf('image/webp') !== -1 || accept.indexOf('image/*') !== -1;
+    }
     const pipeline = sharp(raw).rotate().resize(width, height, { fit: 'cover', withoutEnlargement: true });
     let out;
     let mime = 'image/jpeg';
     if (preferAvif) {
-      out = await pipeline.avif({ quality: Math.min(quality, 52), effort: 4 }).toBuffer();
+      out = await pipeline.avif({ quality: Math.min(quality, 52), effort: 2 }).toBuffer();
       mime = 'image/avif';
     } else if (preferWebp) {
-      out = await pipeline.webp({ quality: Math.min(quality, 82) }).toBuffer();
+      out = await pipeline.webp({ quality: Math.min(quality, 82), effort: 2 }).toBuffer();
       mime = 'image/webp';
     } else {
       out = await pipeline.jpeg({ quality: Math.min(quality, 85), mozjpeg: true }).toBuffer();

@@ -11,9 +11,9 @@ import {
   countUrls,
   detectBot,
   guardPublicForm
-} from './lib/spam-guard.mjs';
-import { getFirestoreAdmin } from './lib/firebase-admin-app.mjs';
-import { isAdminConfigured } from './lib/firestore-admin.mjs';
+} from '../lib/server/spam-guard.mjs';
+import { getFirestoreAdmin } from '../lib/server/firebase-admin-app.mjs';
+import { isAdminConfigured } from '../lib/server/firestore-admin.mjs';
 
 async function saveOrderActivity(message, productId) {
   if (!isAdminConfigured()) return;
@@ -125,6 +125,29 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Telegram not configured' });
     }
 
+    let stockReservationId = null;
+    let stockAdjustments = [];
+    if (type !== 'auction_winner' && isAdminConfigured()) {
+      try {
+        const { decrementOrderStock } = await import('../lib/server/inventory-stock.mjs');
+        stockReservationId = 'shop_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const reserved = await decrementOrderStock(items, stockReservationId);
+        stockAdjustments = reserved.adjustments || [];
+      } catch (stockErr) {
+        if (stockErr && stockErr.code === 'stock_unavailable') {
+          return res.status(409).json({
+            error: stockErr.message || 'Item is out of stock',
+            code: 'stock_unavailable',
+            productId: stockErr.productId || null,
+            before: stockErr.before,
+            requested: stockErr.requested
+          });
+        }
+        console.error('[send-order] stock reservation failed:', stockErr.message);
+        return res.status(500).json({ error: 'Could not reserve stock for order' });
+      }
+    }
+
     // Build the message
     let text = '';
     let orderTotal = parseFloat(total) || 0;
@@ -213,6 +236,14 @@ export default async function handler(req, res) {
 
     if (!data.ok) {
       console.error('Telegram API error:', data);
+      if (stockReservationId) {
+        try {
+          const { restoreOrderStock } = await import('../lib/server/inventory-stock.mjs');
+          await restoreOrderStock(stockReservationId);
+        } catch (rollbackErr) {
+          console.error('[send-order] stock rollback failed:', rollbackErr.message);
+        }
+      }
       return res.status(500).json({ 
         error: 'Failed to send order',
         details: data.description || 'Unknown error'
@@ -228,7 +259,7 @@ export default async function handler(req, res) {
         firstItem && firstItem.id ? firstItem.id : ''
       );
       try {
-        const { saveShopOrderToFirestore } = await import('./lib/save-shop-order.mjs');
+        const { saveShopOrderToFirestore } = await import('../lib/server/save-shop-order.mjs');
         const saved = await saveShopOrderToFirestore({
           name: safeName,
           phone: safePhone,
@@ -240,7 +271,9 @@ export default async function handler(req, res) {
           discount: discount || 0,
           status: 'new',
           vipMember: !!(card && String(card).toUpperCase() === 'VIPSTOCK') || !!req.body.vipMember,
-          telegramMessageId: data.result.message_id || null
+          telegramMessageId: data.result.message_id || null,
+          stockReservationId: stockReservationId,
+          stockAdjustments: stockAdjustments
         });
         firestoreOrderId = saved.id;
       } catch (persistErr) {
@@ -252,7 +285,9 @@ export default async function handler(req, res) {
       success: true, 
       message: 'Order sent successfully!',
       messageId: data.result.message_id,
-      orderId: firestoreOrderId
+      orderId: firestoreOrderId,
+      stockReservationId: stockReservationId,
+      stockAdjustments: stockAdjustments
     });
 
   } catch (error) {

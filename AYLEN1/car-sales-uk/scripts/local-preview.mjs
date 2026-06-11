@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Local storefront preview: static public/ + proxy /api/* to production.
- * Usage: node scripts/local-preview.mjs [port]
+ * Local storefront preview.
+ *   node scripts/local-preview.mjs [port]        — public/ + /api/* → production
+ *   node scripts/local-preview.mjs --prod [port] — full mirror of aylensale.com (same as phone)
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -11,7 +12,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.resolve(__dirname, '../public');
 const PROXY_ORIGIN = 'https://aylensale.com';
-const PORT = Number(process.argv[2]) || 8889;
+const args = process.argv.slice(2).filter((a) => a !== '--prod');
+const PROXY_ALL = process.argv.includes('--prod');
+const PORT = Number(args[0]) || 8889;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -43,18 +46,35 @@ function sendFile(res, filePath) {
   });
 }
 
-async function proxyApi(req, res) {
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+async function proxyUpstream(req, res) {
   const target = PROXY_ORIGIN + req.url;
   try {
-    const upstream = await fetch(target, { method: req.method, headers: { accept: req.headers.accept || '*/*' } });
+    const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await readRequestBody(req);
+    const headers = { accept: req.headers.accept || '*/*' };
+    if (req.headers['content-type']) headers['content-type'] = req.headers['content-type'];
+    if (req.headers['if-none-match']) headers['if-none-match'] = req.headers['if-none-match'];
+    if (req.headers['if-modified-since']) headers['if-modified-since'] = req.headers['if-modified-since'];
+    const upstream = await fetch(target, { method: req.method, headers, body });
     const ct = upstream.headers.get('content-type') || 'application/octet-stream';
-    const body = Buffer.from(await upstream.arrayBuffer());
-    res.writeHead(upstream.status, {
+    const responseBody = Buffer.from(await upstream.arrayBuffer());
+    const outHeaders = {
       'Content-Type': ct,
       'Cache-Control': upstream.headers.get('cache-control') || 'no-cache',
       'Access-Control-Allow-Origin': '*'
-    });
-    res.end(body);
+    };
+    const etag = upstream.headers.get('etag');
+    if (etag) outHeaders.ETag = etag;
+    res.writeHead(upstream.status, outHeaders);
+    res.end(responseBody);
   } catch (err) {
     res.writeHead(502, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Proxy failed', detail: String(err.message || err) }));
@@ -63,8 +83,8 @@ async function proxyApi(req, res) {
 
 const server = http.createServer((req, res) => {
   const url = req.url || '/';
-  if (url.startsWith('/api/')) {
-    proxyApi(req, res);
+  if (PROXY_ALL || url.startsWith('/api/')) {
+    proxyUpstream(req, res);
     return;
   }
   let rel = decodeURIComponent(url.split('?')[0]);
@@ -91,5 +111,10 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log('AYLENSALE local preview → http://127.0.0.1:' + PORT + '/#products');
-  console.log('API proxied to ' + PROXY_ORIGIN);
+  if (PROXY_ALL) {
+    console.log('Mode: full production mirror (same as phone on aylensale.com)');
+  } else {
+    console.log('Mode: local public/ build · API proxied to ' + PROXY_ORIGIN);
+    console.log('Tip: npm run serve:prod — open exact production site locally');
+  }
 });

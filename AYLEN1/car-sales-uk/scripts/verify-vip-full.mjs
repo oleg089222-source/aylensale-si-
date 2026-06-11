@@ -14,7 +14,7 @@ import {
   sanitizeVipCarouselUrls,
   isLegacyVipCarouselUrl,
   VIP_CAROUSEL_SCHEMA_VERSION
-} from '../api/lib/vip-carousel-defaults.mjs';
+} from '../lib/server/vip-carousel-defaults.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 let failed = 0;
@@ -44,9 +44,9 @@ console.log('\n=== VIP full local verify ===\n');
   'js/admin-vip-panel.js',
   'js/firebase-db.js',
   'api/vip.js',
-  'api/lib/vip-handlers.mjs',
-  'api/lib/vip-store.mjs',
-  'api/lib/vip-carousel-defaults.mjs',
+  'lib/server/vip-handlers.mjs',
+  'lib/server/vip-store.mjs',
+  'lib/server/vip-carousel-defaults.mjs',
   'vip-stock.html',
   'vip-live-preview.html',
   'css/vip-glass-hub.css',
@@ -64,8 +64,8 @@ console.log('\n=== VIP full local verify ===\n');
 });
 
 const vipStock = read('js/vip-stock.js');
-const vipHandlers = read('api/lib/vip-handlers.mjs');
-const vipStore = read('api/lib/vip-store.mjs');
+const vipHandlers = read('lib/server/vip-handlers.mjs');
+const vipStore = read('lib/server/vip-store.mjs');
 const vercel = read('vercel.json');
 const adminPanel = read('js/admin-vip-panel.js');
 const fbdb = read('js/firebase-db.js');

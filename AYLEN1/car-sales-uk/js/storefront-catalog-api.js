@@ -29,6 +29,13 @@
       if (!raw || raw.indexOf('data:') === 0) return;
       if (document.querySelector('link[data-aylen-lcp-preload="1"]')) return;
       var href;
+      if (global.AYLEN_IMAGES && global.AYLEN_IMAGES.preloadProductCardImage) {
+        global.AYLEN_IMAGES.preloadProductCardImage(
+          global.AYLEN_IMAGES.productCardImageUrl(raw),
+          raw
+        );
+        return;
+      }
       if (global.AYLEN_IMAGES && global.AYLEN_IMAGES.productCardImageUrl) {
         href = global.AYLEN_IMAGES.productCardImageUrl(raw);
       } else if (isLocalPreviewHost()) {
@@ -40,7 +47,7 @@
         var mediaUrl = /[?&]alt=media(?:&|$)/.test(raw)
           ? raw
           : raw + (raw.indexOf('?') === -1 ? '?' : '&') + 'alt=media';
-        href = '/api/image-thumb?w=320&h=220&url=' + encodeURIComponent(mediaUrl);
+        href = '/api/image-thumb?w=190&h=190&q=58&url=' + encodeURIComponent(mediaUrl);
       }
       var link = document.createElement('link');
       link.rel = 'preload';
@@ -95,5 +102,20 @@
     startPrefetch: startPrefetch
   };
 
-  startPrefetch();
+  function schedulePrefetch() {
+    if (!isHomeStorefront()) return;
+    function run() {
+      startPrefetch();
+    }
+    function afterLoad() {
+      setTimeout(run, 1200);
+    }
+    if (document.readyState === 'complete') {
+      afterLoad();
+    } else {
+      window.addEventListener('load', afterLoad, { once: true });
+    }
+  }
+
+  schedulePrefetch();
 })(window);

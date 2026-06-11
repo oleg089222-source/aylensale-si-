@@ -1,12 +1,12 @@
 /**
- * POST /api/admin-branding
- * Actions: preview | save | regenerate
- * Body: { adminPassword, action, imageBase64?, mimeType? }
+ * GET /api/manifest (via rewrite) — dynamic PWA manifest
+ * POST /api/admin-branding — preview | save | regenerate
  */
-import { generateIconSet, buffersToDataUrls } from './lib/branding-icons.mjs';
-import { loadBrandingDoc, uploadBrandingBuffers, downloadSourceBuffer } from './lib/branding-store.mjs';
-import { isAdminConfigured } from './lib/firestore-admin.mjs';
-import { verifyAdminPassword } from './lib/admin-password.mjs';
+import { generateIconSet, buffersToDataUrls } from '../lib/server/branding-icons.mjs';
+import { loadBrandingDoc, uploadBrandingBuffers, downloadSourceBuffer } from '../lib/server/branding-store.mjs';
+import { isAdminConfigured } from '../lib/server/firestore-admin.mjs';
+import { verifyAdminPassword } from '../lib/server/admin-password.mjs';
+import { servePwaManifest } from '../lib/server/pwa-manifest.mjs';
 
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -43,6 +43,10 @@ function parseImageBase64(body) {
 }
 
 export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    return servePwaManifest(req, res);
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

@@ -56,20 +56,22 @@ html body #products .product-badge--cart.product-badge--disabled{
   #products #productsGrid.products-grid,
   #productsGrid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-auto-rows:minmax(420px,420px)!important;
     gap:8px!important;
     align-items:start!important;
     align-content:start!important;
+    padding-bottom:calc(var(--aylen-bottom-nav,78px) + 12px)!important;
   }
   #products .product-thumbnails{display:none!important;height:0!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}
   #products .product-card-subtitle{display:none!important}
   #products .product-card-detail-links{display:none!important}
   #products .product-card-grid-item{
-    height:auto!important;align-self:start!important;min-height:0!important;
-    contain-intrinsic-size:auto 240px!important;
+    height:auto!important;align-self:start!important;min-height:420px!important;
+    contain-intrinsic-size:auto 420px!important;
   }
   html body #products .product-card,
   html body #products .product-card-grid-item .product-card{
-    height:auto!important;min-height:0!important;max-height:none!important;align-self:start!important;
+    height:auto!important;min-height:420px!important;max-height:none!important;align-self:start!important;
   }
   html body #products .product-card-body,
   html body #products .product-card-body.product-info{
@@ -162,17 +164,7 @@ html body #products .product-badge--cart.product-badge--disabled{
   }
   #products .product-card-pricing .price-main,#products .product-card-pricing .price-sale{font-size:1rem!important}
   #products .product-stock-row{font-size:11px!important}
-  #products.products-section--settled,
-  #products:not(.products-section--loading){
-    min-height:0!important;
-    --products-section-reserved-h:auto!important;
-  }
-  #productsGrid.products-grid--settled,
-  #productsGrid:not(.products-grid--loading),
-  #productsGrid.products-grid--revealed{
-    min-height:0!important;
-    --products-grid-reserved-h:auto!important;
-  }
+  /* Reserve heights on settle — products-section.css keeps --products-*-reserved-h */
   /* Force 2 columns — overrides legacy polish 1-column rule on prod */
   #products #productsGrid.products-grid,
   #productsGrid{
@@ -254,13 +246,24 @@ html body #products .product-badge--cart.product-badge--disabled{
     font-size:10px!important;
   }
   .auction-card .auction-timer{
-    padding:6px 8px!important;
+    padding:10px 10px!important;
     margin:0!important;
+    min-height:64px!important;
+    display:flex!important;
   }
   .auction-card .timer-display{
-    font-size:13px!important;
+    font-size:1.25rem!important;
+    letter-spacing:0.06em!important;
   }
-  .auction-card .bid-input-section,
+  .auction-countdown-overlay{
+    left:6px!important;
+    right:6px!important;
+    bottom:6px!important;
+    padding:7px 9px!important;
+  }
+  .auction-countdown-overlay__time{
+    font-size:1rem!important;
+  }
   .auction-card .auction-admin-actions{
     display:none!important;
   }

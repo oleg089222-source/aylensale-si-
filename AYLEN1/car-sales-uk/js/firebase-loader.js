@@ -5,9 +5,9 @@
   var SDK_BASE = 'https://www.gstatic.com/firebasejs/10.5.0/';
   var CORE_SCRIPTS = [
     'firebase-app-compat.js?t=20250516',
-    'firebase-auth-compat.js?t=202605182214',
     'firebase-firestore-compat.js?t=20250516'
   ];
+  var AUTH_SCRIPT = 'firebase-auth-compat.js?t=202605182214';
   var STORAGE_SCRIPT = 'firebase-storage-compat.js?t=20250516';
 
   if (typeof global.firebaseConfig === 'undefined') {
@@ -23,7 +23,9 @@
   }
 
   var corePromise = null;
+  var authPromise = null;
   var storagePromise = null;
+  var STORE_FRONT_DEFER_MS = 1200;
   var paintDone = false;
   var paintWaiters = [];
   var sdkReady = typeof global.firebase !== 'undefined';
@@ -89,6 +91,21 @@
     }, Promise.resolve());
   }
 
+  function loadAuthSdk() {
+    if (typeof global.firebase !== 'undefined' && typeof global.firebase.auth === 'function') {
+      return Promise.resolve(true);
+    }
+    if (authPromise) return authPromise;
+    authPromise = injectScript(AUTH_SCRIPT).then(function() {
+      return typeof global.firebase !== 'undefined' && typeof global.firebase.auth === 'function';
+    }).catch(function(err) {
+      console.warn('[Firebase Loader] auth:', err.message || err);
+      authPromise = null;
+      return false;
+    });
+    return authPromise;
+  }
+
   function loadCoreSdk() {
     if (typeof global.firebase !== 'undefined') {
       notifySdkReady();
@@ -133,11 +150,7 @@
           if (typeof callback === 'function') callback();
         });
       };
-      if (typeof global.requestIdleCallback === 'function') {
-        global.requestIdleCallback(run, { timeout: 20000 });
-      } else {
-        global.setTimeout(run, 3000);
-      }
+      global.setTimeout(run, STORE_FRONT_DEFER_MS);
     });
   }
 
@@ -169,6 +182,7 @@
 
   global.AYLEN_FIREBASE = {
     ensureReady: ensureReady,
+    ensureAuth: loadAuthSdk,
     ensureStorage: ensureStorage,
     whenSdkReady: whenSdkReady,
     loadNow: loadCoreSdk,
@@ -187,6 +201,13 @@
         markPaintDone();
       });
     });
+    function prefetchFirebase() {
+      document.removeEventListener('pointerdown', prefetchFirebase, true);
+      document.removeEventListener('touchstart', prefetchFirebase, true);
+      loadCoreSdk();
+    }
+    document.addEventListener('pointerdown', prefetchFirebase, { capture: true, passive: true });
+    document.addEventListener('touchstart', prefetchFirebase, { capture: true, passive: true });
   } else {
     markPaintDone();
   }

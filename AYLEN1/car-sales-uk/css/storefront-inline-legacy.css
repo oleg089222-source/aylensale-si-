@@ -315,7 +315,13 @@ header{background:rgba(7,10,20,.94)!important;backdrop-filter:none!important;-we
 .new-arrival-card:hover{transform:translateY(-2px)!important}
 @media(max-width:768px){
 html{scroll-behavior:auto}
-.hero-marketplace{min-height:460px!important;background-image:linear-gradient(115deg,rgba(7,10,20,.97),rgba(7,10,20,.82))!important}
+body.hero-contact-via-hub #hero.hero-marketplace.hero-phase1{height:108px!important;min-height:108px!important;max-height:108px!important;overflow:hidden!important;padding:10px 12px 8px!important}
+body.hero-contact-via-hub #hero.hero-marketplace.hero-phase1 .hero-content h2,
+body.hero-contact-via-hub #hero.hero-marketplace.hero-phase1 .hero-tagline,
+body.hero-contact-via-hub #hero.hero-marketplace.hero-phase1 .hero-actions-hub{display:none!important}
+body.hero-contact-via-hub #ebayPromoWrap.ebay-promo-wrap{padding:6px 12px 0!important;min-height:80px!important}
+body.hero-contact-via-hub #storefrontAboveProducts{min-height:var(--storefront-above-reserved-h,330px)!important;height:auto!important;max-height:none!important;overflow:visible!important}
+.hero-marketplace:not(.hero-phase1){min-height:460px!important;background-image:linear-gradient(115deg,rgba(7,10,20,.97),rgba(7,10,20,.82))!important}
 .hero-live-pill span,.auction-timer.ending .timer-display{animation:none!important}
 .product-card,.auction-card,.new-arrival-card,.hero-btn,.btn-action,.cart-btn,.contact-float:not(.contact-float--support) .contact-float-btn{transition:none!important}
 .product-card:hover,.auction-card:hover,.new-arrival-card:hover,.hero-btn:hover{transform:none!important}
@@ -408,11 +414,12 @@ header{position:sticky!important;top:0!important}
 .live-stat{padding:11px!important;border-radius:16px!important}
 .live-stat b{font-size:18px!important}
 .live-stat small{font-size:10px!important}
-#products,#auctions,#pickup,#newArrivalsSection,#ebayPromoWrap{padding-left:12px!important;padding-right:12px!important;padding-top:24px!important;padding-bottom:18px!important}
+#products{padding-left:12px!important;padding-right:12px!important;padding-top:12px!important;padding-bottom:4px!important}
+#auctions,#pickup,#newArrivalsSection,#ebayPromoWrap{padding-left:12px!important;padding-right:12px!important;padding-top:24px!important;padding-bottom:18px!important}
 #products>div:first-child{display:block!important;margin-bottom:14px!important}
 #products>div:first-child h2,#auctions h2,#pickup h2{font-size:24px!important;margin-bottom:12px!important;text-align:left!important}
 .tbtn{margin:0!important;padding:9px 6px!important;font-size:11px!important;text-align:center!important}
-#productsGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:11px!important}
+#productsGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;grid-auto-rows:minmax(400px,400px)!important;padding-bottom:56px!important}
 #auctionsGrid{grid-template-columns:1fr!important;gap:14px!important}
 .product-card,.auction-card{border-radius:16px!important}
 .product-info{padding:11px!important}
@@ -485,7 +492,9 @@ header{position:sticky!important;top:0!important}
 }
 /* UI/UX polish pass: spacing, responsive grids, weather, mobile contact. */
 body{line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+@media (min-width: 769px) {
 #products,#auctions,#pickup,#newArrivalsSection,#ebayPromoWrap{padding-top:clamp(24px,4vw,36px)!important;padding-bottom:clamp(20px,3vw,32px)!important}
+}
 #products>div:first-child,#auctions>h2,#pickup>h2{margin-bottom:clamp(14px,2vw,22px)!important}
 .product-image-container{height:clamp(200px,28vw,310px)!important}
 .product-info{padding:clamp(12px,2vw,18px)!important;gap:6px}
@@ -562,6 +571,10 @@ text-shadow:0 0 8px rgba(255,79,131,.22)!important;
 .footer-title{font-size:20px;color:#fff;margin-bottom:8px}
 .site-footer p,.site-footer a,.footer-meta{color:var(--muted);font-size:13px;line-height:1.45;text-decoration:none;display:block;margin-bottom:8px}
 .site-footer a:hover{color:#fff}
+.footer-link-btn{display:block;width:100%;margin:0 0 8px;padding:0;border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;line-height:1.45;text-align:left;cursor:pointer;text-decoration:none}
+.footer-link-btn:hover{color:#fff}
+.auction-claim-btn{width:100%;padding:10px;margin-top:8px;border:none;border-radius:8px;background:#047857;color:#fff;cursor:pointer;font-size:13px;font-weight:800}
+.auction-claim-btn:hover{background:#065f46}
 .footer-col h3{font-size:14px;color:#fff;margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px}
 .footer-consumer{font-size:12px!important}
 .site-footer-bottom{max-width:1240px;margin:16px auto 0;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#7f8aa3;font-size:12px}

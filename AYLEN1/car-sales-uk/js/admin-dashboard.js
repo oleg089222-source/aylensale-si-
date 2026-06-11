@@ -125,6 +125,7 @@
       '<div class="aylen-top-actions">' +
       '<div class="aylen-quick-bar" aria-label="Quick actions">' +
       '<button type="button" class="aylen-btn aylen-btn-quiet aylen-btn-sm" onclick="openAddProductModal()" title="New product (N on Products)"><i class="fas fa-plus"></i><span class="aylen-quick-label"> Product</span></button>' +
+      '<button type="button" class="aylen-btn aylen-btn-quiet aylen-btn-sm aylen-btn-scan" onclick="openWarehouseScanSafe()" title="Photo box → auto publish"><i class="fas fa-box-open"></i><span class="aylen-quick-label"> Scan</span></button>' +
       '<button type="button" class="aylen-btn aylen-btn-quiet aylen-btn-sm" onclick="AyelenAdminDashboard.go(\'orders\')" title="Shop orders (O)"><i class="fas fa-receipt"></i><span class="aylen-quick-label"> Orders</span></button>' +
       '<button type="button" class="aylen-btn aylen-btn-quiet aylen-btn-sm" onclick="AyelenAdminDashboard.go(\'discounts\')" title="Discount codes (7)"><i class="fas fa-ticket"></i><span class="aylen-quick-label"> Codes</span></button>' +
       '<button type="button" class="aylen-btn aylen-btn-quiet aylen-btn-sm" onclick="AyelenAdminDashboard.go(\'pricelist\')" title="Price list (6)"><i class="fas fa-list"></i><span class="aylen-quick-label"> Price</span></button>' +
@@ -379,6 +380,7 @@
         '<h2 class="aylen-page-title">Products</h2>' +
         '<div class="aylen-toolbar aylen-toolbar-sticky">' +
         '<button type="button" class="aylen-btn" onclick="openAddProductModal()">+ Product</button>' +
+        '<button type="button" class="aylen-btn aylen-btn-scan" onclick="openWarehouseScanSafe()" title="Фото коробки → AI → публикация"><i class="fas fa-box-open"></i> Warehouse Scan</button>' +
         '<input type="search" id="aylenProductsSearch" class="aylen-input" placeholder="Search… (press /)">' +
         '<select id="aylenProductsStatus"><option value="">All</option><option value="active">Live</option><option value="hidden">Hidden</option></select>' +
         '<button type="button" class="aylen-btn aylen-btn-quiet" onclick="AyelenAdminDashboard.reloadProducts(true)">Reload</button>' +
@@ -420,10 +422,6 @@
       if (global.FBDB && global.FBDB.loadAuctions) {
         try {
           var auctionRows = await global.FBDB.loadAuctions();
-          if (typeof auctions !== 'undefined' && Array.isArray(auctions)) {
-            auctions.length = 0;
-            (auctionRows || []).forEach(function(a) { auctions.push(a); });
-          }
           if (typeof global.applyCatalogSnapshot === 'function') {
             global.applyCatalogSnapshot('auctions', auctionRows || [], { fromServer: true });
           }
@@ -700,10 +698,6 @@
     try {
       if (global.FBDB && global.FBDB.loadAuctions) {
         var fresh = await global.FBDB.loadAuctions();
-        if (typeof auctions !== 'undefined' && Array.isArray(auctions)) {
-          auctions.length = 0;
-          (fresh || []).forEach(function(a) { auctions.push(a); });
-        }
         if (typeof global.applyCatalogSnapshot === 'function') {
           global.applyCatalogSnapshot('auctions', fresh || [], { fromServer: true });
         }
@@ -750,17 +744,21 @@
       var st = global.AYLEN_PICKUP ? global.AYLEN_PICKUP.normalizePickupStatus(loc) : (loc.active ? 'going' : 'not_confirmed');
       var lid = jsStr(loc.id);
       var goingBtn = st === 'going'
-        ? '<button type="button" class="aylen-btn aylen-btn-quiet" style="border-color:rgba(0,255,136,.5);color:#00ff88" disabled>Going ✓</button> '
-        : '<button type="button" class="aylen-btn aylen-btn-quiet" style="border-color:rgba(0,255,136,.45);color:#00ff88"' + onclickAttr('setPickupWeekendStatus(' + lid + ',\'going\')') + '>Set GOING</button> ';
+        ? '<button type="button" class="aylen-btn aylen-btn-quiet" style="border-color:rgba(0,255,136,.5);color:#00ff88" disabled>Going ON ✓</button> '
+        : '<button type="button" class="aylen-btn aylen-btn-quiet" style="border-color:rgba(0,255,136,.45);color:#00ff88"' + onclickAttr('setPickupWeekendStatus(' + lid + ',\'going\')') + '>Going ON</button> ';
+      var risk = '';
+      if (st === 'going' && loc.weatherStatus && String(loc.weatherStatus).toUpperCase() !== 'GOOD') {
+        risk = ' <span style="color:#fbbf24;font-weight:800">· WEATHER RISK</span>';
+      }
       return '<tr>' +
         '<td class="aylen-loc-market"><b>' + escape(loc.name) + '</b><br><small>' + escape(loc.city || '') + '</small></td>' +
-        '<td>' + pickupStatusLabel(loc) + (loc.weatherStatus ? ' · <span style="opacity:.85">' + escape(String(loc.weatherStatus).toUpperCase()) + '</span>' : '') + '</td>' +
+        '<td>' + pickupStatusLabel(loc) + risk + (loc.weatherStatus ? ' · <span style="opacity:.85">' + escape(String(loc.weatherStatus).toUpperCase()) + '</span>' : '') + '</td>' +
         '<td>' + pc + '</td>' +
         '<td>' + show + '</td>' +
         '<td class="aylen-loc-actions">' +
         goingBtn +
         '<button type="button" class="aylen-btn aylen-btn-quiet"' + onclickAttr('setPickupWeekendStatus(' + lid + ',\'possible\')') + '>Possible</button> ' +
-        '<button type="button" class="aylen-btn aylen-btn-quiet"' + onclickAttr('setPickupWeekendStatus(' + lid + ',\'not_confirmed\')') + '>Grey</button> ' +
+        '<button type="button" class="aylen-btn aylen-btn-quiet"' + onclickAttr('setPickupWeekendStatus(' + lid + ',\'not_confirmed\')') + '>Going OFF</button> ' +
         '<button type="button" class="aylen-btn aylen-btn-quiet"' + onclickAttr('AYLEN_PICKUP_ADMIN.openQuickEdit(' + lid + ')') + '>Quick</button> ' +
         '<button type="button" class="aylen-btn aylen-btn-quiet"' + onclickAttr('editLocation(' + lid + ')') + '>Edit</button> ' +
         '<button type="button" class="aylen-btn aylen-btn-danger aylen-btn-sm"' + onclickAttr('deleteLocationConfirm(' + lid + ')') + '>Delete</button> ' +
@@ -768,8 +766,8 @@
         '</tr>';
     }).join('');
     body.innerHTML =
-      '<h2 class="aylen-page-title">Pickup Locations</h2>' +
-      '<p class="aylen-hint">Set weekend status and weather postcode per car boot. Going = green card on top of the shop page.</p>' +
+      '<h2 class="aylen-page-title">Weekend Car Boots</h2>' +
+      '<p class="aylen-hint">Going ON = green card + WE ARE GOING on the shop. Weather risk warns visitors but never turns Going off — you decide.</p>' +
       '<button type="button" class="aylen-btn" onclick="openAddLocationModal()">+ Add location</button>' +
       '<div class="aylen-table-wrap" style="margin-top:14px">' +
       '<table class="aylen-table aylen-table-locations"><thead><tr><th>Market</th><th>Status</th><th>Weather PC</th><th>On site</th><th>Actions</th></tr></thead>' +
@@ -996,6 +994,12 @@
     if (typeof editProduct === 'function') editProduct(id);
   }
 
+  function dismissAdminAuthOverlay() {
+    if (global.AYLEN_ADMIN_GATE && global.AYLEN_ADMIN_GATE.hideAuthOverlay) {
+      global.AYLEN_ADMIN_GATE.hideAuthOverlay();
+    }
+  }
+
   function enterCms(startPanel) {
     if (!global.FBDB || !global.FBDB.isAdmin || !global.FBDB.isAdmin()) {
       if (typeof showAdminLoginModal === 'function') showAdminLoginModal();
@@ -1006,6 +1010,20 @@
     if (typeof removeAdminModeUI === 'function') removeAdminModeUI();
     if (typeof updateAdminAccessVisibility === 'function') updateAdminAccessVisibility();
     open(startPanel || 'dashboard');
+  }
+
+  async function enterCmsAsync(startPanel) {
+    if (!global.FBDB || !global.FBDB.isAdmin || !global.FBDB.isAdmin()) {
+      if (typeof showAdminLoginModal === 'function') showAdminLoginModal();
+      return false;
+    }
+    window.isAdminMode = true;
+    document.body.classList.add('admin-mode-active');
+    if (typeof removeAdminModeUI === 'function') removeAdminModeUI();
+    if (typeof updateAdminAccessVisibility === 'function') updateAdminAccessVisibility();
+    await openAsync(startPanel || 'dashboard');
+    dismissAdminAuthOverlay();
+    return true;
   }
 
   async function exitCms() {
@@ -1064,6 +1082,7 @@
     if (!shell) return;
     setPerfMode(true);
     shell.classList.add('open');
+    dismissAdminAuthOverlay();
     updateTopBar();
     var panel = currentPanel || 'dashboard';
     if ('requestAnimationFrame' in global) {
@@ -1071,6 +1090,38 @@
     } else {
       setTimeout(function() { go(panel); }, 0);
     }
+    var startNotify = function() {
+      if (typeof startNotifyRequestsWatch === 'function') startNotifyRequestsWatch();
+    };
+    if ('requestIdleCallback' in global) {
+      global.requestIdleCallback(startNotify, { timeout: 2500 });
+    } else {
+      setTimeout(startNotify, 1500);
+    }
+  }
+
+  async function openAsync(startPanel) {
+    if (global.AYLEN_MODAL && global.AYLEN_MODAL.closeAll) {
+      global.AYLEN_MODAL.closeAll({ immediate: true });
+    }
+    ensureCmsClickable();
+    if (startPanel) currentPanel = startPanel;
+    ensureShell();
+    var shell = $('aylenAdminShell');
+    if (!shell) return;
+    setPerfMode(true);
+    shell.classList.add('open');
+    dismissAdminAuthOverlay();
+    updateTopBar();
+    var panel = currentPanel || 'dashboard';
+    currentPanel = panel;
+    ensureShell();
+    document.querySelectorAll('#aylenAdminNav [data-panel]').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-panel') === panel);
+    });
+    await loadPanel(panel);
+    updateTopBar();
+    dismissAdminAuthOverlay();
     var startNotify = function() {
       if (typeof startNotifyRequestsWatch === 'function') startNotifyRequestsWatch();
     };
@@ -1232,7 +1283,9 @@
 
   global.AyelenAdminDashboard = {
     open: open,
+    openAsync: openAsync,
     enterCms: enterCms,
+    enterCmsAsync: enterCmsAsync,
     exitCms: exitCms,
     signOutCompletely: signOutCompletely,
     close: close,

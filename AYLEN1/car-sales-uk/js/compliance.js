@@ -49,6 +49,12 @@
       ad_personalization: 'denied'
     });
     global.gtag('config', measurementId, { anonymize_ip: true, allow_google_signals: false });
+    if (global.AYLEN_WEB_VITALS && global.AYLEN_WEB_VITALS.init) {
+      global.AYLEN_WEB_VITALS.init();
+    }
+    try {
+      document.dispatchEvent(new CustomEvent('aylen-analytics-ready'));
+    } catch (e) {}
   }
 
   function applyConsent(consent) {
@@ -118,7 +124,21 @@
       applyConsent(existing);
       return;
     }
-    showBanner();
+    function revealBanner() {
+      showBanner();
+    }
+    function scheduleReveal() {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(revealBanner, { timeout: 5000 });
+      } else {
+        setTimeout(revealBanner, 3000);
+      }
+    }
+    if (document.readyState === 'complete') {
+      scheduleReveal();
+    } else {
+      window.addEventListener('load', scheduleReveal, { once: true });
+    }
   }
 
   global.AYLEN_COMPLIANCE = {

@@ -2,7 +2,7 @@
  * Lazy-load admin panel scripts and styles (not for public shoppers).
  */
 (function(global) {
-  var VERSION = '202606092000';
+  var VERSION = '202606092300';
   var coreLoaded = false;
   var extrasLoaded = false;
   var coreLoading = null;
@@ -17,7 +17,7 @@
     'css/admin-auction-command.css'
   ];
 
-  var STYLES_AI = ['css/ai-assistant.css'];
+  var STYLES_AI = ['css/ai-assistant.css', 'css/warehouse-scan.css'];
 
   var SCRIPTS_CORE = [
     'js/cloudinary-config.js',
@@ -41,7 +41,8 @@
   var SCRIPTS_EXTRAS = [
     'js/ai-settings.js',
     'js/ai-assistant-media.js',
-    'js/admin-ai-assistant.js'
+    'js/admin-ai-assistant.js',
+    'js/warehouse-scan.js'
   ];
 
   function withVersion(path) {

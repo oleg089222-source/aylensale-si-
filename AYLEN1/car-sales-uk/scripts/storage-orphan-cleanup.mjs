@@ -6,7 +6,7 @@
  *   node scripts/storage-orphan-cleanup.mjs --remote --apply  # delete (50/batch)
  */
 import { loadProjectEnv } from './lib/load-env.mjs';
-import { fmtBytes } from '../api/lib/storage-bulk-resize.mjs';
+import { fmtBytes } from '../lib/server/storage-bulk-resize.mjs';
 
 loadProjectEnv();
 
@@ -52,7 +52,7 @@ async function runLocal() {
     console.error('Use --remote or set FIREBASE_SERVICE_ACCOUNT');
     process.exit(1);
   }
-  const { runStorageOrphanCleanup } = await import('../api/lib/storage-orphan-cleanup.mjs');
+  const { runStorageOrphanCleanup } = await import('../lib/server/storage-orphan-cleanup.mjs');
   const result = await runStorageOrphanCleanup({ apply: APPLY, limit: LIMIT });
   console.log('\n=== Storage orphan cleanup (' + result.mode + ') ===');
   console.log('Scanned:', result.scanned, '| In use:', result.referencedCount, '| Orphans:', result.orphanTotal);

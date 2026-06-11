@@ -16,13 +16,10 @@
   var appIconUrl = DEFAULT_APP_ICON;
 
   function resolveAppIconFromDom() {
-    var heroIcon = document.querySelector('[data-aylen-install-icon]');
-    if (heroIcon) {
-      var src = heroIcon.getAttribute('src') || heroIcon.src || '';
-      if (src) return src.split('?')[0];
-    }
     var link = document.querySelector('link[rel="apple-touch-icon"]');
     if (link && link.href) return link.href.split('?')[0];
+    var icon192 = document.querySelector('link[rel="icon"][sizes="192x192"]');
+    if (icon192 && icon192.href) return icon192.href.split('?')[0];
     return DEFAULT_APP_ICON;
   }
 

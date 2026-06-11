@@ -73,10 +73,16 @@
       if (!db) throw new Error('Firestore not ready');
       opts = opts || {};
       var limit = opts.limit || DEFAULT_PAGE;
-      var q = db.collection('products').limit(limit);
-      if (opts.startAfterDoc) q = q.startAfter(opts.startAfterDoc);
-
-      var snapshot = await q.get();
+      var snapshot;
+      try {
+        var q = db.collection('products').orderBy('updatedAt', 'desc').limit(limit);
+        if (opts.startAfterDoc) q = q.startAfter(opts.startAfterDoc);
+        snapshot = await q.get();
+      } catch (err) {
+        var fallback = db.collection('products').limit(limit);
+        if (opts.startAfterDoc) fallback = fallback.startAfter(opts.startAfterDoc);
+        snapshot = await fallback.get();
+      }
       var items = normalizeList(snapshot);
       var lastDoc = snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1] : null;
       catalogHasMore = snapshot.docs.length === limit;

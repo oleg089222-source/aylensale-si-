@@ -1,5 +1,5 @@
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#333}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#070a14;color:#e8edf7}
 header{background:#1a1a2e;color:#fff;position:sticky;top:0;z-index:100}
 .header-top{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;flex-wrap:wrap;gap:10px}
 .logo{font-size:26px;font-weight:bold;color:#e94560;letter-spacing:2px}

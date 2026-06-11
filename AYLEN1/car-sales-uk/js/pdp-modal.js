@@ -86,7 +86,7 @@
         '<button type="button" class="pdp-lightbox__close" data-pdp-lb-close aria-label="Close">&times;</button>' +
         nav +
         '<div class="pdp-lightbox__img-wrap">' +
-          '<img class="pdp-lightbox__img" src="' + esc(resolveImageUrl(imgs[idx], 'main')) + '" data-full="' + esc(directImageUrl(imgs[idx])) + '" data-fallback="' + esc(mainFb) + '" alt=""' + imageErrorAttr() + '>' +
+          '<img class="pdp-lightbox__img" src="' + esc(resolveImageUrl(imgs[idx], 'main')) + '" width="900" height="900" data-full="' + esc(directImageUrl(imgs[idx])) + '" data-fallback="' + esc(mainFb) + '" alt="" loading="lazy" decoding="async"' + imageErrorAttr() + '>' +
         '</div>' +
       '</div>'
     );
@@ -436,7 +436,16 @@
     var thumb = resolveImageUrl(rawUrl, 'thumb');
     var full = directImageUrl(rawUrl);
     var fb = typeof global.PRODUCT_FALLBACK_IMAGE !== 'undefined' ? global.PRODUCT_FALLBACK_IMAGE : '/logo.png';
-    return ' src="' + esc(thumb) + '" data-full="' + esc(full) + '" data-fallback="' + esc(fb) + '" alt="" loading="lazy" decoding="async"' + imageErrorAttr();
+    return ' src="' + esc(thumb) + '" width="72" height="72" data-full="' + esc(full) + '" data-fallback="' + esc(fb) + '" alt="" loading="lazy" decoding="async"' + imageErrorAttr();
+  }
+
+  function mainImgAttrs(rawUrl, opts) {
+    opts = opts || {};
+    var main = resolveImageUrl(rawUrl, 'main');
+    var full = directImageUrl(rawUrl);
+    var fb = typeof global.PRODUCT_FALLBACK_IMAGE !== 'undefined' ? global.PRODUCT_FALLBACK_IMAGE : '/logo.png';
+    var lazy = opts.lazy ? ' loading="lazy" decoding="async"' : ' loading="eager" decoding="async" fetchpriority="high"';
+    return ' src="' + esc(main) + '" width="900" height="900" data-full="' + esc(full) + '" data-fallback="' + esc(fb) + '" alt=""' + lazy + imageErrorAttr();
   }
 
   function renderGalleryHtml(imgs, opts) {
@@ -465,7 +474,7 @@
         return (
           '<div class="pdp-modal__slide">' +
             '<button type="button" class="pdp-modal__main-btn" data-pdp-lightbox-open aria-label="Enlarge photo ' + (i + 1) + '">' +
-              '<img class="pdp-modal__main-img"' + (i === idx ? ' data-pdp-main-img' : '') + ' data-slide-index="' + i + '" src="' + esc(slideMain) + '" data-full="' + esc(slideDirect) + '" data-fallback="' + esc(mainFb) + '" alt=""' + imageErrorAttr() + '>' +
+              '<img class="pdp-modal__main-img"' + (i === idx ? ' data-pdp-main-img' : '') + ' data-slide-index="' + i + '"' + mainImgAttrs(url, { lazy: i !== idx }) + '>' +
             '</button>' +
           '</div>'
         );
@@ -485,7 +494,7 @@
       '<div class="pdp-modal__main-wrap">' +
         nav +
         '<button type="button" class="pdp-modal__main-btn" data-pdp-lightbox-open aria-label="Enlarge photo">' +
-          '<img class="pdp-modal__main-img" data-pdp-main-img src="' + esc(main) + '" data-full="' + esc(mainDirect) + '" data-fallback="' + esc(mainFb) + '" alt=""' + imageErrorAttr() + '>' +
+          '<img class="pdp-modal__main-img" data-pdp-main-img' + mainImgAttrs(list[idx], { lazy: false }) + '>' +
           '<span class="pdp-modal__zoom-hint"><i class="fas fa-search-plus"></i> Tap to enlarge</span>' +
         '</button>' +
       '</div>' +

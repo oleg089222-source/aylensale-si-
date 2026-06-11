@@ -7,7 +7,7 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { generateIconSet } from '../api/lib/branding-icons.mjs';
+import { generateIconSet } from '../lib/server/branding-icons.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const assetsDir = join(root, 'assets');

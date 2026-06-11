@@ -373,3 +373,37 @@
     grid-template-columns: 1fr;
   }
 }
+
+.pickup-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.pickup-going-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pickup-going-switch__btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pickup-going-switch__btn.is-active {
+  border-color: rgba(0, 255, 136, 0.55);
+  background: rgba(0, 255, 136, 0.14);
+  color: #6ee7b7;
+}
+
+.pickup-btn-sm {
+  padding: 8px 12px !important;
+  font-size: 11px !important;
+}

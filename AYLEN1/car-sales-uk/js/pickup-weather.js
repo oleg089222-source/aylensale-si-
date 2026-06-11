@@ -84,9 +84,9 @@
 
   function statusMeta(key) {
     var map = {
-      GOOD: { key: 'GOOD', label: 'Dry — suitable for pickup', className: 'pickup-wx-verdict--good' },
-      POSSIBLE: { key: 'POSSIBLE', label: 'Showers possible', className: 'pickup-wx-verdict--possible' },
-      BAD: { key: 'BAD', label: 'Rain likely', className: 'pickup-wx-verdict--bad' }
+      GOOD: { key: 'GOOD', label: 'Good — worth the trip', className: 'pickup-wx-verdict--good' },
+      POSSIBLE: { key: 'POSSIBLE', label: 'Possible — showers around', className: 'pickup-wx-verdict--possible' },
+      BAD: { key: 'BAD', label: 'Bad — rain likely', className: 'pickup-wx-verdict--bad' }
     };
     return map[key] || map.GOOD;
   }
@@ -304,7 +304,7 @@
       '<div class="pickup-live-weather pickup-live-weather--fallback" aria-live="polite">' +
         '<div class="pickup-wx-panel">' +
           '<div class="pickup-wx-panel__head">' +
-            '<span class="pickup-wx-panel__title"><i class="fas fa-cloud-sun"></i> Weekend forecast</span>' +
+            '<span class="pickup-wx-panel__title"><i class="fas fa-cloud-sun"></i> Weekend weather</span>' +
           '</div>' +
           '<p class="pickup-wx-panel__empty">Forecast temporarily unavailable. Check again shortly.</p>' +
         '</div>' +
@@ -342,7 +342,7 @@
       '<div class="pickup-live-weather pickup-live-weather--ready pickup-live-weather--' + heroKind + '" aria-live="polite">' +
         '<div class="pickup-wx-panel pickup-wx-panel--' + heroKind + '">' +
           '<div class="pickup-wx-panel__head">' +
-            '<span class="pickup-wx-panel__title"><i class="fas fa-cloud-sun"></i> Weekend forecast</span>' +
+            '<span class="pickup-wx-panel__title"><i class="fas fa-cloud-sun"></i> Weekend weather</span>' +
             '<span class="pickup-wx-panel__pc">' + escapeWx(pc) + '</span>' +
           '</div>' +
           '<div class="pickup-wx-panel__hero">' +
@@ -368,16 +368,17 @@
     var kind = weatherKindFromCode(day.code);
     var icon = weatherIconMeta(kind);
     var rain = Math.round(Number(day.rain || 0));
+    var wind = Math.round(Number(day.wind || 0));
+    var st = tripStatusFromRainAndCode(rain, day.code);
     return (
       '<div class="pickup-wx-split-day pickup-wx-split-day--' + kind + '">' +
         '<span class="pickup-wx-split-day__name">' + escapeWx(shortName) + '</span>' +
         '<span class="pickup-wx-split-day__icon pickup-wx-split-day__icon--' + kind + '" aria-hidden="true">' + weatherIconHtml(icon) + '</span>' +
         '<span class="pickup-wx-split-day__temp">' + Math.round(day.max || 0) + '°</span>' +
-        '<div class="pickup-wx-split-day__rain">' +
-          '<div class="pickup-wx-rain-track" role="presentation">' +
-            '<div class="pickup-wx-rain-fill pickup-wx-rain-fill--' + rainBand(rain) + '" style="width:' + rain + '%"></div>' +
-          '</div>' +
-          '<span class="pickup-wx-split-day__rain-pct">' + rain + '%</span>' +
+        '<div class="pickup-wx-split-day__stats">' +
+          '<span class="pickup-wx-split-day__stat" title="Rain chance"><i class="fas fa-droplet"></i> ' + rain + '%</span>' +
+          '<span class="pickup-wx-split-day__stat" title="Wind"><i class="fas fa-wind"></i> ' + wind + '</span>' +
+          '<span class="pickup-wx-split-day__status pickup-wx-split-day__status--' + st.key.toLowerCase() + '">' + escapeWx(st.key) + '</span>' +
         '</div>' +
       '</div>'
     );

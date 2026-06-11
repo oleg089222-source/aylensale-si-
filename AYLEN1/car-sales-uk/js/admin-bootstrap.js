@@ -40,7 +40,13 @@
     if (!global.AYLEN_LAZY) {
       return Promise.reject(new Error('Lazy loader missing'));
     }
-    loading = global.AYLEN_LAZY.loadScript('js/admin-session.js')
+    loading = global.AYLEN_LAZY.loadScript('js/firebase-db-admin.bundle.js')
+      .catch(function() {
+        return global.AYLEN_LAZY.loadScript('js/firebase-db-admin.js');
+      })
+      .then(function() {
+        return global.AYLEN_LAZY.loadScript('js/admin-session.js');
+      })
       .then(function() { return global.AYLEN_LAZY.loadScript('js/admin-loader.js'); })
       .then(function() { return global.AYLEN_LAZY.loadScript('js/admin-gate.js'); })
       .then(function() {
@@ -74,6 +80,10 @@
     footerLink._aylenBound = true;
     footerLink.addEventListener('click', function(e) {
       e.preventDefault();
+      e.stopPropagation();
+      try {
+        footerLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {}
       openAdminLogin();
     });
   }
@@ -165,6 +175,9 @@
     setupAdminSecretTap();
     setupKeyboardShortcut();
     updateFooterAdminLink();
+    if (isMobileAdminLayout()) {
+      ensureAdminGate().catch(function() {});
+    }
     global.toggleAdminMode = function() {
       return ensureAdminGate().then(function() {
         if (typeof global.__aylenToggleAdminMode === 'function') {

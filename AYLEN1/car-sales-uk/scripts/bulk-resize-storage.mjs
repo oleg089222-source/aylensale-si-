@@ -12,8 +12,8 @@
  *   node scripts/bulk-resize-storage.mjs --remote --apply --limit 30
  */
 import { loadProjectEnv } from './lib/load-env.mjs';
-import { fmtBytes, runStorageBulkResize } from '../api/lib/storage-bulk-resize.mjs';
-import { getStorageBucket } from '../api/lib/firebase-admin-app.mjs';
+import { fmtBytes, runStorageBulkResize } from '../lib/server/storage-bulk-resize.mjs';
+import { getStorageBucket } from '../lib/server/firebase-admin-app.mjs';
 
 loadProjectEnv();
 

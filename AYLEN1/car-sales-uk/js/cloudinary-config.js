@@ -3,9 +3,10 @@
  * Production uploads must go only to Firebase Storage.
  */
 
-async function uploadImageToCloudinary(file) {
-  if (window.FBDB && window.FBDB.uploadImage) {
-    var result = await window.FBDB.uploadImage(file, window.currentEditingProductId || Date.now());
+async function uploadImageToCloudinary(file, onProgress) {
+  var entityId = window.currentEditingProductId || window.pendingProductCreateId || Date.now();
+  if (window.FBDB && window.FBDB.uploadImageWithProgress) {
+    var result = await window.FBDB.uploadImageWithProgress(file, entityId, onProgress);
     var isFirebaseUrl = result.url &&
       result.url.indexOf('data:') !== 0 &&
       (
@@ -16,6 +17,11 @@ async function uploadImageToCloudinary(file) {
       return result;
     }
     return { success: false, error: result.error || 'Firebase Storage upload failed', method: 'firebase-storage' };
+  }
+  if (window.FBDB && window.FBDB.uploadImage) {
+    var fallback = await window.FBDB.uploadImage(file, entityId);
+    if (typeof onProgress === 'function') onProgress(100);
+    return fallback;
   }
 
   return { success: false, error: 'Firebase Storage is not ready. Refresh page and try again.', method: 'firebase-storage' };

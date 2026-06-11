@@ -3,7 +3,8 @@
  * Requires admin password via x-admin-key header (set after admin login).
  * Set OPENAI_API_KEY and optional OPENAI_MODEL on Vercel.
  */
-import { verifyAdminPassword } from './lib/admin-password.mjs';
+import { verifyAdminPassword } from '../lib/server/admin-password.mjs';
+import { runScanAndPublish } from '../lib/server/auto-listing-pipeline.mjs';
 
 const rateLimits = new Map();
 
@@ -455,6 +456,33 @@ export default async function handler(req, res) {
       const parsed = await callOpenAI(buildStockMessages(req.body), model);
       const stockAction = normalizeStockAction(parsed);
       return res.status(200).json({ success: true, stockAction });
+    }
+
+    if (action === 'scan_and_publish') {
+      if (!checkRateLimit(clientIP, 8)) {
+        return res.status(429).json({ error: 'Too many scan requests. Wait a minute.' });
+      }
+      const rawImages = Array.isArray(req.body?.images) ? req.body.images : [];
+      const singleB64 = cleanString(req.body?.imageBase64, 6_000_000);
+      const images = rawImages.length
+        ? rawImages.slice(0, 10).map((img) => ({
+          base64: cleanString(img.base64, 6_000_000),
+          mimeType: cleanString(img.mimeType, 30) || 'image/jpeg'
+        })).filter((img) => img.base64)
+        : (singleB64 ? [{ base64: singleB64, mimeType: cleanString(req.body?.imageMimeType, 30) || 'image/jpeg' }] : []);
+
+      if (!images.length) {
+        return res.status(400).json({ error: 'images[] or imageBase64 is required' });
+      }
+
+      const result = await runScanAndPublish({
+        images,
+        hint: cleanString(req.body?.hint || req.body?.text, 2000),
+        policyId: cleanString(req.body?.policyId, 80),
+        priceOverride: Number(req.body?.price) || null,
+        publish: req.body?.publish !== false && req.body?.draft !== true
+      });
+      return res.status(200).json(result);
     }
 
     return res.status(400).json({ error: 'Unknown action' });

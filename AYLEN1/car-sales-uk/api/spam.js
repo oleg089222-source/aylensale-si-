@@ -5,13 +5,15 @@
 import {
   handleSpamConfig,
   handleNotifyRequest,
-  handleAuctionBid
-} from './lib/spam-handlers.mjs';
-import { handleLoyalty } from './lib/loyalty-handlers.mjs';
+  handleAuctionBid,
+  handleAuctionDeposit,
+  handleAuctionBuyNow
+} from '../lib/server/spam-handlers.mjs';
+import { handleLoyalty } from '../lib/server/loyalty-handlers.mjs';
 import {
   handleAuctionEngineGet,
   handleAuctionEnginePost
-} from './lib/auction-handlers.mjs';
+} from '../lib/server/auction-handlers.mjs';
 
 function resolveAction(req) {
   const q = req.query || {};
@@ -21,10 +23,13 @@ function resolveAction(req) {
   if (url.indexOf('spam-config') !== -1) return 'config';
   if (url.indexOf('notify-request') !== -1) return 'notify-request';
   if (url.indexOf('auction-bid') !== -1) return 'auction-bid';
+  if (url.indexOf('auction-deposit') !== -1) return 'auction-deposit';
+  if (url.indexOf('auction-buy-now') !== -1) return 'auction-buy-now';
   if (url.indexOf('loyalty') !== -1) return 'loyalty';
   if (url.indexOf('auction-engine') !== -1 || url.indexOf('auction-tick') !== -1) return 'auction-engine';
   if (url.indexOf('storage-resize') !== -1) return 'storage-resize';
   if (url.indexOf('storage-orphans') !== -1) return 'storage-orphans';
+  if (url.indexOf('process-restock-notify') !== -1) return 'process-restock-notify';
 
   return 'config';
 }
@@ -42,6 +47,11 @@ export default async function handler(req, res) {
     case 'auction-bid':
     case 'auctionbid':
       return handleAuctionBid(req, res);
+    case 'auction-deposit':
+      return handleAuctionDeposit(req, res);
+    case 'auction-buy-now':
+    case 'auction-buynow':
+      return handleAuctionBuyNow(req, res);
     case 'loyalty':
       return handleLoyalty(req, res);
     case 'auction-engine':
@@ -50,12 +60,16 @@ export default async function handler(req, res) {
       if (req.method === 'POST') return handleAuctionEnginePost(req, res);
       return res.status(405).json({ error: 'Method not allowed' });
     case 'storage-resize': {
-      const { handleStorageResize } = await import('./lib/storage-resize-handlers.mjs');
+      const { handleStorageResize } = await import('../lib/server/storage-resize-handlers.mjs');
       return handleStorageResize(req, res);
     }
     case 'storage-orphans': {
-      const { handleStorageOrphanCleanup } = await import('./lib/storage-orphan-handlers.mjs');
+      const { handleStorageOrphanCleanup } = await import('../lib/server/storage-orphan-handlers.mjs');
       return handleStorageOrphanCleanup(req, res);
+    }
+    case 'process-restock-notify': {
+      const { handleProcessRestockNotify } = await import('../lib/server/admin-audit-handlers.mjs');
+      return handleProcessRestockNotify(req, res);
     }
     default:
       return res.status(404).json({ error: 'Unknown spam action: ' + action });

@@ -5,17 +5,45 @@
 html {
   overflow-y: auto !important;
   overflow-x: hidden !important;
+  max-width: 100%;
   height: auto !important;
 }
 
 html:not(.aylen-admin-cms-active):not(.admin-auth-busy),
 body:not(.aylen-admin-cms-active):not(.admin-dashboard-open) {
-  overflow-x: hidden !important;
+  /* overflow-x on body breaks position:sticky on .site-header (Safari/Chrome) */
+  overflow-x: visible !important;
   overflow-y: auto !important;
   height: auto !important;
   min-height: 100% !important;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .site-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 120 !important;
+    box-sizing: border-box !important;
+  }
+
+  #storefrontAboveProducts {
+    scroll-margin-top: calc(var(--aylen-header-sticky-h, 104px) + 12px + env(safe-area-inset-top, 0px));
+  }
+
+  section#products.products-section {
+    margin-top: 12px;
+    scroll-margin-top: calc(var(--aylen-header-sticky-h, 104px) + 16px + env(safe-area-inset-top, 0px));
+  }
+}
+
+@media (min-width: 769px) {
+  .site-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 120 !important;
+  }
 }
 
 body:not(.aylen-admin-cms-active):not(.admin-dashboard-open):not(.modal-locked) {
@@ -49,18 +77,16 @@ body:not(.aylen-admin-cms-active):not(.admin-dashboard-open):not(.modal-locked) 
     padding-bottom: var(--aylen-page-pad-bottom, calc(78px + env(safe-area-inset-bottom, 0px))) !important;
   }
 
-  .bottom-nav {
-    width: min(100vw - 16px, 520px) !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    bottom: max(8px, env(safe-area-inset-bottom)) !important;
-  }
-
   .bottom-nav a.bottom-nav-contact {
     display: none !important;
   }
 
-  .header-top {
+  .site-header .header-top:not(.header-top--unified) {
     flex-wrap: nowrap !important;
+  }
+
+  .site-footer-bottom {
+    padding-bottom: calc(var(--aylen-bottom-nav, 72px) + 12px) !important;
   }
 
   .logo {
@@ -84,17 +110,13 @@ body:not(.aylen-admin-cms-active):not(.admin-dashboard-open):not(.modal-locked) 
   }
 }
 
-/* Win over legacy inline heights in index.html — compact product grid (all breakpoints) */
-#products .product-image-container {
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: 200px !important;
-  aspect-ratio: 1 / 1 !important;
-}
-
+/* Desktop-only image cap — mobile heights are locked in fold-lock / inline critical CSS */
 @media (min-width: 769px) {
   #products .product-image-container {
+    height: auto !important;
+    min-height: 0 !important;
     max-height: 190px !important;
+    aspect-ratio: 1 / 1 !important;
   }
 
   #products #productsGrid.products-grid {
@@ -160,6 +182,22 @@ body:not(.aylen-admin-cms-active):not(.admin-dashboard-open):not(.modal-locked) 
 
   #auctionsGrid {
     padding-bottom: 8px !important;
+  }
+
+  #auctionsGrid.auctions-rail {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    overflow: visible !important;
+    flex-wrap: unset !important;
+    scroll-snap-type: none !important;
+  }
+
+  #auctionsGrid.auctions-rail .auction-card {
+    flex: none !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
   }
 
   #auctionsGrid .auction-card {

@@ -46,13 +46,63 @@
     return syncPickupStatusFields(loc);
   }
 
+  function formatWeekendDatesLabel() {
+    var dates = global.AYLEN_WEATHER && global.AYLEN_WEATHER.nextWeekendDates
+      ? global.AYLEN_WEATHER.nextWeekendDates()
+      : null;
+    if (!dates) return '';
+    function fmt(iso) {
+      var d = new Date(iso + 'T12:00:00');
+      return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+    return fmt(dates.saturday) + ' · ' + fmt(dates.sunday);
+  }
+
+  function formatDaysShort(dayValue) {
+    var d = String(dayValue || '').toLowerCase();
+    var both = d.indexOf('sat') !== -1 && d.indexOf('sun') !== -1;
+    if (both || d.indexOf('both') !== -1 || d.indexOf('weekend') !== -1) return 'Sat · Sun';
+    if (d.indexOf('sun') !== -1) return 'Sun';
+    return 'Sat';
+  }
+
+  function weatherTripKeyFromLoc(loc) {
+    if (!loc) return 'GOOD';
+    var raw = String(loc.weatherStatus || '').toUpperCase();
+    if (raw === 'OK' || raw === 'RISKY') raw = 'POSSIBLE';
+    if (raw === 'RAIN LIKELY' || raw === 'RAIN') raw = 'BAD';
+    if (raw === 'GOOD' || raw === 'POSSIBLE' || raw === 'BAD') return raw;
+    var rain = Math.max(Number(loc.saturdayRainPct || 0), Number(loc.sundayRainPct || 0));
+    if (rain >= 56) return 'BAD';
+    if (rain >= 26) return 'POSSIBLE';
+    return 'GOOD';
+  }
+
+  /** Going stays ON — show WEATHER RISK when forecast is POSSIBLE or BAD. */
+  function weatherRiskMeta(loc, forecast) {
+    var tripKey = 'GOOD';
+    if (forecast && forecast.tripStatus && forecast.tripStatus.key) {
+      tripKey = forecast.tripStatus.key;
+    } else if (loc) {
+      tripKey = weatherTripKeyFromLoc(loc);
+    }
+    if (tripKey === 'GOOD') return null;
+    return {
+      key: tripKey,
+      label: 'WEATHER RISK',
+      hint: tripKey === 'BAD'
+        ? 'Rain likely — admin decision required'
+        : 'Showers possible — check before you travel'
+    };
+  }
+
   function pickupStatusMeta(status) {
     if (status === 'going') {
       return {
         status: 'going',
-        label: 'We are going this weekend',
+        label: 'AYLENSALE is going this weekend',
         shortLabel: 'Going',
-        badge: 'GOING THIS WEEKEND',
+        badge: 'WE ARE GOING',
         cardClass: 'pickup-card--going',
         borderColor: '#00ff88',
         glow: true
@@ -159,6 +209,10 @@
     geocodeUKPostcode: geocodeUKPostcode,
     weatherLabelFromRain: weatherLabelFromRain,
     hydrateLocationRecord: hydrateLocationRecord,
+    formatWeekendDatesLabel: formatWeekendDatesLabel,
+    formatDaysShort: formatDaysShort,
+    weatherTripKeyFromLoc: weatherTripKeyFromLoc,
+    weatherRiskMeta: weatherRiskMeta,
     STATUS_ORDER: STATUS_ORDER
   };
 })(typeof window !== 'undefined' ? window : global);

@@ -150,6 +150,23 @@
     var barEl = document.getElementById('engagementBar');
     if (!barEl) return;
 
+    if (isMobile()) {
+      var heroStatsBtn = document.getElementById('heroStatsBtn');
+      if (heroStatsBtn && heroStatsBtn.getAttribute('data-stats-scroll') !== '1') {
+        heroStatsBtn.setAttribute('data-stats-scroll', '1');
+        heroStatsBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            barEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } catch (err) {
+            barEl.scrollIntoView(true);
+          }
+        }, true);
+      }
+      return;
+    }
+
     var wrapped = wrapInFold(barEl, 'storefront-fold--stats', 'liveStatsFold', 'storefrontLiveStatsPanel');
     if (!wrapped) return;
 
@@ -248,57 +265,9 @@
     foldMeta.textContent = (meta.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
-  function wrapEbayPromo() {
-    if (!isMobile()) return;
-    var wrap = document.getElementById('ebayPromoWrap');
-    if (!wrap || wrap.closest('.storefront-fold')) return;
-    if (wrap.style.display === 'none' && !wrap.innerHTML.trim()) return;
+  function wrapEbayPromo() {}
 
-    var parent = wrap.parentNode;
-    var fold = document.createElement('div');
-    fold.className = 'storefront-fold storefront-fold--ebay';
-    fold.id = 'ebayPromoFold';
-
-    var toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'storefront-fold__toggle';
-    toggle.setAttribute('aria-controls', 'storefrontEbayPanel');
-    toggle.innerHTML =
-      '<span class="storefront-fold__label"><i class="fas fa-store" aria-hidden="true"></i> Shop on eBay</span>' +
-      '<span class="storefront-fold__chevron" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>';
-
-    var panel = document.createElement('div');
-    panel.id = 'storefrontEbayPanel';
-    panel.className = 'storefront-fold__panel';
-
-    parent.insertBefore(fold, wrap);
-    fold.appendChild(toggle);
-    fold.appendChild(panel);
-    panel.appendChild(wrap);
-
-    var foldApi = initFold({
-      root: fold,
-      toggle: toggle,
-      panel: panel,
-      id: 'ebay-promo',
-      defaultExpanded: false
-    });
-
-    fold.style.display = wrap.style.display === 'none' ? 'none' : 'block';
-    global.__aylenEbayFold = foldApi;
-  }
-
-  function syncEbayFoldVisibility() {
-    var wrap = document.getElementById('ebayPromoWrap');
-    var fold = document.getElementById('ebayPromoFold');
-    if (!wrap) return;
-    if (!fold) {
-      wrapEbayPromo();
-      fold = document.getElementById('ebayPromoFold');
-    }
-    if (!fold) return;
-    fold.style.display = wrap.style.display === 'none' ? 'none' : 'block';
-  }
+  function syncEbayFoldVisibility() {}
 
   function wrapCatalogFilters() {
     if (!isMobile()) return;
@@ -346,58 +315,54 @@
     }
   }
 
+  function setPriceListFoldVisible(cta, heroBtn, visible, persist) {
+    if (!cta) return;
+    cta.classList.toggle('is-visible', !!visible);
+    if (heroBtn) {
+      heroBtn.setAttribute('aria-expanded', visible ? 'true' : 'false');
+      heroBtn.classList.toggle('is-active', !!visible);
+    }
+    if (persist) writeState('price-list', !!visible);
+    if (visible && cta.scrollIntoView) {
+      try {
+        cta.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        cta.scrollIntoView(true);
+      }
+    }
+  }
+
   function wrapPriceList() {
     var cta = document.querySelector('.price-list-fold-root');
     if (!cta) return;
-
-    var wrapped = wrapInFold(cta, 'storefront-fold--price-list', 'priceListFold', 'priceListPanel');
-    if (!wrapped) return;
+    cta.hidden = false;
 
     var heroBtn = document.getElementById('heroPriceListBtn');
-    var toggle = heroBtn;
-    if (!toggle) {
-      var bar = ensureExtrasBar();
-      toggle = createChipToggle('price-list', 'Price list', 'fa-file-arrow-down', 'priceListPanel', 'Prices');
-      toggle.classList.add('storefront-extras-chip--price-list');
-      bar.insertBefore(toggle, bar.firstChild);
-    }
+    var mobile = isMobile();
+    var expanded = mobile ? readState('price-list', false) : true;
+    setPriceListFoldVisible(cta, heroBtn, expanded, false);
 
-    var foldApi = null;
-    foldApi = initFold({
-      root: wrapped.root,
-      toggle: toggle,
-      panel: wrapped.panel,
-      id: 'price-list',
-      defaultExpanded: false,
-      openOnClick: function () {
-        if (typeof global.openPriceList === 'function') {
-          global.openPriceList();
+    if (heroBtn && heroBtn.getAttribute('data-price-list-fold') !== '1') {
+      heroBtn.setAttribute('data-price-list-fold', '1');
+      heroBtn.setAttribute('aria-label', mobile ? 'Price list panel' : 'Preview price list');
+      heroBtn.addEventListener('click', function (ev) {
+        if (mobile) {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
+          var next = !cta.classList.contains('is-visible');
+          setPriceListFoldVisible(cta, heroBtn, next, true);
           return;
         }
-        if (foldApi) foldApi.setExpanded(true, true);
-      }
-    });
-    global.__aylenPriceListFold = foldApi;
+        if (typeof global.openPriceList !== 'function') return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        global.openPriceList();
+      }, true);
+    }
   }
 
-  function togglePriceList(forceExpanded) {
-    var fold = global.__aylenPriceListFold;
-    if (!fold) {
-      if (typeof global.openPriceList === 'function') global.openPriceList();
-      return false;
-    }
-    var next = typeof forceExpanded === 'boolean' ? forceExpanded : !fold.isExpanded();
-    fold.setExpanded(next, true);
-    if (next) {
-      var root = document.getElementById('priceListFold');
-      if (root && root.scrollIntoView) {
-        try {
-          root.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } catch (e) {
-          root.scrollIntoView(true);
-        }
-      }
-    }
+  function togglePriceList() {
+    if (typeof global.openPriceList === 'function') global.openPriceList();
     return true;
   }
 
@@ -407,11 +372,38 @@
     bar.hidden = bar.children.length === 0;
   }
 
-  function init() {
+  function initMobileDomWraps() {
     wrapPriceList();
     wrapHeaderNav();
     wrapLiveStats();
+    wrapCatalogFilters();
+    syncEbayFoldVisibility();
+    hideEmptyExtrasBar();
+  }
+
+  function init() {
     initContactFloatFold();
+    if (isMobile()) {
+      var wrapped = false;
+      function runWraps() {
+        if (wrapped) return;
+        wrapped = true;
+        var paint = function() {
+          initMobileDomWraps();
+          syncCatalogFoldMeta();
+        };
+        if (typeof requestIdleCallback === 'function') {
+          requestIdleCallback(paint, { timeout: 3000 });
+        } else {
+          setTimeout(paint, 0);
+        }
+      }
+      document.addEventListener('aylen-catalog-ready', runWraps, { once: true });
+      return;
+    }
+    wrapPriceList();
+    wrapHeaderNav();
+    wrapLiveStats();
     wrapCatalogFilters();
     syncEbayFoldVisibility();
     hideEmptyExtrasBar();

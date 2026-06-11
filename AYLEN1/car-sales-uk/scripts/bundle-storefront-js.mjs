@@ -14,9 +14,8 @@ const CORE_SOURCES = [
   'js/site-content.js',
   'js/runtime-env.js',
   'js/config.js',
-  'js/listing-policies.js',
+  'js/listing-policies-stub.js',
   'js/production-store.js',
-  'js/inventory-core.js',
   'js/firebase-db.js',
   'js/branding-runtime.js',
   'js/firebase-catalog.js',
@@ -24,17 +23,22 @@ const CORE_SOURCES = [
   'js/data.js',
   'js/catalog-pagination.js',
   'js/perf-mode.js',
-  'js/modal-manager.js',
   'js/scroll-guard.js',
-  'js/security.js',
-  'js/spam-turnstile.js',
-  'js/compliance.js',
-  'js/seo.js',
   'js/product-nav.js',
-  'js/discount-engine.js',
   'js/mobile-ui.js',
   'js/storefront-collapsible.js',
   'js/app.js'
+];
+
+const INTERACTION_SOURCES = [
+  'js/modal-manager.js',
+  'js/listing-policies.js',
+  'js/discount-engine.js',
+  'js/security.js',
+  'js/spam-turnstile.js',
+  'js/compliance.js',
+  'js/web-vitals-rum.js',
+  'js/seo.js'
 ];
 
 const FEATURES_SOURCES = [
@@ -76,4 +80,8 @@ async function bundle(name, sources) {
 }
 
 await bundle('storefront-core', CORE_SOURCES);
+await bundle('storefront-interaction', INTERACTION_SOURCES);
 await bundle('storefront-features', FEATURES_SOURCES);
+
+const ADMIN_DB_SOURCES = ['js/inventory-core.js', 'js/firebase-db-admin.js'];
+await bundle('firebase-db-admin', ADMIN_DB_SOURCES);

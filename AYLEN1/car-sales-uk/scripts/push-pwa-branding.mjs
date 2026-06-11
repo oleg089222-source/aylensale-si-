@@ -6,8 +6,8 @@
 import { readFileSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { generateIconSet } from '../api/lib/branding-icons.mjs';
-import { loadBrandingDoc, uploadBrandingBuffers } from '../api/lib/branding-store.mjs';
+import { generateIconSet } from '../lib/server/branding-icons.mjs';
+import { loadBrandingDoc, uploadBrandingBuffers } from '../lib/server/branding-store.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = join(root, '.env.local');

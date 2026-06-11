@@ -29,7 +29,9 @@ const syntaxCheckFiles = [
   'public/js/scroll-guard.js',
   'public/js/lazy-script-loader.js',
   'public/js/admin-bootstrap.js',
-  'public/js/storefront-core.bundle.js'
+  'public/js/storefront-core.bundle.js',
+  'js/storefront-icons.js',
+  'public/js/storefront-icons.js'
 ];
 
 let ok = true;
@@ -69,13 +71,35 @@ if (!fs.existsSync(publicIndex)) {
   ok = false;
 } else {
   const pubHtml = fs.readFileSync(publicIndex, 'utf8');
-  if (!pubHtml.includes('admin-bootstrap.js') && !pubHtml.includes('admin-loader.js')) {
-    console.error('public/index.html is stale (no admin bootstrap) — run: npm run build');
+  var hasAdminEntry = pubHtml.includes('admin-bootstrap.js') ||
+    pubHtml.includes('admin-loader.js') ||
+    (pubHtml.includes('lazy-script-loader.js') && fs.existsSync(path.join(root, 'public/js/admin-bootstrap.js')));
+  if (!hasAdminEntry) {
+    console.error('public/index.html is stale (no admin bootstrap path) — run: npm run build');
     ok = false;
   }
   if (!pubHtml.includes('storefront-core.bundle.js')) {
     console.error('public/index.html is stale (no storefront-core.bundle.js) — run: npm run build');
     ok = false;
+  }
+  if (!fs.existsSync(path.join(root, 'public/js/storefront-interaction.bundle.js'))) {
+    console.error('Missing after build: public/js/storefront-interaction.bundle.js');
+    ok = false;
+  }
+  if (!fs.existsSync(path.join(root, 'public/css/storefront-shell.bundle.css'))) {
+    console.error('Missing after build: public/css/storefront-shell.bundle.css');
+    ok = false;
+  }
+  if (!fs.existsSync(path.join(root, 'public/css/storefront-shell-critical.bundle.css'))) {
+    console.error('Missing after build: public/css/storefront-shell-critical.bundle.css');
+    ok = false;
+  }
+  if (!fs.existsSync(path.join(root, 'public/css/storefront-shell-deferred.bundle.css'))) {
+    console.error('Missing after build: public/css/storefront-shell-deferred.bundle.css');
+    ok = false;
+  }
+  if (!fs.existsSync(path.join(root, 'public/data/catalog-bootstrap.json'))) {
+    console.warn('Note: public/data/catalog-bootstrap.json missing (inline-catalog-bootstrap may have skipped)');
   }
   for (const rel of [
     'public/js/admin-gate.js',

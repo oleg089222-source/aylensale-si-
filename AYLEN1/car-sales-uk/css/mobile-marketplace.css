@@ -1,8 +1,28 @@
 /* Mobile marketplace polish — 390–430px, Safari safe-area */
+:root {
+  --aylen-bottom-nav: calc(58px + env(safe-area-inset-bottom, 0px));
+  --aylen-page-pad-bottom: calc(36px + var(--aylen-bottom-nav));
+}
 
 @media (max-width: 768px) {
+  nav:not(.bottom-nav),
+  header > nav.header-nav,
+  .site-header nav.header-nav {
+    display: none !important;
+  }
+
   body {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--aylen-page-pad-bottom) !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  section#products.products-section,
+  section#products.products-section--loading,
+  section#products.products-section--settled {
+    padding-bottom: 4px !important;
   }
 
   /* —— Header: −25–30% height, compact on scroll —— */
@@ -98,12 +118,14 @@
     opacity: 0.85 !important;
   }
 
-  /* —— Hero: shorter —— */
-  .hero-marketplace.hero-phase1 {
-    min-height: 0 !important;
-    max-height: none;
-    padding: 22px 14px 18px !important;
-    align-items: flex-end;
+  /* —— Hero: compact fixed shell (matches critical CSS — no CLS on shell load) —— */
+  #hero.hero-marketplace.hero-phase1 {
+    height: 108px !important;
+    min-height: 108px !important;
+    max-height: 108px !important;
+    padding: 10px 12px 8px !important;
+    align-items: flex-end !important;
+    overflow: hidden !important;
   }
 
   .hero-phase1 .hero-live-pill {
@@ -391,7 +413,14 @@
   }
 
   .site-footer {
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--aylen-page-pad-bottom, 94px) + 16px) !important;
+  }
+
+  #footerAdminLink.footer-admin-link {
+    min-height: 44px;
+    padding: 10px 0;
+    position: relative;
+    z-index: 1;
   }
 }
 

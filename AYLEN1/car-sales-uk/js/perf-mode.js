@@ -33,6 +33,22 @@
         engagementStarted = true;
       }
     };
+    var isMobile = false;
+    try {
+      isMobile = global.matchMedia && global.matchMedia('(max-width: 768px)').matches;
+    } catch (e) {}
+    if (isMobile) {
+      var afterLoad = function() {
+        if ('requestIdleCallback' in global) {
+          deferredEngagement = global.requestIdleCallback(run, { timeout: 5000 });
+        } else {
+          deferredEngagement = setTimeout(run, 3000);
+        }
+      };
+      if (global.document.readyState === 'complete') afterLoad();
+      else global.addEventListener('load', afterLoad, { once: true });
+      return;
+    }
     if ('requestIdleCallback' in global) {
       deferredEngagement = global.requestIdleCallback(run, { timeout: 8000 });
     } else {

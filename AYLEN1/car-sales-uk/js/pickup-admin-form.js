@@ -31,6 +31,23 @@
     return form ? form.querySelector('[data-field="' + name + '"]') : null;
   }
 
+  function buildGoingToggleHtml(selected) {
+    var s = 'not_confirmed';
+    if (global.AYLEN_PICKUP && global.AYLEN_PICKUP.normalizePickupStatus) {
+      s = global.AYLEN_PICKUP.normalizePickupStatus({ status: selected });
+    }
+    return (
+      '<div class="pickup-going-switch" data-going-switch role="group" aria-label="Going status">' +
+        '<button type="button" class="pickup-going-switch__btn' + (s === 'going' ? ' is-active' : '') + '" data-going-value="going">Going ON</button>' +
+        '<button type="button" class="pickup-going-switch__btn' + (s === 'not_confirmed' ? ' is-active' : '') + '" data-going-value="not_confirmed">Going OFF</button>' +
+      '</div>' +
+      '<input type="hidden" data-field="status" value="' + esc(s) + '">' +
+      '<p class="pickup-hint">Going ON = green card + WE ARE GOING badge. Weather risk never turns this off — admin decides.</p>' +
+      '<label class="pickup-label">Or mark as possible</label>' +
+      '<button type="button" class="pickup-btn pickup-btn-ghost pickup-btn-sm" data-mark-possible>Mark POSSIBLE</button>'
+    );
+  }
+
   function buildStatusOptions(selected) {
     var s = 'not_confirmed';
     if (global.AYLEN_PICKUP && global.AYLEN_PICKUP.normalizePickupStatus) {
@@ -82,6 +99,7 @@
     var openingTime = (field(form, 'openingTime') || {}).value || '';
     var mapLink = (field(form, 'mapLink') || {}).value || '';
     var note = (field(form, 'note') || {}).value || '';
+    var description = (field(form, 'description') || {}).value || '';
     var sortOrder = parseInt((field(form, 'sortOrder') || {}).value, 10) || 0;
     var status = (field(form, 'status') || {}).value || 'not_confirmed';
     var showEl = field(form, 'showOnWebsite');
@@ -109,6 +127,8 @@
       time: openingTime.trim(),
       mapLink: mapLink.trim(),
       note: note.trim(),
+      description: description.trim(),
+      desc: description.trim(),
       sortOrder: sortOrder,
       status: status,
       showOnWebsite: showOnWebsite,
@@ -146,8 +166,12 @@
     if (field(form, 'openingTime')) field(form, 'openingTime').value = data.openingTime || data.time || '';
     if (field(form, 'mapLink')) field(form, 'mapLink').value = data.mapLink || '';
     if (field(form, 'note')) field(form, 'note').value = data.note || '';
+    if (field(form, 'description')) field(form, 'description').value = data.description || data.desc || '';
     if (field(form, 'sortOrder')) field(form, 'sortOrder').value = String(data.sortOrder || 0);
-    if (field(form, 'status')) field(form, 'status').value = data.status || 'not_confirmed';
+    if (field(form, 'status')) {
+      field(form, 'status').value = data.status || 'not_confirmed';
+      syncGoingSwitchUi(form, data.status || 'not_confirmed');
+    }
     if (field(form, 'showOnWebsite')) field(form, 'showOnWebsite').checked = data.showOnWebsite !== false;
     if (field(form, 'pinned')) field(form, 'pinned').checked = !!data.pinned;
     if (field(form, 'venueSearch')) {
@@ -196,6 +220,38 @@
       var id = form.getAttribute('data-location-id') || '';
       localStorage.removeItem(draftKey(mode, id));
     } catch (e) { /* ignore */ }
+  }
+
+  function syncGoingSwitchUi(form, status) {
+    if (!form) return;
+    var s = 'not_confirmed';
+    if (global.AYLEN_PICKUP && global.AYLEN_PICKUP.normalizePickupStatus) {
+      s = global.AYLEN_PICKUP.normalizePickupStatus({ status: status });
+    }
+    var hidden = field(form, 'status');
+    if (hidden) hidden.value = s;
+    form.querySelectorAll('[data-going-switch] [data-going-value]').forEach(function(btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-going-value') === s);
+    });
+  }
+
+  function wireGoingSwitch(form) {
+    if (!form) return;
+    var switchEl = form.querySelector('[data-going-switch]');
+    if (!switchEl) return;
+    switchEl.querySelectorAll('[data-going-value]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        syncGoingSwitchUi(form, btn.getAttribute('data-going-value'));
+        saveDraft(form);
+      });
+    });
+    var possibleBtn = form.querySelector('[data-mark-possible]');
+    if (possibleBtn) {
+      possibleBtn.addEventListener('click', function() {
+        syncGoingSwitchUi(form, 'possible');
+        saveDraft(form);
+      });
+    }
   }
 
   function showAlert(form, message, type) {
@@ -285,7 +341,7 @@
                 '</div>' +
                 '<div class="pickup-form-row">' +
                   '<div class="pickup-field" data-wrap="day">' +
-                    '<label class="pickup-label">Day <span class="req">*</span></label>' +
+                    '<label class="pickup-label">Working days <span class="req">*</span></label>' +
                     '<select class="pickup-select" data-field="day">' + dayOptionsHtml(loc.days || loc.day) + '</select>' +
                     '<div class="pickup-field-msg"></div>' +
                   '</div>' +
@@ -295,8 +351,21 @@
                     '<div class="pickup-field-msg"></div>' +
                   '</div>' +
                 '</div>' +
+                '<div class="pickup-field pickup-form-section--full" data-wrap="photo">' +
+                  '<h3>Photo</h3>' +
+                  '<div class="pickup-upload-zone" data-upload-zone>' +
+                    '<input type="file" data-field="photoFile" accept="image/*">' +
+                    '<div data-upload-label><i class="fas fa-cloud-upload-alt"></i> Drop car boot photo or click to upload (max 5 MB)</div>' +
+                    '<div class="pickup-upload-progress"><span></span></div>' +
+                    '<div class="pickup-upload-status" data-upload-status></div>' +
+                    '<div class="pickup-upload-preview' + (photoUrl ? ' is-visible' : '') + '" data-upload-preview>' +
+                      (photoUrl ? '<img src="' + esc(photoUrl) + '" alt="Location">' : '') +
+                    '</div>' +
+                  '</div>' +
+                  '<input type="hidden" data-field="existingPhotoUrl" value="' + esc(photoUrl) + '">' +
+                '</div>' +
               '</section>' +
-              '<button type="button" class="pickup-optional-toggle" data-optional-toggle>+ More options (address, weather, status, photo)</button>' +
+              '<button type="button" class="pickup-optional-toggle" data-optional-toggle>+ More options (address, description, weather, going)</button>' +
               '<div class="pickup-optional-panel' + optionalOpen + '" data-optional-panel>' +
                 '<section class="pickup-form-section">' +
                   '<h3>Address</h3>' +
@@ -306,6 +375,8 @@
                   '<input class="pickup-input" data-field="postcode" type="text" value="' + esc(loc.postcode || '') + '">' +
                   '<label class="pickup-label">City</label>' +
                   '<input class="pickup-input" data-field="city" type="text" value="' + esc(loc.city || '') + '">' +
+                  '<label class="pickup-label">Description</label>' +
+                  '<textarea class="pickup-input pickup-textarea" data-field="description" rows="3" placeholder="What buyers should know about this car boot">' + esc(loc.description || loc.desc || '') + '</textarea>' +
                   '<label class="pickup-label">Google Maps link</label>' +
                   '<input class="pickup-input" data-field="mapLink" type="url" value="' + esc(loc.mapLink || '') + '">' +
                 '</section>' +
@@ -313,9 +384,9 @@
                   '<h3>Weekend &amp; display</h3>' +
                   '<label class="pickup-label">Weather postcode</label>' +
                   '<input class="pickup-input" data-field="weatherPostcode" type="text" placeholder="Leave blank = venue postcode" value="' + esc((loc.weatherPostcode && loc.weatherPostcode !== loc.postcode) ? loc.weatherPostcode : '') + '">' +
-                  '<p class="pickup-hint">Used for forecast only. Empty = same as venue postcode.</p>' +
-                  '<label class="pickup-label">Weekend status</label>' +
-                  '<select class="pickup-select" data-field="status">' + buildStatusOptions(loc.status) + '</select>' +
+                  '<p class="pickup-hint">Forecast updates automatically from this postcode.</p>' +
+                  '<label class="pickup-label">Going this weekend</label>' +
+                  buildGoingToggleHtml(loc.status) +
                   '<label class="pickup-label">Customer note</label>' +
                   '<input class="pickup-input" data-field="note" type="text" value="' + esc(loc.note || '') + '">' +
                   '<label class="pickup-label">Sort order</label>' +
@@ -324,19 +395,6 @@
                     '<label><input type="checkbox" data-field="showOnWebsite"' + (loc.showOnWebsite !== false ? ' checked' : '') + '> Show on website</label>' +
                     '<label><input type="checkbox" data-field="pinned"' + (loc.pinned ? ' checked' : '') + '> Pin in status group</label>' +
                   '</div>' +
-                '</section>' +
-                '<section class="pickup-form-section pickup-form-section--full">' +
-                  '<h3>Photo</h3>' +
-                  '<div class="pickup-upload-zone" data-upload-zone>' +
-                    '<input type="file" data-field="photoFile" accept="image/*">' +
-                    '<div data-upload-label><i class="fas fa-cloud-upload-alt"></i> Drop image or click to upload (max 5 MB)</div>' +
-                    '<div class="pickup-upload-progress"><span></span></div>' +
-                    '<div class="pickup-upload-status" data-upload-status></div>' +
-                    '<div class="pickup-upload-preview' + (photoUrl ? ' is-visible' : '') + '" data-upload-preview>' +
-                      (photoUrl ? '<img src="' + esc(photoUrl) + '" alt="Location">' : '') +
-                    '</div>' +
-                  '</div>' +
-                  '<input type="hidden" data-field="existingPhotoUrl" value="' + esc(photoUrl) + '">' +
                 '</section>' +
               '</div>' +
             '</div>' +
@@ -799,6 +857,7 @@
 
     wireAutocomplete(form);
     wireUpload(form);
+    wireGoingSwitch(form);
 
     form.addEventListener('input', function() {
       clearTimeout(autosaveTimer);
@@ -815,7 +874,7 @@
         optional.classList.toggle('is-open');
         toggle.textContent = optional.classList.contains('is-open')
           ? '− Hide optional fields'
-          : '+ More options (address, weather, status, photo)';
+          : '+ More options (address, description, weather, going)';
       });
     }
 
@@ -932,8 +991,8 @@
             '</div>' +
             '<label class="pickup-label">Postcode</label>' +
             '<input class="pickup-input" data-field="postcode" value="' + esc(loc.postcode || '') + '">' +
-            '<label class="pickup-label">Weekend status</label>' +
-            '<select class="pickup-select" data-field="status">' + buildStatusOptions(loc.status) + '</select>' +
+            '<label class="pickup-label">Going</label>' +
+            buildGoingToggleHtml(loc.status) +
             '<input type="hidden" data-field="address" value="' + esc(loc.address || '') + '">' +
             '<input type="hidden" data-field="city" value="' + esc(loc.city || '') + '">' +
             '<input type="hidden" data-field="mapLink" value="' + esc(loc.mapLink || '') + '">' +
