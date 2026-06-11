@@ -7,6 +7,8 @@ import {
   handleNotifyRequest,
   handleAuctionBid,
   handleAuctionDeposit,
+  handleAuctionDepositConfig,
+  handleAuctionDepositVerify,
   handleAuctionBuyNow
 } from '../lib/server/spam-handlers.mjs';
 import { handleLoyalty } from '../lib/server/loyalty-handlers.mjs';
@@ -23,6 +25,8 @@ function resolveAction(req) {
   if (url.indexOf('spam-config') !== -1) return 'config';
   if (url.indexOf('notify-request') !== -1) return 'notify-request';
   if (url.indexOf('auction-bid') !== -1) return 'auction-bid';
+  if (url.indexOf('auction-deposit-verify') !== -1) return 'auction-deposit-verify';
+  if (url.indexOf('auction-deposit-config') !== -1) return 'auction-deposit-config';
   if (url.indexOf('auction-deposit') !== -1) return 'auction-deposit';
   if (url.indexOf('auction-buy-now') !== -1) return 'auction-buy-now';
   if (url.indexOf('loyalty') !== -1) return 'loyalty';
@@ -49,6 +53,12 @@ export default async function handler(req, res) {
       return handleAuctionBid(req, res);
     case 'auction-deposit':
       return handleAuctionDeposit(req, res);
+    case 'auction-deposit-verify':
+    case 'auctiondepositverify':
+      return handleAuctionDepositVerify(req, res);
+    case 'auction-deposit-config':
+    case 'auctiondepositconfig':
+      return handleAuctionDepositConfig(req, res);
     case 'auction-buy-now':
     case 'auction-buynow':
       return handleAuctionBuyNow(req, res);

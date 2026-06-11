@@ -1657,6 +1657,7 @@ document.addEventListener("DOMContentLoaded", function() {
   var runStorefrontBoot = async function() {
   await loadAllData();
   applyCardFromUrl();
+  await handleAuctionDepositReturn();
   prefetchLoyaltyPortalIfNeeded();
   if (window.AYLEN_VIP_SHOP_BRIDGE && window.AYLEN_VIP_SHOP_BRIDGE.apply) {
     await window.AYLEN_VIP_SHOP_BRIDGE.apply();
@@ -2014,6 +2015,95 @@ async function loginCard() {
   }
 
   notify('Discount validation unavailable. Please try again later.', 'error');
+}
+
+function parseAuctionHashParams() {
+  try {
+    var hash = String(window.location.hash || '').replace(/^#/, '');
+    var qIdx = hash.indexOf('?');
+    if (qIdx < 0) return {};
+    var params = new URLSearchParams(hash.slice(qIdx + 1));
+    var out = {};
+    params.forEach(function(v, k) { out[k] = v; });
+    return out;
+  } catch (e) {
+    return {};
+  }
+}
+
+function clearAuctionDepositHash() {
+  try {
+    var clean = (window.location.pathname || '/') + (window.location.search || '') + '#auctions';
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', clean);
+    }
+  } catch (e) {}
+}
+
+async function reloadAuctionCatalogAfterDeposit(auctionId) {
+  if (typeof loadAllData === 'function') {
+    try { await loadAllData(); } catch (e) {}
+  }
+  if (typeof renderAuctions === 'function') renderAuctions();
+  if (auctionId && typeof refreshAuctionModalContent === 'function') {
+    refreshAuctionModalContent(auctionId);
+  }
+}
+
+async function handleAuctionDepositReturn() {
+  var params = parseAuctionHashParams();
+  var depositState = params.auction_deposit;
+  if (!depositState) return;
+
+  clearAuctionDepositHash();
+
+  if (depositState === 'cancelled') {
+    if (typeof notify === 'function') notify('Deposit payment cancelled.', 'info');
+    return;
+  }
+
+  if (depositState !== 'success') return;
+
+  var sessionId = String(params.session_id || '').trim();
+  if (!sessionId) {
+    if (typeof notify === 'function') {
+      notify('Deposit received — refreshing auction status…', 'info');
+    }
+    await reloadAuctionCatalogAfterDeposit('');
+    return;
+  }
+
+  if (typeof notify === 'function') notify('Confirming deposit payment…', 'info');
+  try {
+    var response = await fetch('/api/auction-deposit-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionId })
+    });
+    var data = await response.json().catch(function() { return {}; });
+    if (response.ok && data.paid) {
+      if (typeof notify === 'function') {
+        notify(data.alreadyPaid
+          ? 'Deposit already confirmed — you can place bids.'
+          : '✓ Deposit paid! You can now place bids on this lot.', 'success');
+      }
+      await reloadAuctionCatalogAfterDeposit(data.auctionId || '');
+      return;
+    }
+    if (response.status === 402) {
+      if (typeof notify === 'function') {
+        notify('Payment is still processing — please wait a moment and refresh.', 'info');
+      }
+      return;
+    }
+    if (typeof notify === 'function') {
+      notify(data.error || 'Could not confirm deposit yet. Refresh in a moment.', 'warning');
+    }
+  } catch (e) {
+    if (typeof notify === 'function') {
+      notify('Network error confirming deposit. Please refresh shortly.', 'warning');
+    }
+  }
 }
 
 function applyCardFromUrl() {

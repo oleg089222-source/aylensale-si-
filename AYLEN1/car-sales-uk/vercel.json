@@ -231,6 +231,14 @@
       "dest": "/api/spam?action=auction-bid"
     },
     {
+      "src": "/api/auction-deposit-verify",
+      "dest": "/api/spam?action=auction-deposit-verify"
+    },
+    {
+      "src": "/api/auction-deposit-config",
+      "dest": "/api/spam?action=auction-deposit-config"
+    },
+    {
       "src": "/api/auction-deposit",
       "dest": "/api/spam?action=auction-deposit"
     },

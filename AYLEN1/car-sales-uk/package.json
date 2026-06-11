@@ -18,6 +18,8 @@
     "verify:storefront": "node scripts/verify-storefront.mjs",
     "verify:admin": "node scripts/verify-admin-auction.mjs",
     "verify:auction-full": "node scripts/verify-auction-full.mjs",
+    "verify:auction-deposit": "node scripts/verify-auction-deposit.mjs",
+    "verify:auction-deposit": "node scripts/verify-auction-deposit.mjs",
     "storage:resize": "node scripts/bulk-resize-storage.mjs --remote",
     "storage:resize:apply": "node scripts/bulk-resize-storage.mjs --remote --apply",
     "storage:resize:local": "node scripts/bulk-resize-storage.mjs",
