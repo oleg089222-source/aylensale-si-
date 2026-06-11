@@ -26,17 +26,30 @@ function stripeConfigured() {
   return !!String(process.env.STRIPE_SECRET_KEY || '').trim();
 }
 
+function webhookConfigured() {
+  return !!String(process.env.STRIPE_WEBHOOK_SECRET || '').trim();
+}
+
+function isTruthy(v) {
+  return v === true || v === 'true' || v === '1' || v === 'yes';
+}
+
 /** Resolve deposit-related flags from auctionSettings/global. */
 export function resolveDepositFlags(settings) {
   const s = settings || {};
   const amount = Number(s.depositAmountGbp || AUCTION_DEPOSIT_GBP);
+  const envEnforcement = isTruthy(process.env.AUCTION_DEPOSIT_ENFORCEMENT);
+  const envDepositsOff = process.env.AUCTION_DEPOSITS_ENABLED === 'false'
+    || process.env.AUCTION_DEPOSITS_ENABLED === '0';
+  const settingsEnforcement = s.depositEnforcement === true || s.depositEnforcementEnabled === true;
   return {
-    depositsEnabled: s.depositsEnabled !== false,
+    depositsEnabled: !envDepositsOff && s.depositsEnabled !== false,
     depositAmountGbp: Number.isFinite(amount) && amount > 0 ? amount : AUCTION_DEPOSIT_GBP,
-    depositEnforcement: s.depositEnforcement === true || s.depositEnforcementEnabled === true,
+    depositEnforcement: envEnforcement && settingsEnforcement,
     depositWebhookEnabled: s.depositWebhookEnabled !== false,
     depositVerifyFallbackEnabled: s.depositVerifyFallbackEnabled !== false,
-    stripeConfigured: stripeConfigured()
+    stripeConfigured: stripeConfigured(),
+    webhookConfigured: webhookConfigured()
   };
 }
 
@@ -49,8 +62,13 @@ export function publicDepositConfig(settings) {
     depositsEnabled: flags.depositsEnabled,
     depositAmountGbp: flags.depositAmountGbp,
     depositEnforcement: flags.depositEnforcement,
+    depositWebhookEnabled: flags.depositWebhookEnabled,
     depositVerifyFallbackEnabled: flags.depositVerifyFallbackEnabled,
-    stripeConfigured: flags.stripeConfigured
+    stripeConfigured: flags.stripeConfigured,
+    webhookConfigured: flags.webhookConfigured,
+    checkoutPath: '/api/auction-deposit',
+    verifyPath: '/api/auction-deposit-verify',
+    webhookPath: '/api/stripe-webhook'
   };
 }
 
