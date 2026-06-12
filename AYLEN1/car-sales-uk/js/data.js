@@ -401,7 +401,9 @@ async function loadAllData() {
     }
 
     notifyRequests = [];
-    await finalizeEndedAuctions();
+    if (canClientFinalizeAuctions()) {
+      await finalizeEndedAuctions();
+    }
 
     console.log('✓ Data ready:', products.length, 'products,', auctions.length, 'auctions,', locations.length, 'locations');
     return true;
@@ -834,12 +836,17 @@ async function placeBid(auctionId, bidAmount, bidderInfo, meta) {
   }
 }
 
+function canClientFinalizeAuctions() {
+  return !!(window.FBDB && window.FBDB.isAdmin && window.FBDB.isAdmin());
+}
+
 async function finalizeAuction(auctionId) {
   var auction = auctions.find(function(a) { return sameId(a.id, auctionId); });
   if (!auction) return false;
-  if (!window.FBDB || !window.FBDB.isAdmin || !window.FBDB.isAdmin()) return false;
+  if (!canClientFinalizeAuctions()) return false;
   if (new Date(auction.endTime).getTime() > Date.now()) return false;
   if (auction.status === 'completed' || auction.status === 'order_sent') return true;
+  if (auction.status === 'winner_pending' || auction.status === 'ended' || auction.finalizedAt) return true;
 
   var winner = getHighestBid(auction);
   auction.status = winner ? 'winner_pending' : 'ended';
@@ -857,6 +864,7 @@ async function finalizeAuction(auctionId) {
 }
 
 async function finalizeEndedAuctions() {
+  if (!canClientFinalizeAuctions()) return;
   for (var i = 0; i < auctions.length; i++) {
     var auction = auctions[i];
     if (new Date(auction.endTime).getTime() <= Date.now() && getAuctionStatus(auction) === 'ended' && !auction.finalizedAt) {

@@ -305,7 +305,7 @@ export async function relistAuction(db, auctionId, auction, settings, reason) {
   return { relisted: true, endTime: endTime };
 }
 
-export async function finalizeAuctionServer(db, auctionId, auction, settings) {
+function buildFinalizePatch(auction, settings) {
   const bids = Array.isArray(auction.bids) ? auction.bids : [];
   const real = bids.filter(function(b) { return !isBotBid(b); });
   let winner = real.length
@@ -314,24 +314,23 @@ export async function finalizeAuctionServer(db, auctionId, auction, settings) {
     }, real[0])
     : null;
 
+  const now = new Date().toISOString();
   const patch = {
-    finalizedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    finalizedAt: now,
+    updatedAt: now
   };
 
-  if (winner) {
-    const s = settings || await getAuctionSettings(db);
-    const { resolveDepositFlags, hasPaidDeposit } = await import('./auction-deposit.mjs');
-    const depositFlags = resolveDepositFlags(s);
-    if (depositFlags.depositEnforcement) {
+  if (winner && settings) {
+    const depositFlags = settings.__depositFlags;
+    if (depositFlags && depositFlags.depositEnforcement) {
       const wKey = winner.bidderKey || phoneKey(winner.bidderPhone);
       const deposits = Array.isArray(auction.deposits) ? auction.deposits : [];
-      if (!hasPaidDeposit(deposits, wKey)) {
+      if (!settings.__hasPaidDeposit(deposits, wKey)) {
         const blockedWinner = winner;
         winner = null;
         patch.fraudLog = Array.isArray(auction.fraudLog) ? auction.fraudLog.slice(0, 19) : [];
         patch.fraudLog.unshift({
-          at: new Date().toISOString(),
+          at: now,
           code: 'WINNER_NO_DEPOSIT',
           phoneKey: wKey,
           name: blockedWinner.bidderName || blockedWinner.bidder || 'Bidder'
@@ -357,66 +356,142 @@ export async function finalizeAuctionServer(db, auctionId, auction, settings) {
     patch.winner = null;
   }
 
-  await db.collection('auctions').doc(String(auctionId)).set(patch, { merge: true });
-  if (winner) {
-    await recordAuctionOutcomes(db, auctionId, auction, patch.winner);
+  return { patch: patch, winnerRecord: patch.winner || null };
+}
+
+export async function finalizeAuctionServer(db, auctionId, auction, settings) {
+  const s = settings || await getAuctionSettings(db);
+  const depositMod = await import('./auction-deposit.mjs');
+  const enriched = Object.assign({}, s, {
+    __depositFlags: depositMod.resolveDepositFlags(s),
+    __hasPaidDeposit: depositMod.hasPaidDeposit
+  });
+  const built = buildFinalizePatch(auction, enriched);
+  await db.collection('auctions').doc(String(auctionId)).set(built.patch, { merge: true });
+  if (built.winnerRecord) {
+    await recordAuctionOutcomes(db, auctionId, auction, built.winnerRecord);
   }
-  return { finalized: true, winner: patch.winner, status: patch.status };
+  return { finalized: true, winner: built.winnerRecord, status: built.patch.status };
 }
 
 export async function processEndedAuction(db, auctionId, auction, settings) {
-  const endMs = Date.parse(auction.endTime || 0);
-  if (!endMs || endMs > Date.now()) return null;
-  const status = String(auction.status || 'active');
-  if (status === 'completed' || status === 'order_sent' || status === 'winner_pending') {
-    return { skipped: true, reason: status };
+  const ref = db.collection('auctions').doc(String(auctionId));
+  const depositMod = await import('./auction-deposit.mjs');
+  const enrichedSettings = Object.assign({}, settings, {
+    __depositFlags: depositMod.resolveDepositFlags(settings),
+    __hasPaidDeposit: depositMod.hasPaidDeposit
+  });
+
+  const txResult = await db.runTransaction(async function(tx) {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { skipped: true, reason: 'not_found' };
+    const data = Object.assign({ id: auctionId }, snap.data() || {});
+
+    const endMs = Date.parse(data.endTime || 0);
+    if (!endMs || endMs > Date.now()) return { skipped: true, reason: 'not_ended' };
+
+    const status = String(data.status || 'active');
+    if (status !== 'active') return { skipped: true, reason: status };
+    if (data.finalizedAt) return { skipped: true, reason: 'already_finalized' };
+
+    const bids = Array.isArray(data.bids) ? data.bids : [];
+    const realCount = countRealBids(bids);
+
+    if (realCount === 0 && settings.autoRelistZeroBids !== false) {
+      const hours = Number(settings.autoRelistHours || 24);
+      const endTime = new Date(Date.now() + hours * 3600000).toISOString();
+      const start = Number(data.startingPrice || data.startPrice || 0);
+      tx.set(ref, {
+        status: 'active',
+        endTime: endTime,
+        currentPrice: start,
+        bids: [],
+        bidsCount: 0,
+        winner: null,
+        winnerOrder: null,
+        finalizedAt: null,
+        relistCount: Number(data.relistCount || 0) + 1,
+        lastRelistAt: new Date().toISOString(),
+        lastRelistReason: 'zero_real_bids',
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      return { relisted: true, endTime: endTime, auction: data };
+    }
+
+    const built = buildFinalizePatch(data, enrichedSettings);
+    tx.set(ref, built.patch, { merge: true });
+    return {
+      finalized: true,
+      winner: built.winnerRecord,
+      status: built.patch.status,
+      auction: data,
+      winnerRecord: built.winnerRecord
+    };
+  });
+
+  if (txResult && txResult.finalized && txResult.winnerRecord) {
+    await recordAuctionOutcomes(db, auctionId, txResult.auction, txResult.winnerRecord);
   }
 
-  const bids = Array.isArray(auction.bids) ? auction.bids : [];
-  const realCount = countRealBids(bids);
-
-  if (realCount === 0 && settings.autoRelistZeroBids !== false) {
-    return relistAuction(db, auctionId, auction, settings, 'zero_real_bids');
-  }
-
-  return finalizeAuctionServer(db, auctionId, auction, settings);
+  return txResult;
 }
 
 export async function runAuctionTick(db) {
   const settings = await getAuctionSettings(db);
   const snap = await db.collection('auctions').get();
-  const summary = { botBids: 0, finalized: 0, relisted: 0, processed: 0 };
+  const summary = {
+    botBids: 0,
+    finalized: 0,
+    relisted: 0,
+    processed: 0,
+    skipped: 0,
+    errors: [],
+    tickedAt: new Date().toISOString()
+  };
 
   for (const doc of snap.docs) {
-    const auction = Object.assign({ id: doc.id }, doc.data() || {});
-    const ended = Date.parse(auction.endTime || 0) <= Date.now();
-    const status = String(auction.status || 'active');
+    try {
+      const auction = Object.assign({ id: doc.id }, doc.data() || {});
+      const ended = Date.parse(auction.endTime || 0) <= Date.now();
+      const status = String(auction.status || 'active');
 
-    if (ended && status === 'active') {
-      const r = await processEndedAuction(db, doc.id, auction, settings);
-      summary.processed += 1;
-      if (r && r.relisted) summary.relisted += 1;
-      if (r && r.finalized) summary.finalized += 1;
-      if (r && (r.relisted || r.finalized)) {
-        const notifyMod = await import('./auction-notify.mjs');
-        await notifyMod.notifyAdminAuctionEnded(auction, r).catch(function() {});
+      if (ended && status === 'active') {
+        const r = await processEndedAuction(db, doc.id, auction, settings);
+        summary.processed += 1;
+        if (r && r.skipped) summary.skipped += 1;
+        if (r && r.relisted) summary.relisted += 1;
+        if (r && r.finalized) summary.finalized += 1;
+        if (r && (r.relisted || r.finalized)) {
+          const notifyMod = await import('./auction-notify.mjs');
+          await notifyMod.notifyAdminAuctionEnded(auction, r).catch(function() {});
+        }
+        continue;
       }
-      continue;
-    }
 
-    if (!ended && status === 'active' && botAllowedForAuction(auction, settings)) {
-      const maybe = Math.random() < 0.35;
-      if (maybe) {
-        const placed = await placeBotBid(db, doc.id, auction, settings);
-        if (placed) summary.botBids += 1;
+      if (!ended && status === 'active' && botAllowedForAuction(auction, settings)) {
+        const maybe = Math.random() < 0.35;
+        if (maybe) {
+          const placed = await placeBotBid(db, doc.id, auction, settings);
+          if (placed) summary.botBids += 1;
+        }
       }
+    } catch (err) {
+      summary.errors.push({ id: doc.id, error: String(err.message || err) });
+      console.error('[auction-tick]', doc.id, err);
     }
   }
 
-  return { ok: true, summary: summary, settings: {
-    siteRevealed: settings.siteRevealed,
-    botGlobalEnabled: settings.botGlobalEnabled
-  }};
+  return {
+    ok: true,
+    source: 'server_tick',
+    summary: summary,
+    settings: {
+      siteRevealed: settings.siteRevealed,
+      botGlobalEnabled: settings.botGlobalEnabled,
+      fraudEnforceMode: settings.fraudEnforceMode || 'log',
+      depositEnforcement: settings.depositEnforcement === true
+    }
+  };
 }
 
 export async function getAdminAuctionDashboard(db) {

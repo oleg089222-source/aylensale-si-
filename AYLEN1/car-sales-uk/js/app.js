@@ -4878,7 +4878,8 @@ function startAuctionTimers() {
         var aid = String(a.id);
         if (!window._auctionEndedHandled[aid]) {
           window._auctionEndedHandled[aid] = true;
-          if (!a.finalizedAt && getAuctionStatus(a) === 'ended') {
+          var adminFinalize = window.FBDB && window.FBDB.isAdmin && window.FBDB.isAdmin();
+          if (adminFinalize && !a.finalizedAt && getAuctionStatus(a) === 'ended') {
             (function(auctionId) {
               finalizeAuction(auctionId).then(function() {
                 renderAuctions();
