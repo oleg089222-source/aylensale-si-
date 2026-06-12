@@ -47,7 +47,11 @@ export async function getAuctionSettings(db) {
     await ref.set(defaults);
     return defaults;
   }
-  return Object.assign(defaultSettings(), snap.data() || {});
+  const merged = Object.assign(defaultSettings(), snap.data() || {});
+  if (process.env.AUCTION_WINNER_PAYMENT !== 'false' && process.env.AUCTION_WINNER_PAYMENT !== '0') {
+    merged.winnerPaymentEnabled = true;
+  }
+  return merged;
 }
 
 export async function saveAuctionSettings(db, patch) {

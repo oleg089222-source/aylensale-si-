@@ -158,6 +158,10 @@ export async function handleAuctionEnginePost(req, res) {
       }
       if (body.autoRelistZeroBids !== undefined) patch.autoRelistZeroBids = !!body.autoRelistZeroBids;
       if (body.antiSnipeEnabled !== undefined) patch.antiSnipeEnabled = !!body.antiSnipeEnabled;
+      if (body.winnerPaymentEnabled !== undefined) patch.winnerPaymentEnabled = !!body.winnerPaymentEnabled;
+      if (body.winnerPaymentHours !== undefined) {
+        patch.winnerPaymentHours = Math.max(12, Math.min(168, Number(body.winnerPaymentHours) || 48));
+      }
       if (body.autoRelistHours !== undefined) {
         patch.autoRelistHours = Math.max(1, Math.min(168, Number(body.autoRelistHours) || 24));
       }
