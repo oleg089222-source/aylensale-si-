@@ -1,0 +1,146 @@
+rules_version = '2';
+// Deploy: Firebase Console → Firestore → Rules → paste & Publish
+// Or: firebase deploy --only firestore:rules (if firebase.json configured)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdminEmail() {
+      return request.auth != null && (
+        request.auth.token.email == 'oleg.yuryevich@gmail.com' ||
+        request.auth.token.email == 'admin@aylensale.com'
+      );
+    }
+
+    function isAdmin() {
+      return isAdminEmail() || (request.auth != null && request.auth.token.admin == true);
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // View counts: public read, writes only via /api/record-view (Admin SDK + rate limit).
+    match /productViewStats/{statId} {
+      allow read: if true;
+      allow create, update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /auctionViewStats/{statId} {
+      allow read: if true;
+      allow create, update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /auctions/{auctionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /locations/{locationId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /presenceSessions/{sessionId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /activityFeed/{activityId} {
+      allow read: if true;
+      allow create: if false;
+      allow update, delete: if isAdmin();
+    }
+
+    match /notifyRequests/{requestId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /spamGuard/{docId} {
+      allow read, write: if false;
+    }
+
+    match /privateAdmin/{docId} {
+      allow read, write: if false;
+    }
+
+    match /priceListItems/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /listingPolicies/{policyId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /cards/{cardId} {
+      allow read: if false;
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin();
+      allow create: if false;
+      allow update, delete: if isAdmin();
+    }
+
+    match /stockReservations/{id} {
+      allow read, write: if false;
+    }
+
+    match /siteSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /vipSubscribers/{subscriberId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /vipStockItems/{itemId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /vipOrders/{orderId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /vipMagicLinks/{linkId} {
+      allow read, write: if false;
+    }
+
+    match /loyaltyUpgradeRequests/{requestId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /auctionSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /auctionProfiles/{profileId} {
+      allow read, write: if false;
+    }
+
+    match /auctionBlacklist/{phoneKey} {
+      allow read, write: if false;
+    }
+
+    match /auctionFraudLog/{logId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -28,6 +28,8 @@ import {
   requirePaidDepositForBid,
   resolveDepositFlags
 } from './auction-deposit.mjs';
+import { validateBidFields, validateBidAgainstAuction, isUkPhone } from './auction-validation.mjs';
+import { evaluateBidFraud, fraudBlockResponse } from './auction-fraud.mjs';
 
 function firestoreDocId(prefix, id) {
   if (prefix === 'auction') return auctionFirestoreDocId(id);
@@ -144,41 +146,60 @@ export async function handleAuctionBid(req, res) {
       return res.status(503).json({ error: 'Auction bidding unavailable' });
     }
 
+    const db = getFirestoreAdmin();
+    const settings = await getAuctionSettings(db);
+
     const guard = await guardPublicForm(req, {
       scope: 'auction-bid',
       maxAttempts: 12,
       windowMs: 3600000,
       minimumMs: 1000,
       rateMessage: 'Too many bids. Please wait before bidding again.',
-      requireTurnstile: false
+      requireTurnstile: settings.turnstileOnBid === true
     });
     if (!guard.ok) {
       return res.status(guard.status).json({ error: guard.error });
     }
 
     const { auctionId, bidAmount, name, phone, contact, cardCode } = req.body || {};
-    const safeName = cleanString(name, 100);
-    const safePhone = cleanString(phone, 30);
-    const safeContact = cleanString(contact, 200);
-    const amount = Number(bidAmount);
-
-    if (!auctionId || !Number.isFinite(amount) || amount <= 0) {
+    if (!auctionId) {
       return res.status(400).json({ error: 'Invalid auction or bid amount' });
     }
-    if (!safeName || safeName.length < 2) {
-      return res.status(400).json({ error: 'Name is required' });
-    }
-    if (safePhone.replace(/\D/g, '').length < 8) {
-      return res.status(400).json({ error: 'Valid phone is required' });
-    }
-    if (detectBot(safeName, safePhone, '', safeContact)) {
-      return res.status(400).json({ error: 'Submission blocked.' });
+
+    let fields;
+    try {
+      fields = validateBidFields({ name, phone, contact, bidAmount });
+    } catch (validationErr) {
+      return res.status(400).json({
+        error: validationErr.message,
+        code: validationErr.code || 'VALIDATION_FAILED'
+      });
     }
 
-    const db = getFirestoreAdmin();
+    const safeName = fields.safeName;
+    const safePhone = fields.safePhone;
+    const safeContact = fields.safeContact;
+    const amount = fields.amount;
+    const bidderKey = phoneKey(safePhone);
+
     const docId = firestoreDocId('auction', auctionId);
     const ref = db.collection('auctions').doc(docId);
-    const settings = await getAuctionSettings(db);
+
+    const preSnap = await ref.get();
+    const preData = preSnap.exists ? preSnap.data() || {} : {};
+    const preBids = Array.isArray(preData.bids) ? preData.bids : [];
+
+    const fraud = await evaluateBidFraud(db, {
+      settings: settings,
+      phoneKey: bidderKey,
+      bidderName: safeName,
+      bids: preBids,
+      auctionDocId: docId
+    });
+    if (fraud.blocked) {
+      const body = fraudBlockResponse(fraud);
+      return res.status(403).json(body);
+    }
 
     const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
@@ -196,14 +217,21 @@ export async function handleAuctionBid(req, res) {
       }
 
       const depositFlags = resolveDepositFlags(settings);
-      requirePaidDepositForBid(data.deposits, phoneKey(safePhone), depositFlags);
+      requirePaidDepositForBid(data.deposits, bidderKey, depositFlags);
 
       const currentPrice = Number(data.currentPrice || data.startingPrice || data.startPrice || 0);
-      if (amount <= currentPrice) {
-        throw new Error('Bid must be higher than current price (£' + currentPrice.toFixed(2) + ')');
-      }
-
       const bids = Array.isArray(data.bids) ? data.bids.slice() : [];
+
+      validateBidAgainstAuction({
+        name: safeName,
+        phone: safePhone,
+        contact: safeContact,
+        bidAmount: amount,
+        currentPrice: currentPrice,
+        bids: bids,
+        bidderKey: bidderKey
+      });
+
       const realOnly = bids.filter(function(b) {
         return !(b && (b.isBot || b.source === 'bot'));
       });
@@ -221,7 +249,7 @@ export async function handleAuctionBid(req, res) {
         bidderName: safeName,
         bidderPhone: safePhone,
         bidderContact: safeContact,
-        bidderKey: phoneKey(safePhone),
+        bidderKey: bidderKey,
         cardCode: cleanString(cardCode, 40).toUpperCase() || '',
         source: 'real',
         isBot: false,
@@ -293,6 +321,9 @@ export async function handleAuctionBid(req, res) {
         depositAmountGbp: Number(err.depositAmountGbp || 0) || undefined
       });
     }
+    if (err.code) {
+      return res.status(400).json({ error: msg, code: err.code });
+    }
     if (msg.includes('not found') || msg.includes('ended') || msg.includes('closed') || msg.includes('higher')) {
       return res.status(400).json({ error: msg });
     }
@@ -330,7 +361,9 @@ export async function handleAuctionDeposit(req, res) {
     const safeEmail = cleanString(email, 120);
     if (!auctionId) return res.status(400).json({ error: 'Auction required' });
     if (!safeName || safeName.length < 2) return res.status(400).json({ error: 'Name is required' });
-    if (safePhone.replace(/\D/g, '').length < 8) return res.status(400).json({ error: 'Valid phone is required' });
+    if (!isUkPhone(safePhone)) {
+      return res.status(400).json({ error: 'Enter a valid UK phone number (+44 or 07…)', code: 'INVALID_UK_PHONE' });
+    }
 
     const db = getFirestoreAdmin();
     const settings = await getAuctionSettings(db);
@@ -515,7 +548,9 @@ export async function handleAuctionBuyNow(req, res) {
     const safeContact = cleanString(contact, 200);
     if (!auctionId) return res.status(400).json({ error: 'Auction required' });
     if (!safeName || safeName.length < 2) return res.status(400).json({ error: 'Name is required' });
-    if (safePhone.replace(/\D/g, '').length < 8) return res.status(400).json({ error: 'Valid phone is required' });
+    if (!isUkPhone(safePhone)) {
+      return res.status(400).json({ error: 'Enter a valid UK phone number (+44 or 07…)', code: 'INVALID_UK_PHONE' });
+    }
     if (detectBot(safeName, safePhone, '', safeContact)) {
       return res.status(400).json({ error: 'Submission blocked.' });
     }

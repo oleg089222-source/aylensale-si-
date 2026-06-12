@@ -21,6 +21,7 @@
     "verify:auction-deposit": "node scripts/verify-auction-deposit.mjs",
     "verify:auction-deposit-enforcement": "node scripts/verify-auction-deposit-enforcement.mjs",
     "verify:staging-deposit-flow": "node scripts/verify-staging-deposit-flow.mjs",
+    "verify:auction-validation": "node scripts/verify-auction-validation.mjs",
     "storage:resize": "node scripts/bulk-resize-storage.mjs --remote",
     "storage:resize:apply": "node scripts/bulk-resize-storage.mjs --remote --apply",
     "storage:resize:local": "node scripts/bulk-resize-storage.mjs",

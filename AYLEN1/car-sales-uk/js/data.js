@@ -734,7 +734,9 @@ function getAuctionBids(auction) {
 }
 
 function getHighestBid(auction) {
-  var bids = getAuctionBids(auction);
+  var bids = getAuctionBids(auction).filter(function(b) {
+    return !(b && (b.isBot || b.source === 'bot'));
+  });
   if (!bids.length) return null;
   return bids.reduce(function(best, bid) {
     return Number(bid.amount || 0) > Number(best.amount || 0) ? bid : best;

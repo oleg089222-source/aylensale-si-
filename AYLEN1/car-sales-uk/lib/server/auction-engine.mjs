@@ -305,10 +305,10 @@ export async function relistAuction(db, auctionId, auction, settings, reason) {
   return { relisted: true, endTime: endTime };
 }
 
-export async function finalizeAuctionServer(db, auctionId, auction) {
+export async function finalizeAuctionServer(db, auctionId, auction, settings) {
   const bids = Array.isArray(auction.bids) ? auction.bids : [];
   const real = bids.filter(function(b) { return !isBotBid(b); });
-  const winner = real.length
+  let winner = real.length
     ? real.reduce(function(best, b) {
       return Number(b.amount || 0) > Number(best.amount || 0) ? b : best;
     }, real[0])
@@ -318,6 +318,27 @@ export async function finalizeAuctionServer(db, auctionId, auction) {
     finalizedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
+
+  if (winner) {
+    const s = settings || await getAuctionSettings(db);
+    const { resolveDepositFlags, hasPaidDeposit } = await import('./auction-deposit.mjs');
+    const depositFlags = resolveDepositFlags(s);
+    if (depositFlags.depositEnforcement) {
+      const wKey = winner.bidderKey || phoneKey(winner.bidderPhone);
+      const deposits = Array.isArray(auction.deposits) ? auction.deposits : [];
+      if (!hasPaidDeposit(deposits, wKey)) {
+        const blockedWinner = winner;
+        winner = null;
+        patch.fraudLog = Array.isArray(auction.fraudLog) ? auction.fraudLog.slice(0, 19) : [];
+        patch.fraudLog.unshift({
+          at: new Date().toISOString(),
+          code: 'WINNER_NO_DEPOSIT',
+          phoneKey: wKey,
+          name: blockedWinner.bidderName || blockedWinner.bidder || 'Bidder'
+        });
+      }
+    }
+  }
 
   if (winner) {
     patch.status = 'winner_pending';
@@ -358,7 +379,7 @@ export async function processEndedAuction(db, auctionId, auction, settings) {
     return relistAuction(db, auctionId, auction, settings, 'zero_real_bids');
   }
 
-  return finalizeAuctionServer(db, auctionId, auction);
+  return finalizeAuctionServer(db, auctionId, auction, settings);
 }
 
 export async function runAuctionTick(db) {
@@ -465,7 +486,7 @@ export async function getAuctionDetail(db, auctionId) {
   });
   return {
     ok: true,
-    auction: Object.assign({}, raw, { id: snap.id }),
+    auction: Object.assign({}, raw, { id: snap.id, fraudLog: Array.isArray(raw.fraudLog) ? raw.fraudLog : [] }),
     analysis: analysis,
     bids: bids.map(function(b) {
       return {

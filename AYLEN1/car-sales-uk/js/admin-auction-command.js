@@ -141,6 +141,10 @@
       '<label class="aac-field">Default bot max £' +
       '<input type="number" id="aacBotMaxTotal" min="0" step="1" value="' + Number(settings.defaultBotMaxTotal || 150) + '">' +
       '<span class="aac-hint">Bots stop bidding above this price unless you raise it per lot.</span></label>' +
+      '<div class="aac-fraud-flags">' +
+      '<span class="aac-hint"><i class="fas fa-shield-halved"></i> Fraud mode: <b>' + esc(String(settings.fraudEnforceMode || 'log')) + '</b> · Turnstile on bid: <b>' +
+      (settings.turnstileOnBid === true ? 'on' : 'off') + '</b></span>' +
+      '</div>' +
       '</div>' +
       '<div class="aac-settings-actions">' +
       '<button type="button" class="aylen-btn" id="aacSaveSettingsBtn">Save settings</button>' +
@@ -205,10 +209,31 @@
     }).join('');
   }
 
+  function fraudLogHtml(log) {
+    log = log || [];
+    if (!log.length) return '';
+    return (
+      '<div class="aac-fraud-log">' +
+      '<h4><i class="fas fa-triangle-exclamation"></i> Fraud signals</h4>' +
+      log.slice(0, 8).map(function(entry) {
+        var flags = (entry.flags || []).join(', ') || entry.code || 'flag';
+        return (
+          '<div class="aac-fraud-row">' +
+          '<time>' + esc(new Date(entry.at || 0).toLocaleString('en-GB')) + '</time> ' +
+          '<span>' + esc(flags) + '</span>' +
+          (entry.name ? ' <small>' + esc(entry.name) + '</small>' : '') +
+          '</div>'
+        );
+      }).join('') +
+      '</div>'
+    );
+  }
+
   function detailPanel(detail) {
     if (!detail || !detail.ok) return '<p class="aac-empty">Select an auction</p>';
     var a = detail.analysis || {};
     var bids = detail.bids || [];
+    var fraudLog = (detail.auction && detail.auction.fraudLog) || [];
     var maxAmt = bids.reduce(function(m, b) { return Math.max(m, Number(b.amount || 0)); }, 1);
     return (
       '<div class="aac-detail">' +
@@ -237,6 +262,7 @@
       }).join('') +
       (bids.length ? '' : '<p class="aac-hint">No bids yet — bots may place first when enabled.</p>') +
       '</div>' +
+      fraudLogHtml(fraudLog) +
       '<div class="aac-detail-actions">' +
       '<button type="button" class="aylen-btn aylen-btn-quiet aylen-btn-sm" onclick="AyelenAdminAuctions.openEditor(' + jsArg(a.id) + ')">Full editor</button>' +
       '</div></div>'
