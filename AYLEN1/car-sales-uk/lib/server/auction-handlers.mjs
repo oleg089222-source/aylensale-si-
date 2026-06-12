@@ -11,6 +11,7 @@ import {
   getBidderProfile,
   phoneKey,
   runAuctionTick,
+  runAuctionFinalizeTick,
   saveAuctionSettings,
   updateAuctionBotSettings,
   upsertBidderProfile
@@ -61,11 +62,14 @@ export async function handleAuctionEngineGet(req, res) {
     const db = getFirestoreAdmin();
 
     if (sub === 'tick') {
-      if (!cronAuthorized(req)) {
+      const isCron = cronAuthorized(req);
+      if (!isCron) {
         const admin = await requireAdmin(req);
         if (!admin) return res.status(401).json({ error: 'Unauthorized' });
       }
-      const result = await runAuctionTick(db);
+      const result = isCron
+        ? await runAuctionFinalizeTick(db)
+        : await runAuctionTick(db);
       return res.status(200).json(result);
     }
 

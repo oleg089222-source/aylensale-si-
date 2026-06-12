@@ -48,6 +48,9 @@ const vercelJson = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
 const crons = vercelJson.crons || [];
 record('vercel-cron-config', crons.some(function(c) { return c.path === '/api/auction-tick'; }),
   crons.map(function(c) { return c.path + ' ' + c.schedule; }).join(', '));
+record('vercel-cron-hobby-daily', crons.every(function(c) {
+  return c.schedule !== '* * * * *' && c.schedule !== '*/1 * * * *';
+}), 'Hobby plan: daily cron + catalog finalize tick');
 
 const coreBundle = readFileSync(join(root, 'js/storefront-core.bundle.js'), 'utf8');
 record('client-finalize-gated', coreBundle.includes('canClientFinalizeAuctions'),
@@ -65,7 +68,8 @@ const cronRes = await fetch(BASE + '/api/auction-tick', {
 const cronData = await cronRes.json().catch(function() { return {}; });
 record('cron-vercel-header-200', cronRes.status === 200 && cronData.ok === true,
   JSON.stringify(cronData.summary || {}).slice(0, 120));
-record('cron-source-server', cronData.source === 'server_tick', cronData.source || '');
+record('cron-finalize-only', cronData.mode === 'finalize_only', cronData.mode || cronData.source || '');
+record('cron-source-server', cronData.source === 'server_finalize_tick', cronData.source || '');
 
 const secret = String(process.env.CRON_SECRET || process.env.AUCTION_CRON_SECRET || '').trim();
 if (secret) {
@@ -89,7 +93,8 @@ try {
   });
   const adminData = await adminTick.json().catch(function() { return {}; });
   record('admin-manual-tick', adminTick.status === 200 && adminData.ok === true,
-    JSON.stringify(adminData.summary || {}).slice(0, 100));
+    'mode=' + (adminData.mode || '') + ' ' + JSON.stringify(adminData.summary || {}).slice(0, 80));
+  record('admin-tick-includes-bots', adminData.mode === 'full', adminData.mode || '');
 
   const dash = await fetch(BASE + '/api/spam?action=auction-engine&sub=dashboard', {
     headers: { Authorization: 'Bearer ' + token }

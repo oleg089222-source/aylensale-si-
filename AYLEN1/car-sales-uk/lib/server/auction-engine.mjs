@@ -436,11 +436,10 @@ export async function processEndedAuction(db, auctionId, auction, settings) {
   return txResult;
 }
 
-export async function runAuctionTick(db) {
+export async function runAuctionFinalizeTick(db) {
   const settings = await getAuctionSettings(db);
   const snap = await db.collection('auctions').get();
   const summary = {
-    botBids: 0,
     finalized: 0,
     relisted: 0,
     processed: 0,
@@ -454,35 +453,62 @@ export async function runAuctionTick(db) {
       const auction = Object.assign({ id: doc.id }, doc.data() || {});
       const ended = Date.parse(auction.endTime || 0) <= Date.now();
       const status = String(auction.status || 'active');
+      if (!ended || status !== 'active') continue;
 
-      if (ended && status === 'active') {
-        const r = await processEndedAuction(db, doc.id, auction, settings);
-        summary.processed += 1;
-        if (r && r.skipped) summary.skipped += 1;
-        if (r && r.relisted) summary.relisted += 1;
-        if (r && r.finalized) summary.finalized += 1;
-        if (r && (r.relisted || r.finalized)) {
-          const notifyMod = await import('./auction-notify.mjs');
-          await notifyMod.notifyAdminAuctionEnded(auction, r).catch(function() {});
-        }
-        continue;
-      }
-
-      if (!ended && status === 'active' && botAllowedForAuction(auction, settings)) {
-        const maybe = Math.random() < 0.35;
-        if (maybe) {
-          const placed = await placeBotBid(db, doc.id, auction, settings);
-          if (placed) summary.botBids += 1;
-        }
+      const r = await processEndedAuction(db, doc.id, auction, settings);
+      summary.processed += 1;
+      if (r && r.skipped) summary.skipped += 1;
+      if (r && r.relisted) summary.relisted += 1;
+      if (r && r.finalized) summary.finalized += 1;
+      if (r && (r.relisted || r.finalized)) {
+        const notifyMod = await import('./auction-notify.mjs');
+        await notifyMod.notifyAdminAuctionEnded(auction, r).catch(function() {});
       }
     } catch (err) {
       summary.errors.push({ id: doc.id, error: String(err.message || err) });
-      console.error('[auction-tick]', doc.id, err);
+      console.error('[auction-finalize-tick]', doc.id, err);
     }
   }
 
   return {
     ok: true,
+    mode: 'finalize_only',
+    source: 'server_finalize_tick',
+    summary: summary,
+    settings: {
+      fraudEnforceMode: settings.fraudEnforceMode || 'log',
+      depositEnforcement: settings.depositEnforcement === true
+    }
+  };
+}
+
+export async function runAuctionTick(db) {
+  const settings = await getAuctionSettings(db);
+  const finalizeResult = await runAuctionFinalizeTick(db);
+  const summary = Object.assign({ botBids: 0 }, finalizeResult.summary || {});
+
+  const snap = await db.collection('auctions').get();
+  for (const doc of snap.docs) {
+    try {
+      const auction = Object.assign({ id: doc.id }, doc.data() || {});
+      const ended = Date.parse(auction.endTime || 0) <= Date.now();
+      const status = String(auction.status || 'active');
+      if (ended || status !== 'active' || !botAllowedForAuction(auction, settings)) continue;
+      const maybe = Math.random() < 0.35;
+      if (maybe) {
+        const placed = await placeBotBid(db, doc.id, auction, settings);
+        if (placed) summary.botBids += 1;
+      }
+    } catch (err) {
+      summary.errors = summary.errors || [];
+      summary.errors.push({ id: doc.id, error: String(err.message || err) });
+      console.error('[auction-tick-bot]', doc.id, err);
+    }
+  }
+
+  return {
+    ok: true,
+    mode: 'full',
     source: 'server_tick',
     summary: summary,
     settings: {
@@ -492,6 +518,32 @@ export async function runAuctionTick(db) {
       depositEnforcement: settings.depositEnforcement === true
     }
   };
+}
+
+const catalogFinalizeMemory = { at: 0 };
+
+/** Rate-limited finalize when catalog is fetched (Hobby cron is daily-only). */
+export async function maybeRunCatalogFinalizeTick(db) {
+  const now = Date.now();
+  if (now - catalogFinalizeMemory.at < 60000) return null;
+  catalogFinalizeMemory.at = now;
+
+  try {
+    const snap = await db.collection('auctions')
+      .where('status', '==', 'active')
+      .limit(12)
+      .get();
+    const needsFinalize = snap.docs.some(function(doc) {
+      const data = doc.data() || {};
+      const endMs = Date.parse(data.endTime || 0);
+      return endMs && endMs <= now && !data.finalizedAt;
+    });
+    if (!needsFinalize) return null;
+    return runAuctionFinalizeTick(db);
+  } catch (err) {
+    console.warn('[catalog-finalize-tick]', err.message || err);
+    return null;
+  }
 }
 
 export async function getAdminAuctionDashboard(db) {
