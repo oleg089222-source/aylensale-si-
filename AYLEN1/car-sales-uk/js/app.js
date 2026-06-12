@@ -3715,21 +3715,33 @@ function getAuctionDepositConfig() {
 var auctionWinnerPaymentConfigCache = null;
 var auctionWinnerPaymentConfigPromise = null;
 
+function normalizeAuctionWinnerPaymentConfig(data) {
+  var cfg = (data && data.ok) ? Object.assign({}, data) : {
+    ok: true,
+    winnerPaymentEnabled: true,
+    paymentDeadlineHours: 48
+  };
+  if (!cfg.ok) {
+    cfg = { ok: true, winnerPaymentEnabled: true, paymentDeadlineHours: 48 };
+  }
+  // Mirror server getAuctionSettings(): legacy Firestore false is overridden unless env-off.
+  if (cfg.winnerPaymentEnabled === false) {
+    cfg.winnerPaymentEnabled = true;
+  }
+  return cfg;
+}
+
 async function loadAuctionWinnerPaymentConfig(force) {
   if (!force && auctionWinnerPaymentConfigCache) return auctionWinnerPaymentConfigCache;
   if (!force && auctionWinnerPaymentConfigPromise) return auctionWinnerPaymentConfigPromise;
-  auctionWinnerPaymentConfigPromise = fetch('/api/auction-payment-config')
+  auctionWinnerPaymentConfigPromise = fetch('/api/auction-payment-config', { cache: 'no-store' })
     .then(function(res) { return res.json().catch(function() { return {}; }); })
     .then(function(data) {
-      auctionWinnerPaymentConfigCache = data && data.ok ? data : {
-        ok: true,
-        winnerPaymentEnabled: true,
-        paymentDeadlineHours: 48
-      };
+      auctionWinnerPaymentConfigCache = normalizeAuctionWinnerPaymentConfig(data);
       return auctionWinnerPaymentConfigCache;
     })
     .catch(function() {
-      auctionWinnerPaymentConfigCache = { ok: true, winnerPaymentEnabled: true, paymentDeadlineHours: 48 };
+      auctionWinnerPaymentConfigCache = normalizeAuctionWinnerPaymentConfig(null);
       return auctionWinnerPaymentConfigCache;
     })
     .finally(function() { auctionWinnerPaymentConfigPromise = null; });
@@ -3737,7 +3749,7 @@ async function loadAuctionWinnerPaymentConfig(force) {
 }
 
 function getAuctionWinnerPaymentConfig() {
-  return auctionWinnerPaymentConfigCache || { ok: true, winnerPaymentEnabled: true, paymentDeadlineHours: 48 };
+  return normalizeAuctionWinnerPaymentConfig(auctionWinnerPaymentConfigCache);
 }
 
 function getAuctionWinnerPaymentStatus(auction) {
@@ -4766,10 +4778,69 @@ function renderAuctionsSectionMeta() {
   }
 }
 
+function auctionWinnerPaymentUiKey(a) {
+  if (!a || getAuctionStatus(a) !== 'winner_pending') return '';
+  var cfg = getAuctionWinnerPaymentConfig();
+  var payStatus = getAuctionWinnerPaymentStatus(a) || 'pending';
+  var action = needsAuctionWinnerPayment(a) ? 'pay' : (isAuctionWinnerPaymentPaid(a) ? 'claim' : 'none');
+  return [
+    String(a.status || ''),
+    payStatus,
+    cfg.winnerPaymentEnabled === false ? '0' : '1',
+    action,
+    a.winnerOrder ? '1' : '0'
+  ].join(':');
+}
+
+function buildAuctionWinnerActionButtonHtml(a) {
+  if (getAuctionStatus(a) !== 'winner_pending' || a.winnerOrder) return '';
+  if (needsAuctionWinnerPayment(a)) {
+    return '<button type="button" class="auction-claim-btn" data-auction-winner-action="pay" onclick="promptAuctionWinnerPayment(' + jsInlineArg(a.id) + ')">' +
+      '<i class="fas fa-credit-card" aria-hidden="true"></i> Pay £' + getAuctionHammerAmount(a).toFixed(2) + ' to claim</button>';
+  }
+  if (isAuctionWinnerPaymentPaid(a) || getAuctionWinnerPaymentConfig().winnerPaymentEnabled === false) {
+    return '<button type="button" class="auction-claim-btn" data-auction-winner-action="claim" onclick="openWinnerClaimModal(' + jsInlineArg(a.id) + ')">' +
+      '<i class="fas fa-trophy" aria-hidden="true"></i> Claim winning order</button>';
+  }
+  return '';
+}
+
+function patchAuctionWinnerActionButton(card, a) {
+  if (!card || !a) return;
+  var existing = card.querySelector('[data-auction-winner-action]');
+  var html = buildAuctionWinnerActionButtonHtml(a);
+  if (!html) {
+    if (existing) existing.remove();
+    return;
+  }
+  if (existing) {
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    var next = wrap.firstElementChild;
+    if (existing.outerHTML === next.outerHTML) return;
+    existing.replaceWith(next);
+    return;
+  }
+  var anchor = card.querySelector('.auction-card-quick');
+  var winnerRows = card.querySelectorAll('.bid-history');
+  for (var wi = 0; wi < winnerRows.length; wi++) {
+    if ((winnerRows[wi].textContent || '').indexOf('Winner:') !== -1) {
+      anchor = winnerRows[wi];
+      break;
+    }
+  }
+  if (anchor) {
+    anchor.insertAdjacentHTML('afterend', html);
+    return;
+  }
+  card.insertAdjacentHTML('beforeend', html);
+}
+
 function auctionsStructuralFingerprint(list) {
   return (list || []).map(function(a) {
     var imgs = Array.isArray(a.images) ? a.images.join(',') : '';
-    return String(a.id) + '|' + imgs + '|' + String(a.name || '') + '|' + String(a.desc || '').slice(0, 96);
+    return String(a.id) + '|' + imgs + '|' + String(a.name || '') + '|' + String(a.desc || '').slice(0, 96) +
+      '|' + auctionWinnerPaymentUiKey(a);
   }).join(';;');
 }
 
@@ -4825,6 +4896,7 @@ function patchAuctionCardsDynamic(list) {
       var overlay = card.querySelector('.auction-countdown-overlay');
       if (overlay) overlay.remove();
     }
+    patchAuctionWinnerActionButton(card, a);
   });
   startAuctionTimers();
 }
@@ -4931,14 +5003,7 @@ function renderAuctions() {
       h += '</div>';
     }
 
-    if (getAuctionStatus(a) === 'winner_pending' && !a.winnerOrder) {
-      if (needsAuctionWinnerPayment(a)) {
-        h += '<button type="button" class="auction-claim-btn" onclick="promptAuctionWinnerPayment(' + jsInlineArg(a.id) + ')"><i class="fas fa-credit-card" aria-hidden="true"></i> Pay £' +
-          getAuctionHammerAmount(a).toFixed(2) + ' to claim</button>';
-      } else if (isAuctionWinnerPaymentPaid(a) || getAuctionWinnerPaymentConfig().winnerPaymentEnabled === false) {
-        h += '<button type="button" class="auction-claim-btn" onclick="openWinnerClaimModal(' + jsInlineArg(a.id) + ')"><i class="fas fa-trophy" aria-hidden="true"></i> Claim winning order</button>';
-      }
-    }
+    h += buildAuctionWinnerActionButtonHtml(a);
 
     if (a.winnerOrder) {
       h += '<div class="bid-history" style="color:#00a36c"><strong>Winner order:</strong> ' + escapeHtml(a.winnerOrder.method || 'Pickup') + ' sent to admin</div>';
