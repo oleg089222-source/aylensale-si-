@@ -45,6 +45,7 @@ import {
   deleteVipStockItemAdmin
 } from './vip-store.mjs';
 import { markAuctionDepositPaidFromSession, STRIPE_PRODUCT_AUCTION_DEPOSIT, resolveDepositFlags } from './auction-deposit.mjs';
+import { markWinnerPaidFromSession, STRIPE_PRODUCT_AUCTION_WINNER_PAYMENT, resolveWinnerPaymentFlags } from './auction-payment.mjs';
 import { getAuctionSettings } from './auction-engine.mjs';
 
 function isTruthy(v) {
@@ -1081,6 +1082,12 @@ export async function handleWebhook(req, res) {
           const depositFlags = resolveDepositFlags(settings);
           if (depositFlags.depositWebhookEnabled && (session.payment_status === 'paid' || session.status === 'complete')) {
             await markAuctionDepositPaidFromSession(session, { eventId: event.id, source: 'webhook' });
+          }
+        } else if (session.mode === 'payment' && session.metadata && session.metadata.product === STRIPE_PRODUCT_AUCTION_WINNER_PAYMENT) {
+          const db = getFirestoreAdmin();
+          const payFlags = resolveWinnerPaymentFlags(await getAuctionSettings(db));
+          if (payFlags.winnerPaymentEnabled && (session.payment_status === 'paid' || session.status === 'complete')) {
+            await markWinnerPaidFromSession(session, { eventId: event.id, source: 'webhook' });
           }
         } else if (session.mode === 'payment' && session.metadata && session.metadata.product === 'vip_item') {
           const orderId = session.metadata.vip_order_id;

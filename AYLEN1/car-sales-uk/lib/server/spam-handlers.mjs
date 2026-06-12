@@ -30,6 +30,15 @@ import {
 } from './auction-deposit.mjs';
 import { validateBidFields, validateBidAgainstAuction, isUkPhone } from './auction-validation.mjs';
 import { evaluateBidFraud, fraudBlockResponse } from './auction-fraud.mjs';
+import {
+  createWinnerPaymentSession,
+  markWinnerPaidFromSession,
+  publicWinnerPaymentConfig,
+  resolveWinnerPaymentFlags,
+  buildWinnerPaymentFields,
+  verifyWinnerPaymentForClaim,
+  isWinnerPaymentPaid
+} from './auction-payment.mjs';
 
 function firestoreDocId(prefix, id) {
   if (prefix === 'auction') return auctionFirestoreDocId(id);
@@ -556,6 +565,7 @@ export async function handleAuctionBuyNow(req, res) {
     }
 
     const db = getFirestoreAdmin();
+    const settings = await getAuctionSettings(db);
     const docId = firestoreDocId('auction', auctionId);
     const ref = db.collection('auctions').doc(docId);
 
@@ -590,7 +600,8 @@ export async function handleAuctionBuyNow(req, res) {
       };
       bids.push(bid);
 
-      const winner = {
+      const paymentFields = buildWinnerPaymentFields(buyNow, settings);
+      const winner = Object.assign({
         bidId: bid.id,
         bidderName: safeName,
         bidderPhone: safePhone,
@@ -599,7 +610,7 @@ export async function handleAuctionBuyNow(req, res) {
         amount: buyNow,
         timestamp: bid.timestamp,
         via: 'buy_now'
-      };
+      }, paymentFields);
 
       const patch = {
         bids: bids,
@@ -624,6 +635,8 @@ export async function handleAuctionBuyNow(req, res) {
         at: new Date().toISOString()
       });
       await recordAuctionOutcomes(db, docId, { id: auctionId }, result.winner);
+      const paymentMod = await import('./auction-payment.mjs');
+      await paymentMod.maybeCreateWinnerPaymentAfterFinalize(db, auctionId, settings, getSiteOrigin(req));
     } catch (profileErr) {
       console.warn('[auction-buy-now] profile/outcome', profileErr.message || profileErr);
     }
@@ -642,5 +655,151 @@ export async function handleAuctionBuyNow(req, res) {
     }
     console.error('[auction-buy-now]', err);
     return res.status(500).json({ error: 'Buy now could not be completed' });
+  }
+}
+
+export async function handleAuctionPaymentConfig(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=120');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    if (!isAdminConfigured()) {
+      return res.status(503).json({ ok: false, error: 'Winner payment config unavailable' });
+    }
+    const db = getFirestoreAdmin();
+    const settings = await getAuctionSettings(db);
+    return res.status(200).json(publicWinnerPaymentConfig(settings));
+  } catch (err) {
+    console.error('[auction-payment-config]', err);
+    return res.status(500).json({ ok: false, error: err.message || 'Config unavailable' });
+  }
+}
+
+export async function handleAuctionWinnerPayment(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    if (!isAdminConfigured()) {
+      return res.status(503).json({ error: 'Winner payment unavailable' });
+    }
+
+    const guard = await guardPublicForm(req, {
+      scope: 'auction-winner-payment',
+      maxAttempts: 6,
+      windowMs: 3600000,
+      minimumMs: 1200,
+      rateMessage: 'Too many payment attempts. Please wait.',
+      requireTurnstile: false
+    });
+    if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
+
+    const { auctionId, phone } = req.body || {};
+    const safePhone = cleanString(phone, 30);
+    if (!auctionId) return res.status(400).json({ error: 'Auction required' });
+    if (!isUkPhone(safePhone)) {
+      return res.status(400).json({ error: 'Enter a valid UK phone number', code: 'INVALID_UK_PHONE' });
+    }
+
+    const db = getFirestoreAdmin();
+    const settings = await getAuctionSettings(db);
+    const payFlags = resolveWinnerPaymentFlags(settings);
+    if (!payFlags.winnerPaymentEnabled) {
+      return res.status(503).json({ error: 'Winner payments are temporarily unavailable' });
+    }
+    if (!payFlags.stripeConfigured) {
+      return res.status(503).json({ error: 'Card payments are not configured yet' });
+    }
+
+    const docId = firestoreDocId('auction', auctionId);
+    const snap = await db.collection('auctions').doc(docId).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Auction not found' });
+    const data = snap.data() || {};
+    const winner = data.winner || {};
+    if (String(data.status || '') !== 'winner_pending') {
+      return res.status(400).json({ error: 'Auction is not awaiting winner payment' });
+    }
+    const pKey = phoneKey(safePhone);
+    const winnerKey = winner.bidderKey || phoneKey(winner.bidderPhone);
+    if (!pKey || pKey !== winnerKey) {
+      return res.status(403).json({ error: 'Phone does not match winning bidder', code: 'NOT_WINNER' });
+    }
+    if (isWinnerPaymentPaid(winner)) {
+      return res.status(400).json({ error: 'Payment already completed', code: 'ALREADY_PAID' });
+    }
+
+    const result = await createWinnerPaymentSession(db, auctionId, {
+      settings: settings,
+      origin: getSiteOrigin(req)
+    });
+    if (!result.ok) {
+      return res.status(400).json({ error: result.reason || 'Could not start payment' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      url: result.url,
+      sessionId: result.sessionId,
+      hammerAmount: result.hammerAmount,
+      reused: !!result.reused
+    });
+  } catch (err) {
+    console.error('[auction-winner-payment]', err);
+    return res.status(500).json({ error: err.message || 'Payment checkout failed' });
+  }
+}
+
+export async function handleAuctionPaymentVerify(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    if (!isAdminConfigured()) {
+      return res.status(503).json({ error: 'Winner payment verify unavailable' });
+    }
+
+    const db = getFirestoreAdmin();
+    const settings = await getAuctionSettings(db);
+    const payFlags = resolveWinnerPaymentFlags(settings);
+    if (!payFlags.stripeConfigured) {
+      return res.status(503).json({ error: 'Stripe is not configured' });
+    }
+
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (e) { body = {}; }
+    }
+    const sessionId = String(body.sessionId || body.session_id || '').trim();
+    if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (!session || session.metadata?.product !== 'auction_winner_payment') {
+      return res.status(400).json({ error: 'Invalid winner payment session' });
+    }
+    if (session.payment_status !== 'paid' && session.status !== 'complete') {
+      return res.status(402).json({ error: 'Payment not completed yet' });
+    }
+
+    const result = await markWinnerPaidFromSession(session, { source: 'verify' });
+    return res.status(200).json({
+      ok: true,
+      paid: true,
+      alreadyPaid: !!result.alreadyPaid,
+      auctionId: result.auctionId,
+      paymentStatus: result.paymentStatus,
+      hammerAmount: result.hammerAmount
+    });
+  } catch (err) {
+    console.error('[auction-payment-verify]', err);
+    return res.status(500).json({ error: err.message || 'Verify failed' });
   }
 }

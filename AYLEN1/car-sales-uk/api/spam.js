@@ -9,7 +9,10 @@ import {
   handleAuctionDeposit,
   handleAuctionDepositConfig,
   handleAuctionDepositVerify,
-  handleAuctionBuyNow
+  handleAuctionBuyNow,
+  handleAuctionPaymentConfig,
+  handleAuctionWinnerPayment,
+  handleAuctionPaymentVerify
 } from '../lib/server/spam-handlers.mjs';
 import { handleLoyalty } from '../lib/server/loyalty-handlers.mjs';
 import {
@@ -29,6 +32,9 @@ function resolveAction(req) {
   if (url.indexOf('auction-deposit-config') !== -1) return 'auction-deposit-config';
   if (url.indexOf('auction-deposit') !== -1) return 'auction-deposit';
   if (url.indexOf('auction-buy-now') !== -1) return 'auction-buy-now';
+  if (url.indexOf('auction-payment-verify') !== -1) return 'auction-payment-verify';
+  if (url.indexOf('auction-payment-config') !== -1) return 'auction-payment-config';
+  if (url.indexOf('auction-winner-payment') !== -1) return 'auction-winner-payment';
   if (url.indexOf('loyalty') !== -1) return 'loyalty';
   if (url.indexOf('auction-engine') !== -1 || url.indexOf('auction-tick') !== -1) return 'auction-engine';
   if (url.indexOf('storage-resize') !== -1) return 'storage-resize';
@@ -62,6 +68,15 @@ export default async function handler(req, res) {
     case 'auction-buy-now':
     case 'auction-buynow':
       return handleAuctionBuyNow(req, res);
+    case 'auction-payment-config':
+    case 'auctionpaymentconfig':
+      return handleAuctionPaymentConfig(req, res);
+    case 'auction-winner-payment':
+    case 'auctionwinnerpayment':
+      return handleAuctionWinnerPayment(req, res);
+    case 'auction-payment-verify':
+    case 'auctionpaymentverify':
+      return handleAuctionPaymentVerify(req, res);
     case 'loyalty':
       return handleLoyalty(req, res);
     case 'auction-engine':

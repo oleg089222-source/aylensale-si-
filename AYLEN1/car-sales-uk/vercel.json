@@ -253,6 +253,18 @@
       "dest": "/api/spam?action=auction-buy-now"
     },
     {
+      "src": "/api/auction-payment-config",
+      "dest": "/api/spam?action=auction-payment-config"
+    },
+    {
+      "src": "/api/auction-winner-payment",
+      "dest": "/api/spam?action=auction-winner-payment"
+    },
+    {
+      "src": "/api/auction-payment-verify",
+      "dest": "/api/spam?action=auction-payment-verify"
+    },
+    {
       "src": "/api/loyalty",
       "dest": "/api/spam?action=loyalty"
     },

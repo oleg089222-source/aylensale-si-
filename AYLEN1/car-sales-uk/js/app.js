@@ -1657,8 +1657,10 @@ document.addEventListener("DOMContentLoaded", function() {
   var runStorefrontBoot = async function() {
   await loadAllData();
   await loadAuctionDepositConfig();
+  await loadAuctionWinnerPaymentConfig();
   applyCardFromUrl();
   await handleAuctionDepositReturn();
+  await handleAuctionPaymentReturn();
   prefetchLoyaltyPortalIfNeeded();
   if (window.AYLEN_VIP_SHOP_BRIDGE && window.AYLEN_VIP_SHOP_BRIDGE.apply) {
     await window.AYLEN_VIP_SHOP_BRIDGE.apply();
@@ -2049,6 +2051,58 @@ async function reloadAuctionCatalogAfterDeposit(auctionId) {
   if (typeof renderAuctions === 'function') renderAuctions();
   if (auctionId && typeof refreshAuctionModalContent === 'function') {
     refreshAuctionModalContent(auctionId);
+  }
+}
+
+async function handleAuctionPaymentReturn() {
+  var params = parseAuctionHashParams();
+  var paymentState = params.auction_payment;
+  if (!paymentState) return;
+
+  clearAuctionDepositHash();
+
+  if (paymentState === 'cancelled') {
+    if (typeof notify === 'function') notify('Winner payment cancelled.', 'info');
+    return;
+  }
+  if (paymentState !== 'success') return;
+
+  var sessionId = String(params.session_id || '').trim();
+  if (!sessionId) {
+    if (typeof notify === 'function') notify('Payment received — refreshing auction status…', 'info');
+    if (typeof loadAllData === 'function') await loadAllData();
+    if (typeof renderAuctions === 'function') renderAuctions();
+    return;
+  }
+
+  if (typeof notify === 'function') notify('Confirming winner payment…', 'info');
+  try {
+    var response = await fetch('/api/auction-payment-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionId })
+    });
+    var data = await response.json().catch(function() { return {}; });
+    if (response.ok && data.paid) {
+      if (typeof notify === 'function') {
+        notify(data.alreadyPaid
+          ? 'Payment already confirmed — you can claim collection.'
+          : '✓ Payment received! You can now claim your winning lot.', 'success');
+      }
+      if (typeof loadAllData === 'function') await loadAllData();
+      if (typeof renderAuctions === 'function') renderAuctions();
+      if (data.auctionId && typeof refreshAuctionModalContent === 'function') {
+        refreshAuctionModalContent(data.auctionId);
+      }
+      return;
+    }
+    if (response.status === 402) {
+      if (typeof notify === 'function') notify('Payment is still processing — please wait and refresh.', 'info');
+      return;
+    }
+    if (typeof notify === 'function') notify(data.error || 'Could not confirm payment yet.', 'warning');
+  } catch (e) {
+    if (typeof notify === 'function') notify('Network error confirming payment.', 'warning');
   }
 }
 
@@ -3658,6 +3712,88 @@ function getAuctionDepositConfig() {
   };
 }
 
+var auctionWinnerPaymentConfigCache = null;
+var auctionWinnerPaymentConfigPromise = null;
+
+async function loadAuctionWinnerPaymentConfig(force) {
+  if (!force && auctionWinnerPaymentConfigCache) return auctionWinnerPaymentConfigCache;
+  if (!force && auctionWinnerPaymentConfigPromise) return auctionWinnerPaymentConfigPromise;
+  auctionWinnerPaymentConfigPromise = fetch('/api/auction-payment-config')
+    .then(function(res) { return res.json().catch(function() { return {}; }); })
+    .then(function(data) {
+      auctionWinnerPaymentConfigCache = data && data.ok ? data : {
+        ok: true,
+        winnerPaymentEnabled: true,
+        paymentDeadlineHours: 48
+      };
+      return auctionWinnerPaymentConfigCache;
+    })
+    .catch(function() {
+      auctionWinnerPaymentConfigCache = { ok: true, winnerPaymentEnabled: true, paymentDeadlineHours: 48 };
+      return auctionWinnerPaymentConfigCache;
+    })
+    .finally(function() { auctionWinnerPaymentConfigPromise = null; });
+  return auctionWinnerPaymentConfigPromise;
+}
+
+function getAuctionWinnerPaymentConfig() {
+  return auctionWinnerPaymentConfigCache || { ok: true, winnerPaymentEnabled: true, paymentDeadlineHours: 48 };
+}
+
+function getAuctionWinnerPaymentStatus(auction) {
+  var w = auction && auction.winner;
+  if (!w) return '';
+  return String(w.paymentStatus || 'pending').toLowerCase();
+}
+
+function isAuctionWinnerPaymentPaid(auction) {
+  return getAuctionWinnerPaymentStatus(auction) === 'paid';
+}
+
+function needsAuctionWinnerPayment(auction) {
+  if (!auction || getAuctionStatus(auction) !== 'winner_pending') return false;
+  if (getAuctionWinnerPaymentConfig().winnerPaymentEnabled === false) return false;
+  return !isAuctionWinnerPaymentPaid(auction);
+}
+
+function getAuctionHammerAmount(auction) {
+  var w = auction && auction.winner;
+  return Number((w && (w.hammerAmount || w.amount)) || auction.currentPrice || 0);
+}
+
+async function promptAuctionWinnerPayment(auctionId) {
+  var auction = findAuctionById(auctionId);
+  if (!auction) { notify('Auction not found', 'error'); return; }
+  var stored = getStoredBidderContact() || {};
+  var phone = stored.phone || (auction.winner && auction.winner.bidderPhone) || '';
+  if (!phone) {
+    phone = window.prompt('Enter the phone number used when you won this lot:');
+    if (!phone) return;
+  }
+  notify('Opening secure payment…', 'info');
+  try {
+    var response = await fetch('/api/auction-winner-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auctionId: auction.id,
+        phone: phone,
+        security: typeof SECURITY !== 'undefined' && SECURITY.submissionMeta
+          ? SECURITY.submissionMeta(Date.now() - 3000, '')
+          : {}
+      })
+    });
+    var data = await response.json().catch(function() { return {}; });
+    if (!response.ok || !data.success || !data.url) {
+      notify(data.error || 'Could not start winner payment', 'error');
+      return;
+    }
+    window.location.href = data.url;
+  } catch (e) {
+    notify('Network error starting payment', 'error');
+  }
+}
+
 function isAuctionDepositEnforcementActive() {
   try {
     if (sessionStorage.getItem('aylen_deposit_gate_preview') === '1') return true;
@@ -3951,8 +4087,17 @@ function buildAuctionModalInfoHtml(a) {
   }
 
   if (getAuctionStatus(a) === 'winner_pending' && !a.winnerOrder) {
-    html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--cart" data-auction-claim="' + escapeHtml(String(a.id)) + '">' +
-      '<i class="fas fa-trophy"></i> Claim winning order</button>';
+    if (needsAuctionWinnerPayment(a)) {
+      var payStatus = getAuctionWinnerPaymentStatus(a);
+      html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--deposit" data-auction-winner-pay="' + escapeHtml(String(a.id)) + '">' +
+        '<i class="fas fa-credit-card"></i> Pay hammer price · £' + getAuctionHammerAmount(a).toFixed(2) +
+        (payStatus === 'overdue' ? ' (overdue)' : '') + '</button>';
+      html += '<p class="pdp-modal__meta">Pay the hammer price to unlock collection. Your £' +
+        Number(getAuctionDepositConfig().depositAmountGbp || 50).toFixed(0) + ' deposit is refunded separately.</p>';
+    } else if (isAuctionWinnerPaymentPaid(a) || getAuctionWinnerPaymentConfig().winnerPaymentEnabled === false) {
+      html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--cart" data-auction-claim="' + escapeHtml(String(a.id)) + '">' +
+        '<i class="fas fa-trophy"></i> Claim winning order</button>';
+    }
   }
 
   if (a.winnerOrder) {
@@ -3986,6 +4131,12 @@ function bindAuctionModalActions(modal, auction) {
   if (claimBtn) {
     claimBtn.addEventListener('click', function() {
       openWinnerClaimModal(auction.id);
+    });
+  }
+  var winnerPayBtn = modal.querySelector('[data-auction-winner-pay]');
+  if (winnerPayBtn) {
+    winnerPayBtn.addEventListener('click', function() {
+      promptAuctionWinnerPayment(auction.id);
     });
   }
   var depositBtn = modal.querySelector('[data-auction-deposit]');
@@ -4781,7 +4932,12 @@ function renderAuctions() {
     }
 
     if (getAuctionStatus(a) === 'winner_pending' && !a.winnerOrder) {
-      h += '<button type="button" class="auction-claim-btn" onclick="openWinnerClaimModal(' + jsInlineArg(a.id) + ')"><i class="fas fa-trophy" aria-hidden="true"></i> Claim winning order</button>';
+      if (needsAuctionWinnerPayment(a)) {
+        h += '<button type="button" class="auction-claim-btn" onclick="promptAuctionWinnerPayment(' + jsInlineArg(a.id) + ')"><i class="fas fa-credit-card" aria-hidden="true"></i> Pay £' +
+          getAuctionHammerAmount(a).toFixed(2) + ' to claim</button>';
+      } else if (isAuctionWinnerPaymentPaid(a) || getAuctionWinnerPaymentConfig().winnerPaymentEnabled === false) {
+        h += '<button type="button" class="auction-claim-btn" onclick="openWinnerClaimModal(' + jsInlineArg(a.id) + ')"><i class="fas fa-trophy" aria-hidden="true"></i> Claim winning order</button>';
+      }
     }
 
     if (a.winnerOrder) {
@@ -5133,6 +5289,11 @@ function openWinnerClaimModal(auctionId) {
   var auction = auctions.find(function(item) { return sameId(item.id, auctionId); });
   if (!auction) { notify('Auction not found', 'error'); return; }
   if (!auction.winner) { notify('Winner is not ready yet', 'error'); return; }
+  if (needsAuctionWinnerPayment(auction)) {
+    notify('Pay the hammer price first to claim collection.', 'error');
+    promptAuctionWinnerPayment(auctionId);
+    return;
+  }
   var stored = getStoredBidderContact() || {};
   var modalId = 'winnerModal_' + Date.now();
   var html = '<div id="' + modalId + '" class="modal" style="display:flex">' +
@@ -5164,6 +5325,10 @@ async function submitAuctionWinnerOrder(auctionId, modalId) {
   }
   var auction = auctions.find(function(item) { return sameId(item.id, auctionId); });
   if (!auction || !auction.winner) { notify('Winner not found', 'error'); return; }
+  if (needsAuctionWinnerPayment(auction)) {
+    notify('Winner payment required before claiming collection.', 'error');
+    return;
+  }
   var name = document.getElementById('winnerName_' + modalId).value.trim();
   var phone = document.getElementById('winnerPhone_' + modalId).value.trim();
   var method = document.getElementById('winnerMethod_' + modalId).value;
@@ -5210,6 +5375,11 @@ async function submitAuctionWinnerOrder(auctionId, modalId) {
     });
     var data = await response.json();
     if (!response.ok || !data.success) {
+      if (data.code === 'PAYMENT_REQUIRED') {
+        notify('Pay the hammer price before claiming collection.', 'error');
+        promptAuctionWinnerPayment(auctionId);
+        return;
+      }
       throw new Error(data.error || 'Telegram send failed');
     }
     order.telegramMessageId = data.messageId || null;

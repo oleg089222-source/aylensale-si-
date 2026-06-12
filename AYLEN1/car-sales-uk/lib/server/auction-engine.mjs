@@ -31,7 +31,8 @@ export function defaultSettings() {
     depositEnforcementEnabled: false,
     depositWebhookEnabled: true,
     depositVerifyFallbackEnabled: true,
-    winnerPaymentEnabled: false,
+    winnerPaymentEnabled: true,
+    winnerPaymentHours: 48,
     turnstileOnBid: false,
     fraudEnforceMode: 'log',
     updatedAt: new Date().toISOString()
@@ -340,17 +341,28 @@ function buildFinalizePatch(auction, settings) {
   }
 
   if (winner) {
+    const hammer = Number(winner.amount || auction.currentPrice || 0);
+    const paymentMod = settings && settings.__buildWinnerPaymentFields;
+    const paymentFields = paymentMod
+      ? paymentMod(hammer, settings)
+      : {
+        hammerAmount: hammer,
+        paymentStatus: 'pending',
+        paymentDueAt: new Date(Date.now() + 48 * 3600000).toISOString(),
+        stripeSessionId: null,
+        paidAt: null
+      };
     patch.status = 'winner_pending';
-    patch.winner = {
+    patch.winner = Object.assign({
       bidId: winner.id,
       bidderName: winner.bidderName || winner.bidder || 'Winner',
       bidderPhone: winner.bidderPhone || '',
       bidderContact: winner.bidderContact || '',
       bidderKey: winner.bidderKey || phoneKey(winner.bidderPhone),
-      amount: Number(winner.amount || auction.currentPrice || 0),
+      amount: hammer,
       timestamp: winner.timestamp || ''
-    };
-    patch.currentPrice = Number(winner.amount || auction.currentPrice || 0);
+    }, paymentFields);
+    patch.currentPrice = hammer;
   } else {
     patch.status = 'ended';
     patch.winner = null;
@@ -362,9 +374,11 @@ function buildFinalizePatch(auction, settings) {
 export async function finalizeAuctionServer(db, auctionId, auction, settings) {
   const s = settings || await getAuctionSettings(db);
   const depositMod = await import('./auction-deposit.mjs');
+  const paymentMod = await import('./auction-payment.mjs');
   const enriched = Object.assign({}, s, {
     __depositFlags: depositMod.resolveDepositFlags(s),
-    __hasPaidDeposit: depositMod.hasPaidDeposit
+    __hasPaidDeposit: depositMod.hasPaidDeposit,
+    __buildWinnerPaymentFields: paymentMod.buildWinnerPaymentFields
   });
   const built = buildFinalizePatch(auction, enriched);
   await db.collection('auctions').doc(String(auctionId)).set(built.patch, { merge: true });
@@ -377,9 +391,11 @@ export async function finalizeAuctionServer(db, auctionId, auction, settings) {
 export async function processEndedAuction(db, auctionId, auction, settings) {
   const ref = db.collection('auctions').doc(String(auctionId));
   const depositMod = await import('./auction-deposit.mjs');
+  const paymentMod = await import('./auction-payment.mjs');
   const enrichedSettings = Object.assign({}, settings, {
     __depositFlags: depositMod.resolveDepositFlags(settings),
-    __hasPaidDeposit: depositMod.hasPaidDeposit
+    __hasPaidDeposit: depositMod.hasPaidDeposit,
+    __buildWinnerPaymentFields: paymentMod.buildWinnerPaymentFields
   });
 
   const txResult = await db.runTransaction(async function(tx) {
@@ -431,6 +447,7 @@ export async function processEndedAuction(db, auctionId, auction, settings) {
 
   if (txResult && txResult.finalized && txResult.winnerRecord) {
     await recordAuctionOutcomes(db, auctionId, txResult.auction, txResult.winnerRecord);
+    await paymentMod.maybeCreateWinnerPaymentAfterFinalize(db, auctionId, settings, null);
   }
 
   return txResult;
@@ -438,6 +455,9 @@ export async function processEndedAuction(db, auctionId, auction, settings) {
 
 export async function runAuctionFinalizeTick(db) {
   const settings = await getAuctionSettings(db);
+  const paymentMod = await import('./auction-payment.mjs');
+  const overdueSummary = await paymentMod.processOverdueWinnerPayments(db, settings);
+
   const snap = await db.collection('auctions').get();
   const summary = {
     finalized: 0,
@@ -470,6 +490,8 @@ export async function runAuctionFinalizeTick(db) {
     }
   }
 
+  summary.overduePayments = Number(overdueSummary?.overdue || 0);
+
   return {
     ok: true,
     mode: 'finalize_only',
@@ -477,7 +499,8 @@ export async function runAuctionFinalizeTick(db) {
     summary: summary,
     settings: {
       fraudEnforceMode: settings.fraudEnforceMode || 'log',
-      depositEnforcement: settings.depositEnforcement === true
+      depositEnforcement: settings.depositEnforcement === true,
+      winnerPaymentEnabled: settings.winnerPaymentEnabled !== false
     }
   };
 }

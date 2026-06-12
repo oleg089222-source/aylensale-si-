@@ -14,6 +14,7 @@ import {
 } from '../lib/server/spam-guard.mjs';
 import { getFirestoreAdmin } from '../lib/server/firebase-admin-app.mjs';
 import { isAdminConfigured } from '../lib/server/firestore-admin.mjs';
+import { verifyWinnerPaymentForClaim } from '../lib/server/auction-payment.mjs';
 
 async function saveOrderActivity(message, productId) {
   if (!isAdminConfigured()) return;
@@ -161,6 +162,17 @@ export default async function handler(req, res) {
         address,
         postcode
       } = req.body;
+
+      if (!isAdminConfigured()) {
+        return res.status(503).json({ error: 'Winner collection unavailable' });
+      }
+      const paymentCheck = await verifyWinnerPaymentForClaim(auctionId, safePhone);
+      if (!paymentCheck.ok) {
+        return res.status(paymentCheck.code === 'PAYMENT_REQUIRED' ? 403 : 400).json({
+          error: paymentCheck.error,
+          code: paymentCheck.code || 'PAYMENT_REQUIRED'
+        });
+      }
 
       const safeMethod = cleanString(method, 20);
       const safeAddress = cleanString(address, 220);
