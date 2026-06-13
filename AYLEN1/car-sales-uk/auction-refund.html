@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Auction Deposit Refund Request | AYLENSALE UK</title>
+<meta name="description" content="Request a refund of your AYLENSALE auction deposit after a lost auction.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://aylensale.com/auction-refund.html">
+<link rel="stylesheet" href="/css/legal.css">
+<style>
+.refund-form { display: grid; gap: 12px; max-width: 640px; }
+.refund-form label { display: block; font-size: 13px; color: #475569; margin-bottom: 4px; }
+.refund-form input, .refund-form textarea, .refund-form select {
+  width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit;
+}
+.refund-check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.refund-check input { width: auto; margin-top: 3px; }
+.refund-btn {
+  background: #0f172a; color: #fff; border: 0; border-radius: 8px; padding: 12px 18px;
+  font-weight: 600; cursor: pointer;
+}
+.refund-status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; display: none; }
+.refund-status.ok { display: block; background: #ecfdf5; color: #065f46; }
+.refund-status.err { display: block; background: #fef2f2; color: #991b1b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+<a class="brand" href="/">AYLENSALE</a>
+<a class="back" href="/#auctions">← Back to auctions</a>
+</div>
+<h1>Auction Deposit Refund Request</h1>
+<p class="updated">For losing bidders only — request refund of your £50 auction deposit.</p>
+
+<form class="refund-form" id="refundForm">
+  <div>
+    <label for="refundName">Full Name *</label>
+    <input id="refundName" name="name" required maxlength="100" autocomplete="name">
+  </div>
+  <div>
+    <label for="refundPhone">Phone Number *</label>
+    <input id="refundPhone" name="phone" type="tel" required maxlength="30" autocomplete="tel">
+  </div>
+  <div>
+    <label for="refundEmail">Email Address *</label>
+    <input id="refundEmail" name="email" type="email" required maxlength="120" autocomplete="email">
+  </div>
+  <div>
+    <label for="refundAuctionName">Auction Lot Name *</label>
+    <input id="refundAuctionName" name="auctionName" required maxlength="140">
+  </div>
+  <div>
+    <label for="refundAuctionId">Auction Lot ID *</label>
+    <input id="refundAuctionId" name="auctionId" required maxlength="80" placeholder="e.g. auction_101">
+  </div>
+  <div>
+    <label for="refundPaymentRef">Deposit Payment Reference *</label>
+    <input id="refundPaymentRef" name="paymentReference" required maxlength="120" placeholder="Stripe session ID or receipt reference">
+  </div>
+  <div>
+    <label for="refundReason">Reason For Refund *</label>
+    <textarea id="refundReason" name="reason" rows="4" required maxlength="800"></textarea>
+  </div>
+  <label class="refund-check"><input type="checkbox" id="confirmNotWinner" required> I confirm I did not win this auction</label>
+  <label class="refund-check"><input type="checkbox" id="confirmRefundDays" required> I understand refunds may take 3–10 working days</label>
+  <label class="refund-check"><input type="checkbox" id="confirmCorrect" required> I confirm all information is correct</label>
+  <div>
+    <label for="refundSignature">Typed Signature *</label>
+    <input id="refundSignature" name="signature" required maxlength="120" placeholder="Type your full name">
+  </div>
+  <div>
+    <label for="refundDate">Date *</label>
+    <input id="refundDate" name="signedDate" type="date" required>
+  </div>
+  <button class="refund-btn" type="submit">Submit Refund Request</button>
+  <div class="refund-status" id="refundStatus"></div>
+</form>
+
+<footer>
+<p>&copy; AYLENSALE. <a href="/returns-policy.html">Returns</a> · <a href="/terms-and-conditions.html">Terms</a></p>
+</footer>
+</div>
+<script>
+(function() {
+  var form = document.getElementById('refundForm');
+  var statusEl = document.getElementById('refundStatus');
+  var dateEl = document.getElementById('refundDate');
+  if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    statusEl.className = 'refund-status';
+    statusEl.textContent = '';
+    var body = {
+      name: document.getElementById('refundName').value.trim(),
+      phone: document.getElementById('refundPhone').value.trim(),
+      email: document.getElementById('refundEmail').value.trim(),
+      auctionName: document.getElementById('refundAuctionName').value.trim(),
+      auctionId: document.getElementById('refundAuctionId').value.trim(),
+      paymentReference: document.getElementById('refundPaymentRef').value.trim(),
+      reason: document.getElementById('refundReason').value.trim(),
+      signature: document.getElementById('refundSignature').value.trim(),
+      signedDate: document.getElementById('refundDate').value,
+      confirmNotWinner: document.getElementById('confirmNotWinner').checked,
+      confirmRefundDays: document.getElementById('confirmRefundDays').checked,
+      confirmCorrect: document.getElementById('confirmCorrect').checked,
+      security: {
+        sessionId: 'refund_' + Date.now(),
+        formStartedAt: Date.now() - 5000,
+        submittedAt: Date.now(),
+        website: ''
+      }
+    };
+    try {
+      var res = await fetch('/api/auction-refund-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json().catch(function() { return {}; });
+      if (res.ok && data.success) {
+        statusEl.className = 'refund-status ok';
+        statusEl.textContent = 'Refund request submitted (reference: ' + (data.requestId || 'pending') + '). We will review within 3–10 working days.';
+        form.reset();
+        if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+        return;
+      }
+      statusEl.className = 'refund-status err';
+      statusEl.textContent = data.error || 'Could not submit refund request.';
+    } catch (err) {
+      statusEl.className = 'refund-status err';
+      statusEl.textContent = 'Network error — please try again.';
+    }
+  });
+})();
+</script>
+</body>
+</html>
