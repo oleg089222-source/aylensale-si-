@@ -57,24 +57,52 @@ function cardPriceHtml(p) {
 
 const SSR_MOBILE_CARD_COUNT = 8;
 const SSR_EAGER_IMAGE_COUNT = 1;
-const MOBILE_ABOVE_HERO_PX = 200;
+const MOBILE_ABOVE_HERO_PX = 128;
 const MOBILE_ABOVE_STACK_GAP_PX = 8;
-const MOBILE_ABOVE_ENGAGEMENT_PX = 124;
-const MOBILE_ABOVE_EBAY_PX = 152;
+const MOBILE_ABOVE_ENGAGEMENT_PX = 92;
+const MOBILE_ABOVE_EBAY_PX = 0;
 const MOBILE_ABOVE_PRICE_LIST_PX = 0;
-const MOBILE_CARD_ROW_PX = 420;
+const DESKTOP_ABOVE_HERO_PX = 200;
+const DESKTOP_ABOVE_ENGAGEMENT_PX = 52;
+const DESKTOP_ABOVE_EBAY_PX = 56;
+
+function mobileAboveProductsReservePx() {
+  return MOBILE_ABOVE_HERO_PX + MOBILE_ABOVE_STACK_GAP_PX + MOBILE_ABOVE_ENGAGEMENT_PX +
+    MOBILE_ABOVE_EBAY_PX + MOBILE_ABOVE_PRICE_LIST_PX;
+}
+
+function desktopAboveProductsReservePx(hasEbay) {
+  return DESKTOP_ABOVE_HERO_PX + MOBILE_ABOVE_STACK_GAP_PX + DESKTOP_ABOVE_ENGAGEMENT_PX +
+    (hasEbay ? DESKTOP_ABOVE_EBAY_PX : 0);
+}
+const MOBILE_CARD_ROW_PX = 392;
 const MOBILE_GRID_GAP_PX = 8;
 const MOBILE_GRID_PAD_BOTTOM_PX = 56;
 const MOBILE_SECTION_OVERHEAD_PX = 248;
+const DESKTOP_CARD_ROW_PX = 320;
+const DESKTOP_GRID_GAP_PX = 12;
+const DESKTOP_GRID_PAD_BOTTOM_PX = 12;
+const DESKTOP_SECTION_OVERHEAD_PX = 320;
 
-function mobileAboveProductsReservePx(hasEbay) {
-  return MOBILE_ABOVE_HERO_PX + MOBILE_ABOVE_STACK_GAP_PX + MOBILE_ABOVE_ENGAGEMENT_PX +
-    (hasEbay ? MOBILE_ABOVE_EBAY_PX : 0) + MOBILE_ABOVE_PRICE_LIST_PX;
+function desktopGridColumnsForWidth(width) {
+  if (width <= 1024) return 2;
+  if (width <= 1399) return 3;
+  return 4;
+}
+
+function desktopGridReservePx(cardCount, width) {
+  const cols = desktopGridColumnsForWidth(width || 1280);
+  const rows = Math.ceil(Math.max(0, Number(cardCount) || 0) / cols) || 4;
+  return rows * DESKTOP_CARD_ROW_PX + Math.max(0, rows - 1) * DESKTOP_GRID_GAP_PX + DESKTOP_GRID_PAD_BOTTOM_PX;
+}
+
+function desktopSectionReservePx(cardCount, width) {
+  return desktopGridReservePx(cardCount, width) + DESKTOP_SECTION_OVERHEAD_PX;
 }
 
 function mobileGridReservePx(cardCount) {
   const n = Math.max(0, Number(cardCount) || 0);
-  if (!n) return 1760;
+  if (!n) return 1648;
   const rows = Math.ceil(n / 2);
   return rows * MOBILE_CARD_ROW_PX + Math.max(0, rows - 1) * MOBILE_GRID_GAP_PX + MOBILE_GRID_PAD_BOTTOM_PX;
 }
@@ -163,6 +191,44 @@ function buildSsrPictureHtml(thumbHref, imgRaw, pid, imgAttrs, deferImage, isLcp
   );
 }
 
+function productAgeMs(product) {
+  const raw = product && (product.createdAt || product.updatedAt || product.lastModified);
+  if (!raw) return 0;
+  const t = Date.parse(String(raw));
+  return Number.isFinite(t) ? t : 0;
+}
+
+function buildSsrProductCardBadges(p) {
+  const badges = [];
+  const custom = String(p.badge || '').trim().toUpperCase();
+  const ageMs = productAgeMs(p);
+  const age = ageMs ? Date.now() - ageMs : 0;
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (custom === 'NEW' || (ageMs && age < weekMs)) {
+    badges.push({ label: 'New', className: 'product-card-badge--new' });
+  }
+  if (p.vipOnly || p.isVipOnly || p.vipStock || String(p.category || '').toLowerCase().indexOf('vip') !== -1) {
+    badges.push({ label: 'VIP', className: 'product-card-badge--vip' });
+  }
+  const wholesale = Number(p.wholesale || p.wholesalePrice || 0);
+  const retail = Number(p.price || p.retail || 0);
+  if (custom === 'WHOLESALE' || (wholesale > 0 && retail > 0 && wholesale < retail * 0.98)) {
+    badges.push({ label: 'Wholesale', className: 'product-card-badge--wholesale' });
+  }
+  const stock = parseInt(p.stock, 10) || 0;
+  if (stock > 0 && stock <= 5) {
+    badges.push({ label: 'Low Stock', className: 'product-card-badge--low-stock' });
+  }
+  if (!badges.length) return '<div class="product-card-badges product-card-badges--empty"></div>';
+  let out = '<div class="product-card-badges">';
+  badges.forEach(function(b) {
+    out += '<span class="product-card-badge ' + b.className + '">' + esc(b.label) + '</span>';
+  });
+  out += '</div>';
+  return out;
+}
+
 function buildSsrProductCard(p, thumbHref, opts) {
   opts = opts || {};
   const cardIndex = Number(opts.index) || 0;
@@ -217,7 +283,7 @@ function buildSsrProductCard(p, thumbHref, opts) {
   out +=
     buildSsrPictureHtml(thumbHref, imgRaw, pid, imgAttrs, deferImage, isLcp, fullName);
   out += '</a>';
-  out += '<div class="product-image-overlay"><span></span><div class="product-image-actions">';
+  out += '<div class="product-image-overlay">' + buildSsrProductCardBadges(p) + '<div class="product-image-actions">';
   out +=
     '<button type="button" class="product-badge product-badge--cart" data-product-cart-badge="' +
     pid +
@@ -244,9 +310,9 @@ function buildSsrProductCard(p, thumbHref, opts) {
   out += '<div class="product-card-footer"><div class="product-card-actions action-buttons">';
   if (stock > 0) {
     out +=
-      '<button type="button" class="btn-action primary" onclick="addToCart(' +
+      '<button type="button" class="btn-action primary product-add-to-cart-btn" onclick="addToCart(' +
       jsArg(id) +
-      ')"><i class="fas fa-cart-plus"></i> Add to Cart</button>';
+      ')"><i class="fas fa-cart-plus" aria-hidden="true"></i><span>Add to Cart</span></button>';
   } else {
     out += '<div class="out-of-stock">Out of stock</div>';
   }
@@ -413,13 +479,25 @@ if (items.length) {
   html = html.replace('<div class="product-skeleton" aria-hidden="true"></div>', ssrHtml);
   html = html.replace(/<div class="product-skeleton" aria-hidden="true"><\/div>\s*/g, '');
 
-  const gridReserve = mobileGridReservePx(ssrCount);
-  const sectionReserve = mobileSectionReservePx(ssrCount);
+  const catalogReserveCount = Math.min(items.length, 24);
+  const gridReserve = mobileGridReservePx(catalogReserveCount);
+  const sectionReserve = mobileSectionReservePx(catalogReserveCount);
+  const desktopGridReserve = desktopGridReservePx(catalogReserveCount, 1280);
+  const desktopSectionReserve = desktopSectionReservePx(catalogReserveCount, 1280);
   const hasEbay = !!(ebaySettings && ebaySettings.enabled && validEbayUrl(ebaySettings.url));
-  const aboveReserve = mobileAboveProductsReservePx(hasEbay);
-  html = html.replace(/1760px/g, gridReserve + 'px');
-  html = html.replace(/1960px/g, sectionReserve + 'px');
-  html = html.replace(/484px/g, aboveReserve + 'px');
+  const aboveReserve = mobileAboveProductsReservePx();
+  const aboveReserveDesktop = desktopAboveProductsReservePx(hasEbay);
+  html = html.replace(/1648px/g, gridReserve + 'px');
+  html = html.replace(/1896px/g, sectionReserve + 'px');
+  html = html.replace(/228px/g, aboveReserve + 'px');
+  html = html.replace(
+    /--products-grid-reserved-h-desktop:\s*\d+px/g,
+    '--products-grid-reserved-h-desktop:' + desktopGridReserve + 'px'
+  );
+  html = html.replace(
+    /--products-section-reserved-h-desktop:\s*\d+px/g,
+    '--products-section-reserved-h-desktop:' + desktopSectionReserve + 'px'
+  );
   html = html.replace(
     /--products-grid-reserved-h:\s*\d+px/g,
     '--products-grid-reserved-h:' + gridReserve + 'px'
@@ -452,7 +530,7 @@ if (items.length) {
   if (html.includes('id="storefrontAboveProducts"')) {
     html = html.replace(
       /(<div id="storefrontAboveProducts"[^>]*)(>)/,
-      '$1 style="--storefront-above-reserved-h:' + aboveReserve + 'px"$2'
+      '$1 style="--storefront-above-reserved-h:' + aboveReserve + 'px;--storefront-above-reserved-h-desktop:' + aboveReserveDesktop + 'px"$2'
     );
   }
 }

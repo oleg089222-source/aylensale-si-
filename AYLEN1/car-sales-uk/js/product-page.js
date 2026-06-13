@@ -407,6 +407,11 @@
     h += '<div class="product-detail-badges">';
     var autoBadge = isComingSoon ? 'COMING SOON' : (typeof productAutoBadge === 'function' ? productAutoBadge(p) : '');
     if (autoBadge) h += '<span class="product-detail-badge">' + escapeHtml(autoBadge) + '</span>';
+    if (p.grade && p.grade !== 'mixed') {
+      h += '<span class="product-detail-badge product-detail-badge--grade">Grade ' + escapeHtml(String(p.grade).toUpperCase()) + '</span>';
+    } else if (p.grade === 'mixed') {
+      h += '<span class="product-detail-badge product-detail-badge--grade">Mixed grades</span>';
+    }
     h += '<span id="viewers-' + safeDomId(p.id) + '" class="product-chip product-chip-viewers live-product-viewers" style="display:none"></span>';
     if (liveStockLabel) h += '<span class="product-chip product-chip-stock"><i class="fas fa-fire"></i> ' + escapeHtml(liveStockLabel) + '</span>';
     h += '</div>';
@@ -422,6 +427,26 @@
       h += '<div class="product-detail-desc">' + (typeof renderProductDescriptionBlock === 'function'
         ? renderProductDescriptionBlock(p.id, desc, 'page')
         : '<div class="product-detail-desc-body">' + escapeHtml(desc).replace(/\n/g, '<br>') + '</div>') + '</div>';
+    }
+    if (p.manifest && Array.isArray(p.manifest.lines) && p.manifest.lines.length) {
+      var manifestCsvApi = '/api/manifest-csv?id=' + encodeURIComponent(p.id) + '&type=product';
+      h += '<div class="product-manifest-box">';
+      h += '<div class="product-manifest-head">';
+      h += '<h2 class="product-manifest-title"><i class="fas fa-list"></i> Manifest</h2>';
+      h += '<div class="product-manifest-actions">';
+      h += '<a href="' + manifestCsvApi + '" class="product-manifest-dl" download><i class="fas fa-file-csv"></i> Download CSV</a>';
+      h += '<button type="button" class="product-manifest-dl product-manifest-dl--btn" onclick="downloadManifestCsv(window.__currentProductManifest,{name:' + jsInlineArg(p.name) + ',sku:' + jsInlineArg(p.sku || '') + ',grade:' + jsInlineArg(p.grade || '') + ',productId:' + jsInlineArg(p.id) + '})"><i class="fas fa-download"></i> Save copy</button>';
+      h += '</div></div>';
+      h += '<p class="product-manifest-summary">' + (p.manifest.totalUnits || 0) + ' units · est. RRP £' + Number(p.manifest.totalRrp || 0).toFixed(2) + '</p>';
+      h += '<div class="product-manifest-table-wrap"><table class="product-manifest-table"><thead><tr>';
+      h += '<th>SKU</th><th>Item</th><th>Qty</th><th>RRP</th><th>Grade</th></tr></thead><tbody>';
+      p.manifest.lines.forEach(function(line) {
+        h += '<tr><td>' + escapeHtml(line.sku || '') + '</td><td>' + escapeHtml(line.title || '') + '</td>';
+        h += '<td>' + (line.qty || 0) + '</td><td>£' + Number(line.rrp || 0).toFixed(2) + '</td>';
+        h += '<td>' + escapeHtml(String(line.grade || '').toUpperCase()) + '</td></tr>';
+      });
+      h += '</tbody></table></div></div>';
+      window.__currentProductManifest = p.manifest;
     }
     var policy = window.AYLEN_LISTING_POLICIES && window.AYLEN_LISTING_POLICIES.getById
       ? window.AYLEN_LISTING_POLICIES.getById(p.policyId || p.listingPolicyId) : null;

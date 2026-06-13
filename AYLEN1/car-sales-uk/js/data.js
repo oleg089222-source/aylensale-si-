@@ -561,9 +561,14 @@ function generateAuctionId() {
 }
 
 // Auction functions — each auction gets a unique Firestore doc id (never overwrite auction_101).
-function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, durationHours, auctionId) {
+function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, durationHours, auctionId, options) {
   var newId = auctionId || generateAuctionId();
-  var endTime = new Date(Date.now() + (durationHours || 24) * 3600000);
+  options = options || {};
+  var earlyHours = Math.max(0, Number(options.vipEarlyAccessHours) || 0);
+  var nowMs = Date.now();
+  var publicStartMs = earlyHours > 0 ? nowMs + earlyHours * 3600000 : nowMs;
+  var duration = Number(durationHours) || 168;
+  var endTime = new Date(publicStartMs + duration * 3600000);
   var auction = {
     id: newId,
     name: name,
@@ -572,6 +577,10 @@ function addAuctionWithPhotos(name, desc, startingPrice, category, imageUrls, du
     startingPrice: startingPrice,
     currentPrice: startingPrice,
     endTime: endTime.toISOString(),
+    publicStartAt: new Date(publicStartMs).toISOString(),
+    vipEarlyAccessHours: earlyHours,
+    durationType: options.durationType || 'standard',
+    durationHours: duration,
     images: imageUrls || [],
     bids: [],
     bidsCount: 0,
@@ -747,9 +756,13 @@ function getHighestBid(auction) {
 
 function getAuctionStatus(auction) {
   if (!auction) return 'active';
-  if (auction.status === 'completed') return 'completed';
-  if (auction.status === 'order_sent') return 'order_sent';
-  if (auction.status === 'winner_pending') return 'winner_pending';
+  var s = String(auction.status || '');
+  if (s === 'completed') return 'completed';
+  if (s === 'collected') return 'collected';
+  if (s === 'collection_booked') return 'collection_booked';
+  if (s === 'order_sent') return 'order_sent';
+  if (s === 'paid') return 'paid';
+  if (s === 'winner_pending') return 'winner_pending';
   return new Date(auction.endTime).getTime() <= Date.now() ? 'ended' : 'active';
 }
 
@@ -795,10 +808,15 @@ async function placeBid(auctionId, bidAmount, bidderInfo, meta) {
     });
     var data = await response.json();
     if (!response.ok || !data.success) {
+      var errMsg = String(data.error || data.message || 'Bid could not be saved');
+      var errCode = String(data.code || '').toUpperCase();
+      var depositRequired = errCode === 'DEPOSIT_REQUIRED' ||
+        (response.status === 403 && /deposit/i.test(errMsg));
       return {
         success: false,
-        code: data.code || '',
-        error: data.error || 'Bid could not be saved'
+        code: depositRequired ? 'DEPOSIT_REQUIRED' : (data.code || ''),
+        error: errMsg,
+        depositAmountGbp: data.depositAmountGbp
       };
     }
 

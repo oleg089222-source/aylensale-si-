@@ -46,7 +46,12 @@
       var id = turnstile.render(el, {
         sitekey: siteKey,
         theme: 'dark',
-        size: 'flexible'
+        size: 'flexible',
+        callback: function() {
+          if (containerId.indexOf('winnerTurnstile_') === 0 && global.SECURITY && global.SECURITY.clearWinnerRateLimit) {
+            global.SECURITY.clearWinnerRateLimit();
+          }
+        }
       });
       widgets[containerId] = id;
       return id;

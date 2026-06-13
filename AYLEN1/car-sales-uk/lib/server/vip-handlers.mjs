@@ -44,12 +44,25 @@ import {
   saveVipStockItemAdmin,
   deleteVipStockItemAdmin
 } from './vip-store.mjs';
-import { markAuctionDepositPaidFromSession, STRIPE_PRODUCT_AUCTION_DEPOSIT, resolveDepositFlags } from './auction-deposit.mjs';
+import { markAuctionDepositPaidFromSession, STRIPE_PRODUCT_AUCTION_DEPOSIT } from './auction-deposit.mjs';
 import { markWinnerPaidFromSession, STRIPE_PRODUCT_AUCTION_WINNER_PAYMENT, resolveWinnerPaymentFlags } from './auction-payment.mjs';
-import { getAuctionSettings } from './auction-engine.mjs';
+import { getAuctionSettings, phoneKey } from './auction-engine.mjs';
+import { canonicalUkPhoneDigits } from './uk-phone.mjs';
 
 function isTruthy(v) {
   return v === true || v === 'true' || v === '1' || v === 'yes';
+}
+
+function stripeVerifyHttpError(error) {
+  const msg = String(error && error.message || error || '');
+  const type = String(error && error.type || '');
+  if (type === 'StripeInvalidRequestError' || /no such checkout\.session/i.test(msg)) {
+    return { status: 400, error: 'Invalid or expired checkout session' };
+  }
+  if (/Invalid API Key/i.test(msg)) {
+    return { status: 503, error: 'Payment verification is not configured' };
+  }
+  return null;
 }
 
 function vipDisabled() {
@@ -435,11 +448,17 @@ export async function handleVipAuctionBid(req, res) {
       }
       vipMemberId = String(record.id || '');
       bidderContact = normalizeEmail(record.email || bidderContact);
-      bidderKey = bidderContact ? ('email:' + bidderContact) : '';
       if (!bidderName) bidderName = String(record.bidderDisplayName || '').trim();
       if (!bidderName && record.email) bidderName = record.email.split('@')[0];
       if (!bidderPhone) bidderPhone = String(record.bidderPhone || '').trim();
       if (!bidderName) bidderName = record.email || 'VIP bidder';
+      if (canonicalUkPhoneDigits(bidderPhone).length < 10) {
+        return res.status(400).json({
+          error: 'Valid UK phone required for auction bids (links deposit & winner flow)',
+          code: 'PHONE_REQUIRED'
+        });
+      }
+      bidderKey = phoneKey(bidderPhone);
     } else {
       bidderContact = normalizeEmail(adminDecoded.email || bidderContact);
       bidderKey = bidderContact ? ('email:' + bidderContact) : '';
@@ -455,7 +474,8 @@ export async function handleVipAuctionBid(req, res) {
       bidderKey: bidderKey,
       vipMemberId: vipMemberId,
       source: adminDecoded ? 'vip_admin' : 'vip',
-      skipAntiSpam: !!adminDecoded
+      skipAntiSpam: !!adminDecoded,
+      skipDeposit: !!adminDecoded
     });
 
     if (record && record.id) {
@@ -478,6 +498,14 @@ export async function handleVipAuctionBid(req, res) {
     });
   } catch (error) {
     console.error('vip auction-bid:', error.message);
+    const code = error && error.code;
+    if (code === 'DEPOSIT_REQUIRED') {
+      return res.status(403).json({
+        error: error.message || 'Deposit required before bidding',
+        code: 'DEPOSIT_REQUIRED',
+        depositAmountGbp: error.depositAmountGbp
+      });
+    }
     return res.status(400).json({ error: error.message || 'Could not place bid' });
   }
 }
@@ -747,6 +775,8 @@ export async function handleVipItemVerify(req, res) {
     return res.status(200).json({ order: mapVipOrderPublic(order), paid: true });
   } catch (error) {
     console.error('vip item verify:', error.message);
+    const mapped = stripeVerifyHttpError(error);
+    if (mapped) return res.status(mapped.status).json({ error: mapped.error });
     return res.status(500).json({ error: error.message || 'Verification failed' });
   }
 }
@@ -911,39 +941,52 @@ export async function handleVerify(req, res) {
       expand: ['subscription', 'customer']
     });
 
+    if (session.mode === 'payment') {
+      return res.status(400).json({ error: 'Not a VIP subscription checkout session' });
+    }
+
+    if (session.mode !== 'subscription') {
+      return res.status(400).json({ error: 'Invalid checkout session mode' });
+    }
+
+    const meta = session.metadata || {};
+    const hasSubscription = !!session.subscription;
+    if (meta.product !== 'vip_stock' && !hasSubscription) {
+      return res.status(400).json({ error: 'Not a VIP subscription checkout session' });
+    }
+
     if (session.payment_status !== 'paid' && session.status !== 'complete') {
       return res.status(402).json({ error: 'Payment not completed yet' });
     }
 
+    let sub = session.subscription && typeof session.subscription === 'object'
+      ? session.subscription
+      : null;
+    if (!sub && hasSubscription) {
+      sub = await stripe.subscriptions.retrieve(String(session.subscription));
+    }
+    if (!sub) {
+      return res.status(400).json({ error: 'No subscription found for this session' });
+    }
+
+    const periodEnd = periodEndIso(sub);
+    const mappedStatus = mapStripeSubscriptionStatus(sub);
+    if (mappedStatus === VIP_STATUSES.ACTIVE && !periodEnd) {
+      return res.status(400).json({ error: 'Subscription billing period not available yet' });
+    }
+
     const email = String(
       session.customer_details && session.customer_details.email ||
-      session.metadata && session.metadata.email ||
+      meta.email ||
       session.customer_email ||
       ''
     ).trim().toLowerCase();
 
     const prior = email ? await findSubscriberByEmail(email) : null;
-
-    const sub = session.subscription && typeof session.subscription === 'object'
-      ? session.subscription
-      : null;
-
-    const customerId = typeof session.customer === 'string'
-      ? session.customer
-      : (session.customer && session.customer.id) || '';
-
-    const record = await upsertSubscriberFromStripe({
-      email: email,
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: sub ? sub.id : String(session.subscription || ''),
-      status: sub ? mapStripeSubscriptionStatus(sub) : VIP_STATUSES.ACTIVE,
-      currentPeriodEnd: sub && sub.current_period_end
-        ? new Date(sub.current_period_end * 1000).toISOString()
-        : '',
-      cancelAtPeriodEnd: sub ? !!sub.cancel_at_period_end : false,
-      amountGbp: 9.99,
-      paymentFailedCount: 0
-    });
+    const record = await syncFromSubscription(sub, email);
+    if (!record) {
+      return res.status(500).json({ error: 'Could not sync VIP subscription' });
+    }
 
     await maybeNotifyNewVipMember(record, prior);
 
@@ -954,6 +997,8 @@ export async function handleVerify(req, res) {
     });
   } catch (error) {
     console.error('vip verify:', error.message);
+    const mapped = stripeVerifyHttpError(error);
+    if (mapped) return res.status(mapped.status).json({ error: mapped.error });
     return res.status(500).json({ error: error.message || 'Verification failed' });
   }
 }
@@ -1077,10 +1122,7 @@ export async function handleWebhook(req, res) {
           const email = session.customer_details && session.customer_details.email || session.metadata && session.metadata.email || session.customer_email;
           await syncFromSubscription(sub, email);
         } else if (session.mode === 'payment' && session.metadata && session.metadata.product === STRIPE_PRODUCT_AUCTION_DEPOSIT) {
-          const db = getFirestoreAdmin();
-          const settings = await getAuctionSettings(db);
-          const depositFlags = resolveDepositFlags(settings);
-          if (depositFlags.depositWebhookEnabled && (session.payment_status === 'paid' || session.status === 'complete')) {
+          if (session.payment_status === 'paid') {
             await markAuctionDepositPaidFromSession(session, { eventId: event.id, source: 'webhook' });
           }
         } else if (session.mode === 'payment' && session.metadata && session.metadata.product === STRIPE_PRODUCT_AUCTION_WINNER_PAYMENT) {

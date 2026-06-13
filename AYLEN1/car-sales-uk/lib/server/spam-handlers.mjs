@@ -17,17 +17,25 @@ import {
   afterRealBid,
   recordAuctionOutcomes
 } from './auction-engine.mjs';
+import { ukPhonesMatch } from './uk-phone.mjs';
 import { getStripe, getSiteOrigin } from './stripe-client.mjs';
 import {
   STRIPE_PRODUCT_AUCTION_DEPOSIT,
   auctionFirestoreDocId,
   buildPendingDepositEntry,
   hasPaidDeposit,
+  hasActiveBidderDeposit,
+  bidderHasBidDeposit,
   markAuctionDepositPaidFromSession,
   publicDepositConfig,
-  requirePaidDepositForBid,
+  AUCTION_DEPOSIT_GBP,
   resolveDepositFlags
 } from './auction-deposit.mjs';
+import {
+  isValidRefundRequestBody,
+  saveRefundRequest,
+  formatRefundTelegramMessage
+} from './auction-refund.mjs';
 import { validateBidFields, validateBidAgainstAuction, isUkPhone } from './auction-validation.mjs';
 import { evaluateBidFraud, fraudBlockResponse } from './auction-fraud.mjs';
 import {
@@ -47,6 +55,24 @@ function firestoreDocId(prefix, id) {
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
 }
 
+function publicBidderDisplayName(name) {
+  const raw = String(name || 'Bidder').trim();
+  const first = raw.split(/\s+/)[0] || 'Bidder';
+  return first.slice(0, 80);
+}
+
+function toPublicAuctionBid(bid) {
+  const b = bid || {};
+  return {
+    id: String(b.id || ''),
+    amount: Number(b.amount || 0),
+    bidderName: publicBidderDisplayName(b.bidderName || b.bidder),
+    bidderKey: String(b.bidderKey || ''),
+    timestamp: String(b.timestamp || ''),
+    source: String(b.source || 'real').slice(0, 20)
+  };
+}
+
 export async function handleSpamConfig(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'public, max-age=300');
@@ -61,7 +87,8 @@ export async function handleSpamConfig(req, res) {
   const siteKey = turnstileSiteKey();
   return res.status(200).json({
     turnstileSiteKey: siteKey || null,
-    captchaEnabled: !!siteKey
+    captchaEnabled: !!siteKey,
+    previewTurnstile: process.env.VERCEL_ENV === 'preview'
   });
 }
 
@@ -198,6 +225,15 @@ export async function handleAuctionBid(req, res) {
     const preData = preSnap.exists ? preSnap.data() || {} : {};
     const preBids = Array.isArray(preData.bids) ? preData.bids : [];
 
+    const earlyMod = await import('./auction-early-access.mjs');
+    if (!earlyMod.canPlacePublicBid(preData)) {
+      return res.status(403).json({
+        error: 'This lot is in VIP early access. Join VIP members to bid now.',
+        code: 'VIP_EARLY_ACCESS',
+        vipUrl: '/vip-stock.html'
+      });
+    }
+
     const fraud = await evaluateBidFraud(db, {
       settings: settings,
       phoneKey: bidderKey,
@@ -208,6 +244,21 @@ export async function handleAuctionBid(req, res) {
     if (fraud.blocked) {
       const body = fraudBlockResponse(fraud);
       return res.status(403).json(body);
+    }
+
+    const deposits = Array.isArray(preData.deposits) ? preData.deposits : [];
+    const depositGbp = Number(process.env.AUCTION_DEPOSIT_GBP || AUCTION_DEPOSIT_GBP);
+    const depositEscape = deposits.length === 0 && process.env.AUCTION_DEPOSIT_REQUIRED === 'false';
+    if (!depositEscape && depositGbp > 0) {
+      const paidOnLot = hasPaidDeposit(deposits, bidderKey);
+      const paidElsewhere = paidOnLot ? true : await hasActiveBidderDeposit(db, bidderKey);
+      if (!paidOnLot && !paidElsewhere) {
+        return res.status(403).json({
+          error: 'Pay the auction deposit before bidding',
+          code: 'deposit_required',
+          depositAmountGbp: depositGbp
+        });
+      }
     }
 
     const result = await db.runTransaction(async (tx) => {
@@ -221,12 +272,10 @@ export async function handleAuctionBid(req, res) {
         throw new Error('Auction has ended');
       }
       const status = String(data.status || 'active');
-      if (status === 'completed' || status === 'order_sent') {
+      if (status === 'completed' || status === 'order_sent' || status === 'winner_pending' ||
+        status === 'paid' || status === 'collection_booked' || status === 'collected') {
         throw new Error('Auction is closed');
       }
-
-      const depositFlags = resolveDepositFlags(settings);
-      requirePaidDepositForBid(data.deposits, bidderKey, depositFlags);
 
       const currentPrice = Number(data.currentPrice || data.startingPrice || data.startPrice || 0);
       const bids = Array.isArray(data.bids) ? data.bids.slice() : [];
@@ -264,7 +313,7 @@ export async function handleAuctionBid(req, res) {
         isBot: false,
         timestamp: new Date().toISOString()
       };
-      bids.push(bid);
+      bids.push(toPublicAuctionBid(bid));
 
       const nowMs = Date.now();
       const newEnd = applyAntiSnipeEndTime(data.endTime, settings, nowMs);
@@ -399,6 +448,14 @@ export async function handleAuctionDeposit(req, res) {
     if (hasPaidDeposit(deposits, pKey)) {
       return res.status(400).json({ error: 'Deposit already paid for this auction' });
     }
+    if (await hasActiveBidderDeposit(db, pKey)) {
+      return res.status(200).json({
+        success: true,
+        alreadyPaid: true,
+        crossAuction: true,
+        message: 'Your active deposit covers bidding on this lot.'
+      });
+    }
 
     const stripe = getStripe();
     const origin = getSiteOrigin(req);
@@ -513,6 +570,9 @@ export async function handleAuctionDepositVerify(req, res) {
     }
 
     const result = await markAuctionDepositPaidFromSession(session, { source: 'verify' });
+    if (!result.alreadyPaid) {
+      await sendAuctionTelegram(formatDepositPaidTelegram(result));
+    }
     return res.status(200).json({
       ok: true,
       paid: true,
@@ -598,7 +658,7 @@ export async function handleAuctionBuyNow(req, res) {
         isBot: false,
         timestamp: new Date().toISOString()
       };
-      bids.push(bid);
+      bids.push(toPublicAuctionBid(bid));
 
       const paymentFields = buildWinnerPaymentFields(buyNow, settings);
       const winner = Object.assign({
@@ -724,9 +784,7 @@ export async function handleAuctionWinnerPayment(req, res) {
     if (String(data.status || '') !== 'winner_pending') {
       return res.status(400).json({ error: 'Auction is not awaiting winner payment' });
     }
-    const pKey = phoneKey(safePhone);
-    const winnerKey = winner.bidderKey || phoneKey(winner.bidderPhone);
-    if (!pKey || pKey !== winnerKey) {
+    if (!ukPhonesMatch(safePhone, winner.bidderPhone)) {
       return res.status(403).json({ error: 'Phone does not match winning bidder', code: 'NOT_WINNER' });
     }
     if (isWinnerPaymentPaid(winner)) {
@@ -801,5 +859,111 @@ export async function handleAuctionPaymentVerify(req, res) {
   } catch (err) {
     console.error('[auction-payment-verify]', err);
     return res.status(500).json({ error: err.message || 'Verify failed' });
+  }
+}
+
+function escapeTelegramHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function formatDepositPaidTelegram(result) {
+  const dep = result.deposit || {};
+  let text = '💳 <b>NEW AUCTION DEPOSIT PAID - AYLENSALE</b>\n\n';
+  text += `<b>Auction ID:</b> ${escapeTelegramHtml(result.auctionId || '')}\n`;
+  text += `<b>Name:</b> ${escapeTelegramHtml(dep.bidderName || '')}\n`;
+  text += `<b>Phone:</b> ${escapeTelegramHtml(dep.bidderPhone || '')}\n`;
+  text += `<b>Amount:</b> £${Number(dep.amount || 50).toFixed(2)}`;
+  return text;
+}
+
+async function sendAuctionTelegram(text) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!botToken || !chatId || !text) return null;
+  try {
+    const response = await fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
+    });
+    const data = await response.json().catch(() => ({}));
+    return data.ok ? data.result?.message_id : null;
+  } catch (err) {
+    console.warn('[auction-telegram]', err.message || err);
+    return null;
+  }
+}
+
+export async function handleAuctionDepositStatus(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    if (!isAdminConfigured()) {
+      return res.status(503).json({ ok: false, error: 'Deposit status unavailable' });
+    }
+    const phone = cleanString(req.query?.phone, 30);
+    if (!isUkPhone(phone)) {
+      return res.status(400).json({ ok: false, error: 'Valid UK phone required' });
+    }
+    const db = getFirestoreAdmin();
+    const settings = await getAuctionSettings(db);
+    const flags = resolveDepositFlags(settings);
+    const pKey = phoneKey(phone);
+    const active = await hasActiveBidderDeposit(db, pKey);
+    return res.status(200).json({
+      ok: true,
+      phoneKey: pKey,
+      activeDeposit: active,
+      depositEnforcement: flags.depositEnforcement,
+      depositAmountGbp: flags.depositAmountGbp
+    });
+  } catch (err) {
+    console.error('[auction-deposit-status]', err);
+    return res.status(500).json({ ok: false, error: err.message || 'Status unavailable' });
+  }
+}
+
+export async function handleAuctionRefundRequest(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    if (!isAdminConfigured()) {
+      return res.status(503).json({ error: 'Refund requests unavailable' });
+    }
+
+    const guard = await guardPublicForm(req, {
+      scope: 'auction-refund',
+      maxAttempts: 5,
+      windowMs: 3600000,
+      minimumMs: 3000,
+      rateMessage: 'Too many refund requests. Please wait and try again.'
+    });
+    if (!guard.ok) return res.status(guard.status).json({ error: guard.error });
+
+    const parsed = isValidRefundRequestBody(req.body || {});
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+
+    const saved = await saveRefundRequest(parsed.data);
+    const messageId = await sendAuctionTelegram(formatRefundTelegramMessage(parsed.data));
+
+    return res.status(200).json({
+      success: true,
+      requestId: saved.id,
+      status: 'pending',
+      messageId: messageId || null
+    });
+  } catch (err) {
+    console.error('[auction-refund-request]', err);
+    return res.status(500).json({ error: err.message || 'Could not submit refund request' });
   }
 }

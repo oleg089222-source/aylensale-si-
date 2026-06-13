@@ -10,11 +10,22 @@ import {
   cleanString,
   countUrls,
   detectBot,
-  guardPublicForm
+  getClientIP,
+  guardPublicForm,
+  validateSecurityMeta,
+  verifyTurnstile
 } from '../lib/server/spam-guard.mjs';
 import { getFirestoreAdmin } from '../lib/server/firebase-admin-app.mjs';
 import { isAdminConfigured } from '../lib/server/firestore-admin.mjs';
+import { resolveProductDocId } from '../lib/server/inventory-stock.mjs';
 import { verifyWinnerPaymentForClaim } from '../lib/server/auction-payment.mjs';
+import { auctionFirestoreDocId } from '../lib/server/auction-deposit.mjs';
+import { canonicalUkPhoneDigits } from '../lib/server/uk-phone.mjs';
+import {
+  AUCTION_COLLECTION_ADDRESS,
+  formatCollectionAddressText,
+  isValidAuctionCollectionMethod
+} from '../lib/server/auction-collection.mjs';
 
 async function saveOrderActivity(message, productId) {
   if (!isAdminConfigured()) return;
@@ -47,6 +58,92 @@ function escapeTelegram(value) {
     .replace(/>/g, '&gt;');
 }
 
+function productServerPrice(data) {
+  const d = data || {};
+  const price = Number(d.price);
+  const retail = Number(d.retail);
+  if (Number.isFinite(price) && price >= 0) return price;
+  if (Number.isFinite(retail) && retail >= 0) return retail;
+  return 0;
+}
+
+function cardIsUsable(card) {
+  if (!card) return false;
+  const status = String(card.status || 'active').toLowerCase();
+  if (status === 'blocked' || status === 'paused' || status === 'expired') return false;
+  if (status !== 'active' && status !== 'unused') return false;
+  if (card.expiryDate) {
+    const exp = new Date(String(card.expiryDate).slice(0, 10) + 'T23:59:59');
+    if (!isNaN(exp.getTime()) && exp < new Date()) return false;
+  }
+  if (Number(card.usageLimit || 0) > 0 && Number(card.usageCount || 0) >= Number(card.usageLimit)) {
+    return false;
+  }
+  return true;
+}
+
+function cardDiscountPercent(card) {
+  if (!card || !cardIsUsable(card)) return 0;
+  const discountType = String(card.discountType || 'percent').toLowerCase();
+  if (discountType !== 'percent') return 0;
+  const pct = Number(
+    card.discountValue != null ? card.discountValue : (card.discount != null ? card.discount : 0)
+  );
+  if (!Number.isFinite(pct) || pct <= 0 || pct > 100) return 0;
+  return pct;
+}
+
+async function resolveValidatedOrderItems(db, items, cardCode) {
+  let discountPct = 0;
+  const safeCard = cleanString(cardCode, 40).toUpperCase();
+  if (safeCard) {
+    const cardSnap = await db.collection('cards').doc(safeCard).get();
+    if (cardSnap.exists) {
+      discountPct = cardDiscountPercent(cardSnap.data());
+    }
+  }
+
+  const validated = [];
+  for (const item of items) {
+    const qty = Math.max(1, Math.min(99, Number(item.qty || 1)));
+    const clientPrice = Number(item.price);
+    let unitPrice = clientPrice;
+
+    if (item.id) {
+      const docId = resolveProductDocId(item.id);
+      const snap = await db.collection('products').doc(docId).get();
+      if (!snap.exists) {
+        throw Object.assign(new Error('Product not found: ' + cleanString(item.id, 80)), {
+          code: 'product_not_found',
+          productId: item.id
+        });
+      }
+      const serverPrice = productServerPrice(snap.data());
+      let allowedPrice = serverPrice;
+      if (discountPct > 0) {
+        allowedPrice = serverPrice * (1 - discountPct / 100);
+      }
+      if (!Number.isFinite(clientPrice) || clientPrice < allowedPrice * 0.99) {
+        throw Object.assign(new Error('Invalid item price for ' + cleanString(item.name, 80)), {
+          code: 'price_mismatch',
+          productId: item.id,
+          serverPrice: serverPrice,
+          allowedPrice: allowedPrice
+        });
+      }
+      unitPrice = allowedPrice;
+    }
+
+    validated.push({
+      id: item.id ? cleanString(item.id, 120) : '',
+      name: cleanString(item.name, 120),
+      qty: qty,
+      price: unitPrice
+    });
+  }
+  return validated;
+}
+
 export default async function handler(req, res) {
   // Only allow POST requests
   if (req.method !== 'POST') {
@@ -56,15 +153,32 @@ export default async function handler(req, res) {
   try {
     const { name, phone, pickup, comment, items, total, card, discount, type, security } = req.body || {};
 
-    const guard = await guardPublicForm(req, {
-      scope: type === 'auction_winner' ? 'auction-winner' : 'order',
-      maxAttempts: type === 'auction_winner' ? 3 : 5,
-      windowMs: 3600000,
-      minimumMs: 1200,
-      rateMessage: 'Too many requests. Please wait before placing another order.'
-    });
-    if (!guard.ok) {
-      return res.status(guard.status).json({ error: guard.error });
+    const isPreview = process.env.VERCEL_ENV === 'preview';
+    const rawPhone = cleanString(req.body?.phone, 30);
+    const phoneExempt = isPreview && canonicalUkPhoneDigits(rawPhone) === '447471647771';
+
+    if (!phoneExempt) {
+      const guard = await guardPublicForm(req, {
+        scope: type === 'auction_winner' ? 'auction-winner' : 'order',
+        maxAttempts: type === 'auction_winner' ? (isPreview ? 50 : 3) : (isPreview ? 30 : 5),
+        windowMs: 3600000,
+        minimumMs: 1200,
+        rateMessage: type === 'auction_winner'
+          ? 'Too many winner form attempts. Please wait and try again.'
+          : 'Too many requests. Please wait before placing another order.'
+      });
+      if (!guard.ok) {
+        return res.status(guard.status).json({ error: guard.error });
+      }
+    } else {
+      const security = req.body?.security;
+      if (!validateSecurityMeta(security, 1200)) {
+        return res.status(400).json({ error: 'Submission blocked.' });
+      }
+      const captcha = await verifyTurnstile(req.body?.turnstileToken, getClientIP(req));
+      if (!captcha.ok) {
+        return res.status(400).json({ error: captcha.error || 'Captcha failed.' });
+      }
     }
 
     const safeName = cleanString(name, 100);
@@ -126,13 +240,32 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Telegram not configured' });
     }
 
+    let orderItems = items;
+    if (type !== 'auction_winner' && isAdminConfigured()) {
+      try {
+        const db = getFirestoreAdmin();
+        orderItems = await resolveValidatedOrderItems(db, items, card);
+      } catch (priceErr) {
+        const code = priceErr && priceErr.code;
+        if (code === 'price_mismatch' || code === 'product_not_found') {
+          return res.status(400).json({
+            error: priceErr.message || 'Invalid order pricing',
+            code: code,
+            productId: priceErr.productId || null
+          });
+        }
+        console.error('[send-order] price validation failed:', priceErr.message);
+        return res.status(500).json({ error: 'Could not validate order prices' });
+      }
+    }
+
     let stockReservationId = null;
     let stockAdjustments = [];
     if (type !== 'auction_winner' && isAdminConfigured()) {
       try {
         const { decrementOrderStock } = await import('../lib/server/inventory-stock.mjs');
         stockReservationId = 'shop_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        const reserved = await decrementOrderStock(items, stockReservationId);
+        const reserved = await decrementOrderStock(orderItems, stockReservationId);
         stockAdjustments = reserved.adjustments || [];
       } catch (stockErr) {
         if (stockErr && stockErr.code === 'stock_unavailable') {
@@ -158,9 +291,7 @@ export default async function handler(req, res) {
         auctionId,
         bidId,
         finalPrice,
-        method,
-        address,
-        postcode
+        method
       } = req.body;
 
       if (!isAdminConfigured()) {
@@ -174,30 +305,21 @@ export default async function handler(req, res) {
         });
       }
 
-      const safeMethod = cleanString(method, 20);
-      const safeAddress = cleanString(address, 220);
-      const safePostcode = cleanString(postcode, 20);
+      const safeMethod = cleanString(method, 40);
       const safeAuctionName = cleanString(auctionName || 'Auction item', 140);
 
-      if (safeMethod !== 'Pickup' && safeMethod !== 'Delivery') {
-        return res.status(400).json({ error: 'Invalid winner method' });
-      }
-      if (safeMethod === 'Delivery' && (!safeAddress || !safePostcode)) {
-        return res.status(400).json({ error: 'Missing delivery details' });
+      if (!isValidAuctionCollectionMethod(safeMethod)) {
+        return res.status(400).json({ error: 'Invalid collection method' });
       }
 
+      const addr = AUCTION_COLLECTION_ADDRESS;
       text = '🏆 <b>AUCTION WINNER - AYLENSALE</b>\n\n';
       text += `<b>Auction:</b> ${escapeTelegram(safeAuctionName)}\n`;
       text += `<b>Final Price:</b> £${Number(finalPrice || 0).toFixed(2)}\n`;
       text += `<b>Winner:</b> ${escapeTelegram(safeName)}\n`;
       text += `<b>Phone:</b> ${escapeTelegram(safePhone)}\n`;
-      text += `<b>Method:</b> ${escapeTelegram(safeMethod)}\n`;
-      if (safeMethod === 'Delivery') {
-        text += `<b>Address:</b> ${escapeTelegram(safeAddress)}\n`;
-        text += `<b>Postcode:</b> ${escapeTelegram(safePostcode)}\n`;
-      } else {
-        text += `<b>Pickup:</b> ${escapeTelegram(safePickup || 'Not selected')}\n`;
-      }
+      text += `<b>Collection Method:</b> ${escapeTelegram(safeMethod)}\n`;
+      text += `<b>Collection Address:</b>\n${escapeTelegram(formatCollectionAddressText())}\n`;
       if (safeComment) {
         text += `<b>Comment:</b> ${escapeTelegram(safeComment)}\n`;
       }
@@ -219,7 +341,7 @@ export default async function handler(req, res) {
       
       text += '\n<b>Items:</b>\n';
       let validTotal = 0;
-      for (const item of items) {
+      for (const item of orderItems) {
         const itemTotal = (parseFloat(item.price) * parseInt(item.qty)).toFixed(2);
         validTotal += parseFloat(itemTotal);
         text += `• ${escapeTelegram(item.name)} x${item.qty} = £${itemTotal}\n`;
@@ -264,8 +386,32 @@ export default async function handler(req, res) {
 
     // Success!
     let firestoreOrderId = null;
-    if (type !== 'auction_winner') {
-      const firstItem = Array.isArray(items) && items[0] ? items[0] : null;
+    if (type === 'auction_winner') {
+      try {
+        const db = getFirestoreAdmin();
+        const docId = auctionFirestoreDocId(cleanString(req.body?.auctionId, 80));
+        await db.collection('auctions').doc(docId).set({
+          status: 'order_sent',
+          orderSentAt: new Date().toISOString(),
+          winnerOrder: {
+            name: safeName,
+            phone: safePhone,
+            method: cleanString(req.body?.method, 40),
+            comment: safeComment,
+            auctionId: cleanString(req.body?.auctionId, 80),
+            auctionName: cleanString(req.body?.auctionName, 140),
+            finalPrice: Number(req.body?.finalPrice || 0),
+            bidId: cleanString(req.body?.bidId, 80),
+            telegramMessageId: data.result.message_id || null,
+            createdAt: new Date().toISOString()
+          },
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (persistErr) {
+        console.warn('[send-order] winner order persist failed:', persistErr.message);
+      }
+    } else {
+      const firstItem = Array.isArray(orderItems) && orderItems[0] ? orderItems[0] : null;
       await saveOrderActivity(
         'Someone ordered ' + cleanString(firstItem && firstItem.name ? firstItem.name : 'AYLENSALE item', 120),
         firstItem && firstItem.id ? firstItem.id : ''
@@ -277,7 +423,7 @@ export default async function handler(req, res) {
           phone: safePhone,
           pickup: safePickup,
           comment: safeComment,
-          items: items,
+          items: orderItems,
           total: orderTotal,
           card: card || '',
           discount: discount || 0,

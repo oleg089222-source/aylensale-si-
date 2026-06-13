@@ -1,7 +1,7 @@
 /**
  * Auction engine API — admin dashboard, bot tick, profiles (merged into /api/spam).
  */
-import { cleanString } from './spam-guard.mjs';
+import { cleanString, guardPublicForm } from './spam-guard.mjs';
 import { getFirestoreAdmin, verifyFirebaseAdminToken } from './firebase-admin-app.mjs';
 import { isAdminConfigured } from './firestore-admin.mjs';
 import {
@@ -16,6 +16,8 @@ import {
   updateAuctionBotSettings,
   upsertBidderProfile
 } from './auction-engine.mjs';
+import { listRefundRequests, updateRefundRequest } from './auction-refund-admin.mjs';
+import { applyAuctionStatusUpdate } from './auction-status.mjs';
 
 function parseBody(req) {
   if (typeof req.body === 'string') {
@@ -74,6 +76,8 @@ export async function handleAuctionEngineGet(req, res) {
     }
 
     if (sub === 'settings') {
+      const admin = await requireAdmin(req);
+      if (!admin) return res.status(401).json({ error: 'Unauthorized' });
       const settings = await getAuctionSettings(db);
       return res.status(200).json({ ok: true, settings: settings });
     }
@@ -100,6 +104,16 @@ export async function handleAuctionEngineGet(req, res) {
       return res.status(200).json(dash);
     }
 
+    if (sub === 'refunds') {
+      const admin = await requireAdmin(req);
+      if (!admin) return res.status(401).json({ error: 'Admin auth required' });
+      const payload = await listRefundRequests(db, {
+        status: cleanString(req.query.status, 20),
+        limit: Number(req.query.limit) || 50
+      });
+      return res.status(200).json(payload);
+    }
+
     return res.status(400).json({ error: 'Unknown sub action: ' + sub });
   } catch (err) {
     console.error('[auction-engine GET]', err);
@@ -118,6 +132,18 @@ export async function handleAuctionEnginePost(req, res) {
 
   try {
     const db = getFirestoreAdmin();
+
+    if (action === 'profile' || action === 'profile-prefs') {
+      const guard = await guardPublicForm(req, {
+        scope: 'auction-profile',
+        maxAttempts: 20,
+        windowMs: 3600000,
+        rateMessage: 'Too many profile updates. Please wait and try again.'
+      });
+      if (!guard.ok) {
+        return res.status(guard.status).json({ error: guard.error });
+      }
+    }
 
     if (action === 'profile') {
       const phone = cleanString(body.phone, 30);
@@ -183,6 +209,27 @@ export async function handleAuctionEnginePost(req, res) {
     if (action === 'tick') {
       const result = await runAuctionTick(db);
       return res.status(200).json(result);
+    }
+
+    if (action === 'refund-update') {
+      const id = cleanString(body.id, 80);
+      if (!id) return res.status(400).json({ error: 'Missing refund request id' });
+      const result = await updateRefundRequest(db, id, {
+        status: cleanString(body.status, 20),
+        adminNote: cleanString(body.adminNote, 500)
+      }, { adminEmail: admin.email || admin.uid || 'admin' });
+      return res.status(result.ok ? 200 : 400).json(result);
+    }
+
+    if (action === 'auction-status') {
+      const auctionId = cleanString(body.auctionId, 120);
+      const status = cleanString(body.status, 40);
+      if (!auctionId || !status) return res.status(400).json({ error: 'auctionId and status required' });
+      const result = await applyAuctionStatusUpdate(db, auctionId, status, {
+        adminEmail: admin.email || admin.uid || 'admin',
+        note: cleanString(body.note, 300)
+      });
+      return res.status(result.ok ? 200 : 400).json(result);
     }
 
     return res.status(400).json({ error: 'Unknown action: ' + action });

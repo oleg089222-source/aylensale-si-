@@ -596,6 +596,26 @@
     return mins + ' min left';
   }
 
+  function isVipAuctionEarlyAccess(auction) {
+    if (!auction) return false;
+    if (auction.vipEarlyAccess) return true;
+    if (!Number(auction.vipEarlyAccessHours || 0)) return false;
+    var ps = auction.publicStartAt;
+    if (!ps) return false;
+    return Date.parse(ps) > Date.now();
+  }
+
+  function formatAuctionPublicStart(auction) {
+    if (!isVipAuctionEarlyAccess(auction)) return '';
+    var ps = auction.publicStartAt;
+    if (!ps) return '';
+    try {
+      return 'Public launch: ' + new Date(ps).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return '';
+    }
+  }
+
   function renderHubHeroMedia(settings) {
     var video = settings && settings.hubVideoUrl ? String(settings.hubVideoUrl).trim() : '';
     var imgs = resolveHubCarousel(settings || {});
@@ -785,6 +805,13 @@
   }
 
   function getMyVipBidderKey() {
+    try {
+      var raw = localStorage.getItem(VIP_BIDDER_PROFILE_KEY);
+      if (raw) {
+        var stored = JSON.parse(raw);
+        if (stored && stored.bidderKey) return stored.bidderKey;
+      }
+    } catch (e) {}
     var session = getSession();
     if (!session || !session.email) return '';
     return 'email:' + String(session.email).trim().toLowerCase();
@@ -811,7 +838,8 @@
       localStorage.setItem(VIP_BIDDER_PROFILE_KEY, JSON.stringify({
         name: String((profile && profile.name) || '').slice(0, 80),
         phone: String((profile && profile.phone) || '').slice(0, 40),
-        email: (session && session.email) || (profile && profile.email) || ''
+        email: (session && session.email) || (profile && profile.email) || '',
+        bidderKey: String((profile && profile.bidderKey) || '').slice(0, 120)
       }));
     } catch (e) {}
   }
@@ -943,7 +971,7 @@
           '<div class="vip-pdp-layout">' +
             '<div class="vip-pdp-gallery" data-pdp-gallery-root>' + galleryHtml + '</div>' +
             '<div class="vip-pdp-info">' +
-              '<span class="vip-stock-card__badge">Live auction</span>' +
+              '<span class="vip-stock-card__badge">' + (isVipAuctionEarlyAccess(auction) ? 'VIP Early Access' : 'Live auction') + '</span>' +
               '<h3>' + esc(auction.name || auction.title || 'Auction') + '</h3>' +
               '<p class="vip-pdp-meta">' +
                 '<span id="vipAuctionCurrentPrice">Current bid: <b>' + formatMoney(displayPrice) + '</b></span>' +
@@ -952,6 +980,7 @@
                 (auction.viewCount ? ' · ' + esc(auction.viewCount) + ' views' : '') +
               '</p>' +
               (ends ? '<p class="vip-auction-ends"><i class="fas fa-clock"></i> ' + esc(ends) + '</p>' : '') +
+              (formatAuctionPublicStart(auction) ? '<p class="vip-auction-ends vip-auction-ends--early"><i class="fas fa-crown"></i> ' + esc(formatAuctionPublicStart(auction)) + '</p>' : '') +
               (leader ? '<p class="vip-auction-leader" id="vipAuctionLeadingBidder"><i class="fas fa-crown"></i> Leading bidder: <b>' + esc(leader) + '</b></p>' : '<p class="vip-auction-leader" id="vipAuctionLeadingBidder" hidden></p>') +
               (auction.desc ? '<div class="vip-pdp-desc">' + esc(auction.desc).replace(/\n/g, '<br>') + '</div>' : '') +
               renderVipAuctionBidHistory(auction) +
@@ -962,7 +991,7 @@
                 '<label>Your bid (£)<input type="number" step="0.01" min="' + esc(minBid) + '" name="amount" class="vip-rm-input" placeholder="' + esc(minBid) + '" required' + (myLead ? ' disabled' : '') + '></label>' +
                 '<p class="vip-auction-min">Minimum bid: <strong>' + formatMoney(minBid) + '</strong></p>' +
                 '<label>Your name<input type="text" name="name" class="vip-rm-input" value="' + esc(defaultName) + '" required maxlength="80" autocomplete="name"></label>' +
-                '<label>Phone <small>(optional, saved for next time)</small><input type="tel" name="phone" class="vip-rm-input" value="' + esc(defaultPhone) + '" maxlength="40" autocomplete="tel"></label>' +
+                '<label>UK phone <small>(required — links £50 deposit &amp; winner flow)</small><input type="tel" name="phone" class="vip-rm-input" value="' + esc(defaultPhone) + '" maxlength="40" autocomplete="tel" required></label>' +
                 '<p id="vipAuctionBidError" class="vip-rm-error" hidden role="alert"></p>' +
                 '<button type="submit" class="vip-btn vip-btn--gold"' + (myLead ? ' disabled' : '') + '><i class="fas fa-gavel"></i> Place bid</button>' +
               '</form>' +
@@ -1027,6 +1056,10 @@
       notifyMsg('Bid must be higher than ' + formatMoney(floor), 'error');
       return;
     }
+    if (!String(fd.get('phone') || '').trim()) {
+      setAuctionBidError('UK phone is required for auction bids');
+      return;
+    }
     if (!String(fd.get('name') || '').trim()) {
       setAuctionBidError('Please enter your name');
       return;
@@ -1058,7 +1091,8 @@
       saveVipBidderProfileLocal({
         name: fd.get('name'),
         phone: fd.get('phone') || '',
-        email: authOpts.email || getVipBidderProfile().email
+        email: authOpts.email || getVipBidderProfile().email,
+        bidderKey: (data.bid && data.bid.bidderKey) || ''
       });
       notifyMsg('Bid placed — ' + formatMoney(data.currentPrice), 'success');
       var priceEl = document.getElementById('vipAuctionCurrentPrice');
@@ -1089,8 +1123,12 @@
         if (minHint) minHint.textContent = formatMoney(nextMin);
       }
     } catch (err) {
-      setAuctionBidError(err.message || 'Could not place bid');
-      notifyMsg(err.message || 'Could not place bid', 'error');
+      var errMsg = err.message || 'Could not place bid';
+      if (err.code === 'DEPOSIT_REQUIRED' || /deposit/i.test(errMsg)) {
+        errMsg = 'Pay the £50 auction deposit on the main site before bidding (one deposit covers all lots).';
+      }
+      setAuctionBidError(errMsg);
+      notifyMsg(errMsg, 'error');
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -1170,6 +1208,8 @@
               var qty = item.stock != null ? Number(item.stock) : null;
               var views = Number(item.viewCount || 0);
               var photoBadge = imgs.length > 1 ? ('+' + (imgs.length - 1)) : '';
+              var linkedAuctionId = String(item.linkedAuctionId || '').trim();
+              var isAuctionEarly = item.itemType === 'auction_early' || !!linkedAuctionId;
               var rmBtn = '';
               if (!reserved && rmEnabled) {
                 rmBtn = '<button type="button" class="vip-btn vip-btn--gold vip-btn--rm" data-vip-rm-pay' +
@@ -1198,11 +1238,13 @@
                     (views > 0 ? '<span class="vip-stock-card__views"><i class="fas fa-eye"></i> ' + esc(views) + '</span>' : '') +
                   '</div>' +
                   '<div class="vip-stock-card__actions">' +
-                    (reserved
+                    (isAuctionEarly && linkedAuctionId
+                      ? '<button type="button" class="vip-btn vip-btn--gold" data-vip-open-auction="' + esc(linkedAuctionId) + '"><i class="fas fa-gavel"></i> Bid now (VIP early)</button>'
+                      : (reserved
                       ? '<span class="vip-btn vip-btn--ghost" style="opacity:0.7">Reserved — message us</span>'
                       : rmBtn +
                         '<button type="button" class="vip-btn vip-btn--gold" data-vip-place-order data-item-id="' + esc(itemId) + '" data-channel="whatsapp"><i class="fab fa-whatsapp"></i> Buy</button>' +
-                        '<button type="button" class="vip-btn vip-btn--gold" data-vip-place-order data-item-id="' + esc(itemId) + '" data-channel="telegram"><i class="fab fa-telegram"></i> Telegram</button>') +
+                        '<button type="button" class="vip-btn vip-btn--gold" data-vip-place-order data-item-id="' + esc(itemId) + '" data-channel="telegram"><i class="fab fa-telegram"></i> Telegram</button>')) +
                     '<button type="button" class="vip-btn vip-btn--ghost" data-vip-open-item="' + esc(itemId) + '"><i class="fas fa-expand"></i> Details</button>' +
                   '</div>' +
                 '</article>'
@@ -1379,7 +1421,7 @@
         var leader = getAuctionLeadingBidder(a);
         return (
           '<article class="vip-stock-card vip-stock-card--glass vip-stock-card--auction" data-vip-auction-id="' + esc(aid) + '">' +
-            '<span class="vip-stock-card__badge">Auction</span>' +
+            '<span class="vip-stock-card__badge">' + (isVipAuctionEarlyAccess(a) ? 'VIP Early Access' : 'Auction') + '</span>' +
             (photoBadge ? '<span class="vip-stock-card__badge vip-stock-card__badge--photos">' + esc(photoBadge) + ' photos</span>' : '') +
             '<button type="button" class="vip-stock-card__img-btn" data-vip-open-auction="' + esc(aid) + '">' +
               '<img class="vip-stock-card__img" src="' + esc(img) + '" alt="" loading="lazy">' +
@@ -1392,6 +1434,7 @@
               '<span data-vip-auction-bids>' + bids + ' bids</span>' +
               (views ? '<span><i class="fas fa-eye"></i> ' + views + '</span>' : '') +
               (ends ? '<span><i class="fas fa-clock"></i> ' + esc(ends) + '</span>' : '') +
+              (formatAuctionPublicStart(a) ? '<span><i class="fas fa-crown"></i> ' + esc(formatAuctionPublicStart(a)) + '</span>' : '') +
             '</p>' +
             '<button type="button" class="vip-btn vip-btn--gold vip-btn--sm" data-vip-open-auction="' + esc(aid) + '"><i class="fas fa-gavel"></i> View &amp; bid</button>' +
           '</article>'

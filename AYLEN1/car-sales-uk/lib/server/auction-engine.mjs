@@ -3,6 +3,7 @@
  */
 import crypto from 'crypto';
 import { getFirestoreAdmin } from './firebase-admin-app.mjs';
+import { canonicalUkPhoneDigits } from './uk-phone.mjs';
 
 export const SETTINGS_DOC = 'auctionSettings/global';
 
@@ -28,7 +29,7 @@ export function defaultSettings() {
     depositsEnabled: true,
     depositAmountGbp: Number(process.env.AUCTION_DEPOSIT_GBP || 50),
     depositEnforcement: false,
-    depositEnforcementEnabled: false,
+    depositEnforcementEnabled: true,
     depositWebhookEnabled: true,
     depositVerifyFallbackEnabled: true,
     winnerPaymentEnabled: true,
@@ -64,7 +65,7 @@ export async function saveAuctionSettings(db, patch) {
 }
 
 export function phoneKey(phone) {
-  const digits = String(phone || '').replace(/\D/g, '');
+  const digits = canonicalUkPhoneDigits(phone);
   if (digits.length < 6) return '';
   return crypto.createHash('sha256').update('aylen_auction_' + digits).digest('hex').slice(0, 24);
 }
@@ -157,7 +158,8 @@ export function botAllowedForAuction(auction, settings) {
   if (settings.siteRevealed && auction.botEnabled !== true) return false;
   if (auction.botPaused) return false;
   const status = String(auction.status || 'active');
-  if (status === 'completed' || status === 'order_sent' || status === 'winner_pending') return false;
+  if (status === 'completed' || status === 'order_sent' || status === 'winner_pending' ||
+    status === 'paid' || status === 'collection_booked' || status === 'collected') return false;
   const endMs = Date.parse(auction.endTime || 0);
   if (endMs && endMs <= Date.now()) return false;
   const maxTotal = Number(auction.botMaxTotal || settings.defaultBotMaxTotal || 0);
@@ -287,6 +289,52 @@ export async function placeBotBid(db, auctionId, auction, settings) {
   });
 
   return result;
+}
+
+export async function forfeitBidderDeposit(db, winner, auctionDocId) {
+  const wKey = winner && (winner.bidderKey || phoneKey(winner.bidderPhone));
+  if (!wKey) return false;
+  const now = new Date().toISOString();
+  await db.collection('auctionProfiles').doc(wKey).set({
+    depositPaid: false,
+    depositStatus: 'forfeited',
+    depositForfeitedAt: now,
+    depositForfeitReason: 'winner_payment_overdue',
+    depositForfeitAuctionId: String(auctionDocId || ''),
+    updatedAt: now
+  }, { merge: true });
+  return true;
+}
+
+export async function cancelUnpaidWinnerAndRelist(db, auctionDocId, auction, settings) {
+  const winner = auction.winner || {};
+  const now = new Date().toISOString();
+  const forfeitLog = {
+    at: now,
+    reason: 'winner_payment_overdue',
+    bidderName: winner.bidderName || '',
+    bidderPhone: winner.bidderPhone || '',
+    hammerAmount: Number(winner.hammerAmount || winner.amount || 0),
+    paymentDueAt: winner.paymentDueAt || null
+  };
+  const prior = Array.isArray(auction.priorWinners) ? auction.priorWinners.slice(0, 9) : [];
+  prior.unshift(forfeitLog);
+
+  await forfeitBidderDeposit(db, winner, auctionDocId);
+  const relist = await relistAuction(db, auctionDocId, auction, settings, 'winner_payment_overdue');
+
+  await db.collection('auctions').doc(String(auctionDocId)).set({
+    priorWinners: prior,
+    lastOverdueCancelAt: now
+  }, { merge: true });
+
+  const notifyMod = await import('./auction-notify.mjs');
+  await notifyMod.notifyAdminWinnerPaymentOverdueRelist(
+    Object.assign({ id: auctionDocId }, auction),
+    forfeitLog
+  ).catch(function() {});
+
+  return Object.assign({ forfeited: true }, relist);
 }
 
 export async function relistAuction(db, auctionId, auction, settings, reason) {

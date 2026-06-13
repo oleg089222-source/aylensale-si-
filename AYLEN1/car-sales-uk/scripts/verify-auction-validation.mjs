@@ -16,6 +16,10 @@ import {
   FRAUD_CODES
 } from '../lib/server/auction-fraud.mjs';
 import { isBotBid } from '../lib/server/auction-engine.mjs';
+import {
+  canonicalUkPhoneDigits,
+  ukPhonesMatch
+} from '../lib/server/uk-phone.mjs';
 
 let failed = 0;
 
@@ -37,6 +41,13 @@ record('uk-phone-mobile', isUkPhone('07123456789') === true, '');
 record('uk-phone-intl', isUkPhone('+447123456789') === true, '');
 record('uk-phone-short', isUkPhone('12345') === false, '');
 record('uk-phone-us', isUkPhone('+12025550123') === false, '');
+
+record('uk-canonical-intl', canonicalUkPhoneDigits('+447471647771') === '447471647771', '');
+record('uk-canonical-0044', canonicalUkPhoneDigits('00447471647771') === '447471647771', '');
+record('uk-canonical-07', canonicalUkPhoneDigits('07471647771') === '447471647771', '');
+record('uk-match-formats', ukPhonesMatch('+44 7471 647771', '07471647771') === true, '');
+record('uk-match-0044', ukPhonesMatch('00447471647771', '07471647771') === true, '');
+record('uk-no-match', ukPhonesMatch('07471647771', '07471647770') === false, '');
 
 try {
   validateBidFields({ name: 'James W.', phone: '07123456789', bidAmount: 50 });

@@ -2,6 +2,7 @@
  * Server-side auction bid validation — increments, UK phone, amount bounds.
  */
 import { detectBot, cleanString } from './spam-guard.mjs';
+import { canonicalUkPhoneDigits } from './uk-phone.mjs';
 
 export const AUCTION_MAX_BID_GBP = 50000;
 export const MIN_BID_INCREMENT_FLOOR_GBP = 1;
@@ -12,24 +13,15 @@ export function minBidIncrement(currentPrice) {
 }
 
 export function normalizeUkPhoneDigits(phone) {
-  return String(phone || '').replace(/\D/g, '');
+  return canonicalUkPhoneDigits(phone);
 }
 
 /** UK mobile/landline: +44… or 07… / 01… / 02… (10–11 national digits). */
 export function isUkPhone(phone) {
-  const digits = normalizeUkPhoneDigits(phone);
-  if (!digits || digits.length < 10 || digits.length > 13) return false;
-
-  if (digits.startsWith('44')) {
-    const national = digits.slice(2);
-    return national.length >= 10 && national.length <= 11;
-  }
-
-  if (digits.startsWith('0')) {
-    return digits.length >= 10 && digits.length <= 11;
-  }
-
-  return false;
+  const digits = canonicalUkPhoneDigits(phone);
+  if (!digits || !digits.startsWith('44')) return false;
+  const national = digits.slice(2);
+  return national.length >= 10 && national.length <= 11;
 }
 
 export function isBotBid(bid) {

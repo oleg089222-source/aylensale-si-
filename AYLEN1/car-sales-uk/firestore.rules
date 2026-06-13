@@ -34,6 +34,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Public read — bids[] must not contain PII (phone/contact); sanitized on server write.
     match /auctions/{auctionId} {
       allow read: if true;
       allow write: if isAdmin();

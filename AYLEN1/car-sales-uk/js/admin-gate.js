@@ -110,6 +110,12 @@
     }
   }
 
+  function finishAdminAuthEntry() {
+    clearAdminAuthOverlaySafety();
+    hideAdminAuthOverlay();
+    setAdminAuthBusy(false);
+  }
+
   function closeAdminLoginModalAsync() {
     if (global.AYLEN_MODAL && global.AYLEN_MODAL.close) {
       return Promise.resolve(global.AYLEN_MODAL.close('adminLoginModal'));
@@ -257,8 +263,7 @@
           return false;
         })
         .finally(function() {
-          clearAdminAuthOverlaySafety();
-          hideAdminAuthOverlay();
+          finishAdminAuthEntry();
         });
     }
 
@@ -267,7 +272,10 @@
       waitForFirebaseAuthReady(15000)
         .then(function() { return tryOpenRememberedAdmin(); })
         .then(function(ok) { if (!ok) openLoginForm(); })
-        .catch(function(err) { notify(err.message, 'error'); openLoginForm(); });
+        .catch(function(err) { notify(err.message, 'error'); openLoginForm(); })
+        .finally(function() {
+          finishAdminAuthEntry();
+        });
       return;
     }
 
@@ -365,14 +373,14 @@
       } else if (typeof global.__aylenToggleAdminMode === 'function') {
         await global.__aylenToggleAdminMode();
       }
+      hideAdminAuthOverlay();
       notify('Admin CMS ready', 'success');
     } catch (error) {
       console.error('Admin login failed:', error);
       notify(error.message || 'Authentication failed. Please try again.', 'error');
-    } finally {
-      clearAdminAuthOverlaySafety();
       hideAdminAuthOverlay();
-      setAdminAuthBusy(false);
+    } finally {
+      finishAdminAuthEntry();
     }
     updateAdminAccessVisibility();
   }

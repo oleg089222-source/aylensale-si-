@@ -556,6 +556,22 @@ function refreshCatalogAfterProductChange(saved) {
   }
 }
 
+function refreshCatalogAfterAutoScan(data) {
+  if (!data || !data.savedListing) return;
+  if (data.listingType === 'product') {
+    refreshCatalogAfterProductChange(data.savedListing);
+    return;
+  }
+  if (data.listingType === 'auction' && typeof applyCatalogSnapshot === 'function') {
+    applyCatalogSnapshot('auctions', [data.savedListing], { fromServer: true, merge: true });
+    if (typeof renderAuctions === 'function') renderAuctions();
+    if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.reloadProducts) {
+      window.AyelenAdminDashboard.reloadProducts(false);
+    }
+  }
+}
+window.refreshCatalogAfterAutoScan = refreshCatalogAfterAutoScan;
+
 async function openAddProductModal() {
   if (!(await ensureAdminCanWrite())) return;
   pendingProductCreateId = 'prod_' + Date.now();
@@ -1364,8 +1380,21 @@ async function openAddAuctionModal() {
               <input type="number" id="auctStartPrice" placeholder="0.00" step="0.01" min="0">
             </div>
             <div class="aylen-field">
-              <label class="aylen-label" for="auctDuration">Duration (hours)</label>
-              <input type="number" id="auctDuration" value="24" min="1">
+              <label class="aylen-label" for="auctDurationPreset">Duration</label>
+              <select id="auctDurationPreset">
+                <option value="standard" selected>Standard — 7 days</option>
+                <option value="quick">Quick — 3 days</option>
+                <option value="extended">Extended — 14 days</option>
+              </select>
+            </div>
+          </div>
+          <div class="aylen-form-row">
+            <div class="aylen-field">
+              <label class="aylen-label" for="auctVipEarlyHours">VIP early access (hours before public)</label>
+              <input type="number" id="auctVipEarlyHours" value="24" min="0" max="168" step="1">
+            </div>
+            <div class="aylen-field">
+              <p class="aylen-hint-box" style="margin-top:28px">VIP members can bid during early access. Public sees the lot after this window. Auction ends after full duration from public start.</p>
             </div>
           </div>
           <label class="aylen-label" for="auctCategory">Category *</label>
@@ -1498,7 +1527,10 @@ async function addAuctionWithUpload(modalId) {
   var desc = descEl ? descEl.value.trim() : '';
   var startPrice = parseFloat((queryInAdminModal('#auctStartPrice') || {}).value) || 0;
   var category = (queryInAdminModal('#auctCategory') || {}).value || '';
-  var duration = parseInt((queryInAdminModal('#auctDuration') || {}).value, 10) || 24;
+  var durationPreset = (queryInAdminModal('#auctDurationPreset') || {}).value || 'standard';
+  var durationMap = { quick: 72, standard: 168, extended: 336 };
+  var duration = durationMap[durationPreset] || 168;
+  var vipEarlyHours = Math.max(0, parseInt((queryInAdminModal('#auctVipEarlyHours') || {}).value, 10) || 0);
 
   if (!name || !category || startPrice <= 0) {
     adminMsg('Fill name, category and starting price.', 'error');
@@ -1538,7 +1570,10 @@ async function addAuctionWithUpload(modalId) {
     if (!window.FBDB || !window.FBDB.saveAuction) {
       throw new Error('Firebase is not ready.');
     }
-    var auction = await addAuctionWithPhotos(name, desc, startPrice, category, imageUrls, duration, auctionId);
+    var auction = await addAuctionWithPhotos(name, desc, startPrice, category, imageUrls, duration, auctionId, {
+      durationType: durationPreset,
+      vipEarlyAccessHours: vipEarlyHours
+    });
     if (!auction || !auction.id) {
       throw new Error('Auction was not saved.');
     }
@@ -1728,6 +1763,14 @@ function editAuction(id) {
     var cat = auction.category || '';
     var startPrice = Number(auction.startingPrice || auction.currentPrice || 0);
     var endLocal = toDatetimeLocalValue(auction.endTime);
+    var durationHint = auction.durationType
+      ? ('Duration: <strong>' + String(auction.durationType) + '</strong>' +
+        (auction.durationHours ? ' (' + auction.durationHours + 'h)' : ''))
+      : '';
+    var earlyHint = Number(auction.vipEarlyAccessHours || 0) > 0
+      ? ('VIP early access: <strong>' + auction.vipEarlyAccessHours + 'h</strong>' +
+        (auction.publicStartAt ? ' · Public from ' + new Date(auction.publicStartAt).toLocaleString('en-GB') : ''))
+      : '';
 
     var html = `
     <div id="${modalId}" class="modal">
@@ -1735,6 +1778,7 @@ function editAuction(id) {
         <span class="close" data-aylen-close>&times;</span>
         <h2 class="aylen-modal-title"><i class="fas fa-gavel"></i> Edit auction</h2>
         <p class="aylen-hint-box">Status: <strong>${status}</strong> · Bids: <strong>${bidCount}</strong> · Current: <strong>£${Number(auction.currentPrice || startPrice).toFixed(2)}</strong></p>
+        ${durationHint || earlyHint ? '<p class="aylen-hint-box">' + durationHint + (durationHint && earlyHint ? ' · ' : '') + earlyHint + '</p>' : ''}
         <div class="aylen-form-section">
           <h3>Details</h3>
           <label class="aylen-label" for="eauctName">Item name *</label>
@@ -2022,7 +2066,6 @@ async function adminSendAuctionWinner(id) {
     name: auction.winner.bidderName || 'Winner',
     phone: auction.winner.bidderPhone || 'Not provided',
     method: 'Admin follow-up',
-    pickup: 'Admin will arrange pickup/delivery',
     comment: auction.winner.bidderContact || '',
     auctionId: auction.id,
     auctionName: auction.name,
@@ -2462,9 +2505,14 @@ async function processSingleNotifyRequest(req, product) {
       return 'manual';
     }
 
+    var notifyHeaders = { 'Content-Type': 'application/json' };
+    if (window.FBDB && window.FBDB.getAdminIdToken) {
+      var notifyToken = await window.FBDB.getAdminIdToken();
+      if (notifyToken) notifyHeaders.Authorization = 'Bearer ' + notifyToken;
+    }
     var response = await fetch('/api/send-notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: notifyHeaders,
       body: JSON.stringify({ method: 'telegram', contact: contact, productName: productName })
     });
     var data = await response.json();

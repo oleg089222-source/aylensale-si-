@@ -56,7 +56,7 @@ html body #products .product-badge--cart.product-badge--disabled{
   #products #productsGrid.products-grid,
   #productsGrid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    grid-auto-rows:minmax(420px,420px)!important;
+    grid-auto-rows:minmax(392px,392px)!important;
     gap:8px!important;
     align-items:start!important;
     align-content:start!important;
@@ -66,12 +66,12 @@ html body #products .product-badge--cart.product-badge--disabled{
   #products .product-card-subtitle{display:none!important}
   #products .product-card-detail-links{display:none!important}
   #products .product-card-grid-item{
-    height:auto!important;align-self:start!important;min-height:420px!important;
-    contain-intrinsic-size:auto 420px!important;
+    height:auto!important;align-self:start!important;min-height:392px!important;
+    contain-intrinsic-size:auto 392px!important;
   }
   html body #products .product-card,
   html body #products .product-card-grid-item .product-card{
-    height:auto!important;min-height:420px!important;max-height:none!important;align-self:start!important;
+    height:auto!important;min-height:392px!important;max-height:none!important;align-self:start!important;
   }
   html body #products .product-card-body,
   html body #products .product-card-body.product-info{
@@ -125,11 +125,11 @@ html body #products .product-badge--cart.product-badge--disabled{
   #products .product-card-open-overlay{display:none!important}
   #products .product-card-footer .product-card-actions,
   #products .product-card-footer .action-buttons{
-    display:grid!important;grid-template-columns:1fr!important;gap:6px!important;width:100%!important;
+    display:grid!important;grid-template-columns:1fr auto!important;gap:6px!important;width:100%!important;
   }
-  #products .product-card-footer .btn-action.primary{display:none!important}
+  #products .product-card-footer .btn-action.primary{display:inline-flex!important}
   #products .product-card-footer .product-view-details{
-    min-width:34px!important;width:100%!important;padding-left:8px!important;padding-right:8px!important;
+    min-width:40px!important;width:40px!important;padding-left:8px!important;padding-right:8px!important;
   }
   #products .product-card-title-block{padding:8px 8px 6px!important}
   #products .product-card-title-link{

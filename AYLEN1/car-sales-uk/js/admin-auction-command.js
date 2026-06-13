@@ -209,6 +209,28 @@
     }).join('');
   }
 
+  function workflowPanel(auction) {
+    var st = String((auction && auction.status) || 'active');
+    var postWinner = ['winner_pending', 'paid', 'order_sent', 'collection_booked', 'collected', 'completed'];
+    if (postWinner.indexOf(st) < 0) return '';
+    var opts = postWinner.map(function(o) {
+      return '<option value="' + o + '"' + (st === o ? ' selected' : '') + '>' + o.replace(/_/g, ' ') + '</option>';
+    }).join('');
+    var winner = (auction && auction.winner) || {};
+    var payInfo = winner.paymentStatus
+      ? '<p class="aac-hint">Winner payment: <b>' + esc(winner.paymentStatus) + '</b></p>'
+      : '';
+    return (
+      '<div class="aac-workflow">' +
+      '<h4><i class="fas fa-route"></i> Collection workflow</h4>' +
+      payInfo +
+      '<div class="aac-bot-row">' +
+      '<select id="aacWorkflowStatus" class="aylen-input aylen-input-sm">' + opts + '</select>' +
+      '<button type="button" class="aylen-btn aylen-btn-sm" id="aacSaveStatusBtn">Update status</button>' +
+      '</div></div>'
+    );
+  }
+
   function fraudLogHtml(log) {
     log = log || [];
     if (!log.length) return '';
@@ -232,8 +254,9 @@
   function detailPanel(detail) {
     if (!detail || !detail.ok) return '<p class="aac-empty">Select an auction</p>';
     var a = detail.analysis || {};
+    var auc = detail.auction || {};
     var bids = detail.bids || [];
-    var fraudLog = (detail.auction && detail.auction.fraudLog) || [];
+    var fraudLog = auc.fraudLog || [];
     var maxAmt = bids.reduce(function(m, b) { return Math.max(m, Number(b.amount || 0)); }, 1);
     return (
       '<div class="aac-detail">' +
@@ -241,7 +264,9 @@
       '<div class="aac-detail-stats">' +
       '<span>' + fmtMoney(a.currentPrice) + ' now</span>' +
       '<span>' + Number(a.participantCount || 0) + ' players</span>' +
+      '<span>' + esc(auc.status || a.status || 'active') + '</span>' +
       '<span>' + fmtTimeLeft(a.msLeft) + ' left</span></div>' +
+      workflowPanel(auc) +
       '<div class="aac-bot-row">' +
       '<label><input type="checkbox" id="aacDetailBotEnabled"' + (a.botEnabled !== false ? ' checked' : '') + '> Bot on this lot</label>' +
       '<label>Bot max £<input type="number" id="aacDetailBotMax" min="0" step="1" value="' +
@@ -458,22 +483,50 @@
 
   function bindDetailEvents() {
     var btn = document.getElementById('aacSaveLotBotBtn');
-    if (!btn || !selectedId) return;
-    btn.onclick = async function() {
-      btn.disabled = true;
-      var r = await apiPost({
-        action: 'auction-bot',
-        auctionId: selectedId,
-        botEnabled: !!(document.getElementById('aacDetailBotEnabled') || {}).checked,
-        botMaxTotal: Number((document.getElementById('aacDetailBotMax') || {}).value || 0)
-      });
-      btn.disabled = false;
-      if (r.ok) {
-        notifyMsg('Lot bot settings updated', 'success');
-        await refresh({ silent: true });
-        await refreshDetail();
-      } else notifyMsg(r.error || 'Update failed', 'error');
-    };
+    if (btn && selectedId) {
+      btn.onclick = async function() {
+        btn.disabled = true;
+        var r = await apiPost({
+          action: 'auction-bot',
+          auctionId: selectedId,
+          botEnabled: !!(document.getElementById('aacDetailBotEnabled') || {}).checked,
+          botMaxTotal: Number((document.getElementById('aacDetailBotMax') || {}).value || 0)
+        });
+        btn.disabled = false;
+        if (r.ok) {
+          notifyMsg('Lot bot settings updated', 'success');
+          await refresh({ silent: true });
+          await refreshDetail();
+        } else notifyMsg(r.error || 'Update failed', 'error');
+      };
+    }
+
+    var statusBtn = document.getElementById('aacSaveStatusBtn');
+    if (statusBtn && selectedId) {
+      statusBtn.onclick = async function() {
+        var sel = document.getElementById('aacWorkflowStatus');
+        if (!sel) return;
+        statusBtn.disabled = true;
+        try {
+          var r = await apiPost({
+            action: 'auction-status',
+            auctionId: selectedId,
+            status: sel.value
+          });
+          if (r.ok) {
+            notifyMsg('Status updated to ' + sel.value, 'success');
+            await refresh({ silent: true });
+            await refreshDetail();
+          } else {
+            notifyMsg(r.error || 'Status update failed', 'error');
+          }
+        } catch (err) {
+          notifyMsg((err && err.message) || 'Status update failed', 'error');
+        } finally {
+          statusBtn.disabled = false;
+        }
+      };
+    }
   }
 
   async function refresh(opts) {

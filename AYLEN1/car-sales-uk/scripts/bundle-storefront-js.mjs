@@ -27,6 +27,7 @@ const CORE_SOURCES = [
   'js/product-nav.js',
   'js/mobile-ui.js',
   'js/storefront-collapsible.js',
+  'js/uk-phone.js',
   'js/app.js'
 ];
 

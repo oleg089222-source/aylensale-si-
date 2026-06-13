@@ -1,3 +1,8 @@
+import { verifyFirebaseAdminToken } from '../lib/server/firebase-admin-app.mjs';
+import { verifyAdminPassword } from '../lib/server/admin-password.mjs';
+
+const notifyLimits = new Map();
+
 function cleanString(value, maxLength) {
   return String(value || '').trim().slice(0, maxLength);
 }
@@ -9,13 +14,59 @@ function escapeTelegram(value) {
     .replace(/>/g, '&gt;');
 }
 
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req.headers['x-client-ip'] ||
+    req.socket?.remoteAddress ||
+    'unknown';
+}
+
+function parseBody(req) {
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch (e) { return {}; }
+  }
+  return req.body || {};
+}
+
+function checkRateLimit(map, ip, maxAttempts, windowMs) {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+  const attempts = (map.get(ip) || []).filter((time) => time > cutoff);
+  if (attempts.length >= maxAttempts) {
+    map.set(ip, attempts);
+    return false;
+  }
+  attempts.push(now);
+  map.set(ip, attempts);
+  return true;
+}
+
+async function authorizeAdmin(req, body) {
+  const authHeader = String(req.headers.authorization || '');
+  if (authHeader.startsWith('Bearer ')) {
+    const decoded = await verifyFirebaseAdminToken(authHeader.slice(7).trim());
+    if (decoded) return true;
+  }
+  return verifyAdminPassword(String(body.adminPassword || body.password || ''));
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { method, contact, productName } = req.body || {};
+    const body = parseBody(req);
+    const clientIP = getClientIP(req);
+    if (!checkRateLimit(notifyLimits, clientIP, 10, 60 * 1000)) {
+      return res.status(429).json({ error: 'Too many requests. Please wait and try again.' });
+    }
+
+    if (!(await authorizeAdmin(req, body))) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { method, contact, productName } = body;
     const safeMethod = cleanString(method, 30).toLowerCase();
     const safeContact = cleanString(contact, 200);
     const safeProductName = cleanString(productName || 'Product', 140);

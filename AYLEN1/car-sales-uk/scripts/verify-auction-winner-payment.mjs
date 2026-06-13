@@ -54,8 +54,8 @@ const claimBlocked = await fetch(BASE + '/api/send-order', {
     auctionName: 'Test',
     name: 'Test Winner',
     phone: '07123456789',
-    method: 'Pickup',
-    pickup: 'Birmingham',
+    method: 'Self Collection',
+    comment: 'verify script',
     finalPrice: 100,
     security: { formStartedAt: Date.now() - 5000, submittedAt: Date.now(), website: '' }
   })

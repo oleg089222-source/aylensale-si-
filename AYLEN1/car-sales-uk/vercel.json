@@ -245,6 +245,14 @@
       "dest": "/api/spam?action=auction-deposit-config"
     },
     {
+      "src": "/api/auction-deposit-status",
+      "dest": "/api/spam?action=auction-deposit-status"
+    },
+    {
+      "src": "/api/auction-refund-request",
+      "dest": "/api/spam?action=auction-refund-request"
+    },
+    {
       "src": "/api/auction-deposit",
       "dest": "/api/spam?action=auction-deposit"
     },
@@ -304,5 +312,10 @@
       },
       "dest": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/ai-admin.js": {
+      "maxDuration": 60
+    }
+  }
 }

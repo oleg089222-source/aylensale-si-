@@ -50,8 +50,13 @@ const savedEnforce = process.env.AUCTION_DEPOSIT_ENFORCEMENT;
 process.env.VERCEL_ENV = 'production';
 delete process.env.AUCTION_DEPOSIT_ENFORCEMENT;
 const prodFlags = resolveDepositFlags({ depositEnforcement: true, depositEnforcementEnabled: true });
-record('unit-production-lock', prodFlags.depositEnforcement === false, 'source=' + prodFlags.depositEnforcementSource);
-record('unit-production-locked-flag', prodFlags.productionLocked === true, '');
+record('unit-production-default-on', prodFlags.depositEnforcement === true, 'source=' + prodFlags.depositEnforcementSource);
+record('unit-production-not-locked', prodFlags.productionLocked === false, '');
+
+process.env.AUCTION_DEPOSIT_ENFORCEMENT = 'false';
+const prodOff = resolveDepositFlags({ depositEnforcementEnabled: true });
+record('unit-production-env-off', prodOff.depositEnforcement === false, 'source=' + prodOff.depositEnforcementSource);
+delete process.env.AUCTION_DEPOSIT_ENFORCEMENT;
 
 process.env.VERCEL_ENV = 'preview';
 process.env.AUCTION_DEPOSIT_ENFORCEMENT = 'true';
@@ -66,7 +71,7 @@ record('unit-preview-env-off', previewOff.depositEnforcement === false, '');
 // —— Unit: bid gate throws DEPOSIT_REQUIRED ——
 let gateErr = null;
 try {
-  requirePaidDepositForBid([], 'phonekey_test', { depositEnforcement: true, depositAmountGbp: 50 });
+  await requirePaidDepositForBid(null, [], 'phonekey_test', { depositEnforcement: true, depositAmountGbp: 50 });
 } catch (e) {
   gateErr = e;
 }
@@ -75,7 +80,8 @@ record('unit-gate-amount', gateErr && gateErr.depositAmountGbp === 50, '');
 
 let gatePass = false;
 try {
-  requirePaidDepositForBid(
+  await requirePaidDepositForBid(
+    null,
     [{ phoneKey: 'phonekey_ok', status: DEPOSIT_STATUSES.PAID, amount: 50 }],
     'phonekey_ok',
     { depositEnforcement: true, depositAmountGbp: 50 }
@@ -99,15 +105,13 @@ else process.env.AUCTION_DEPOSIT_ENFORCEMENT = savedEnforce;
 // —— Live API: production config ——
 const config = await getJson('/api/auction-deposit-config');
 record('live-config-ok', config.status === 200 && config.data.ok === true, '');
-record('live-production-enforcement-off', config.data.depositEnforcement === false,
+record('live-production-enforcement-on', config.data.depositEnforcement === true,
   'enforcement=' + config.data.depositEnforcement + ' source=' + (config.data.depositEnforcementSource || 'n/a'));
-record('live-production-locked', config.data.productionLocked === true,
-  'deploy=' + (config.data.deployEnvironment || 'n/a'));
 
 const settings = await getJson('/api/spam?action=auction-engine&sub=settings');
-record('live-firestore-enforcement-off',
-  settings.data.settings && settings.data.settings.depositEnforcement === false,
-  'Firestore depositEnforcement=' + (settings.data.settings && settings.data.settings.depositEnforcement));
+record('live-firestore-enforcement-enabled',
+  settings.data.settings && settings.data.settings.depositEnforcementEnabled === true,
+  'Firestore depositEnforcementEnabled=' + (settings.data.settings && settings.data.settings.depositEnforcementEnabled));
 
 // —— Live API: bid without deposit must NOT return DEPOSIT_REQUIRED on production ——
 const catalog = await getJson('/api/storefront-catalog');
@@ -134,7 +138,7 @@ const bidRes = await getJson('/api/auction-bid', {
 });
 
 const bidCode = bidRes.data.code || '';
-record('live-bid-not-deposit-required', bidCode !== 'DEPOSIT_REQUIRED',
+record('live-bid-deposit-required', bidCode === 'DEPOSIT_REQUIRED',
   'status=' + bidRes.status + ' code=' + (bidCode || '(none)') + ' error=' + (bidRes.data.error || '').slice(0, 60));
 
 // —— Live API: buy-now must NOT return DEPOSIT_REQUIRED ——
@@ -155,9 +159,7 @@ if (target && Number(target.buyNowPrice || 0) > 0) {
   pass('live-buynow-not-deposit-required', 'skipped — no buyNow lot in catalog');
 }
 
-console.log('\nStaging enablement (preview only):');
-console.log('  Vercel → Environment Variables → Preview → AUCTION_DEPOSIT_ENFORCEMENT=true');
-console.log('  Firestore depositEnforcement can stay false; preview uses env flag.');
+console.log('\nProduction: deposit enforcement ON by default (disable with AUCTION_DEPOSIT_ENFORCEMENT=false).');
 
 console.log('\n--- Summary ---');
 console.log('Failed:', failed);

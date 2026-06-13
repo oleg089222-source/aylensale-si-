@@ -90,6 +90,7 @@ body.modal-locked{overflow:hidden!important;touch-action:none}
 .auction-card:hover{transform:translateY(-5px);box-shadow:0 4px 20px rgba(0,0,0,0.15);border-color:#e94560}
 .auction-header{background:linear-gradient(135deg,#e94560,#c0392b);color:#fff;padding:8px 12px;font-size:12px;font-weight:bold;display:flex;justify-content:space-between;align-items:center}
 .auction-badge{background:rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font-size:11px}
+.auction-vip-early-badge{background:rgba(212,168,67,0.35);color:#fde68a;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:0.04em}
 .auction-image{position:relative;width:100%;height:200px;background:#111827!important;overflow:hidden}
 .auction-image img{width:100%;height:100%;object-fit:cover;background:#111827}
 .auction-photo-count{position:absolute;left:10px;bottom:10px;background:rgba(7,10,20,.78);color:#fff;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;z-index:3}

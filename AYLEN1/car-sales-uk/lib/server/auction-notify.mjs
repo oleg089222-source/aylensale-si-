@@ -94,3 +94,32 @@ export async function notifyAdminWinnerPaymentOverdue(auction) {
   ];
   return sendTelegramHtml(lines.join('\n'));
 }
+
+export async function notifyAdminWinnerPaymentOverdueRelist(auction, forfeitLog) {
+  const log = forfeitLog || {};
+  const lines = [
+    '🔁 <b>WINNER CANCELLED — LOT RELISTED</b>',
+    '',
+    '<b>Lot:</b> ' + esc(auction.name || auction.title || 'Lot'),
+    '<b>Former winner:</b> ' + esc(log.bidderName || '—'),
+    '<b>Hammer:</b> £' + Number(log.hammerAmount || 0).toFixed(2),
+    '<b>Deposit:</b> forfeited (48h payment missed)',
+    '<b>Action:</b> Auto-relisted'
+  ];
+  return sendTelegramHtml(lines.join('\n'));
+}
+
+export async function notifyAdminWinnerPaymentReceived(auction, paymentInfo) {
+  const winner = (auction && auction.winner) || {};
+  const info = paymentInfo || {};
+  const lines = [
+    '✅ <b>WINNER PAYMENT RECEIVED</b>',
+    '',
+    '<b>Lot:</b> ' + esc(auction.name || auction.title || 'Lot'),
+    '<b>Winner:</b> ' + esc(winner.bidderName || '—'),
+    '<b>Hammer:</b> £' + Number(info.hammerAmount || winner.hammerAmount || winner.amount || 0).toFixed(2),
+    '<b>Status:</b> paid → claim collection',
+    '<b>Source:</b> ' + esc(info.source || 'stripe')
+  ];
+  return sendTelegramHtml(lines.join('\n'));
+}

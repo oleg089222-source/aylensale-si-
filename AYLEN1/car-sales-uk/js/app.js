@@ -147,9 +147,9 @@ function productsGridColumnCount(grid) {
 }
 
 var measuredProductCardHeight = 0;
-var MOBILE_PRODUCTS_GRID_RESERVE = 1760;
-var MOBILE_PRODUCTS_SECTION_RESERVE = 1960;
-var MOBILE_PRODUCT_CARD_HEIGHT = 420;
+var MOBILE_PRODUCTS_GRID_RESERVE = 1648;
+var MOBILE_PRODUCTS_SECTION_RESERVE = 1896;
+var MOBILE_PRODUCT_CARD_HEIGHT = 392;
 var MOBILE_SSR_EAGER_IMAGE_COUNT = 1;
 
 function readMobileReserveMeta(name, fallback) {
@@ -167,9 +167,9 @@ function mobileProductsSectionReservePx() {
 }
 
 function estimateProductCardHeightFallback() {
-  var cardMin = 420;
+  var cardMin = 392;
   try {
-    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) cardMin = 420;
+    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) cardMin = 392;
   } catch (e) {}
   return cardMin;
 }
@@ -400,7 +400,7 @@ function releaseMobileProductsLayoutReserve(section, grid) {
     var gridReserve = grid
       ? (parseInt(grid.style.getPropertyValue('--products-grid-reserved-h'), 10) || mobileProductsGridReservePx())
       : mobileProductsGridReservePx();
-    syncProductsSectionReserve(section, Math.max(measureProductsSectionHeight(), gridReserve + 248), true);
+    syncProductsSectionReserve(section, Math.max(measureProductsSectionHeight(), gridReserve + 248), false);
     section.style.removeProperty('height');
     section.style.removeProperty('max-height');
     section.classList.remove('products-section--loading');
@@ -469,7 +469,7 @@ function releaseProductsLayoutReserveWhenStable(section, grid, onDone) {
         syncProductsGridReserveVar(grid, stableGridH);
       }
       if (section) {
-        syncProductsSectionReserve(section, measureProductsSectionHeight(), true);
+        syncProductsSectionReserve(section, measureProductsSectionHeight(), false);
       }
       settleProductsLayout();
     }, { stableFrames: 3, tolerance: 3, maxFrames: 48 });
@@ -975,6 +975,13 @@ function renderEngagementStats() {
     }).length;
     pickupsEl.textContent = pickupCount || (seed && seed.pickupPoints) || pickupsEl.textContent || '0';
   }
+  var engagementBar = document.getElementById('engagementBar');
+  if (engagementBar) {
+    var pCount = parseInt((productsEl && productsEl.textContent) || '0', 10) || 0;
+    var aCount = parseInt((auctionsEl && auctionsEl.textContent) || '0', 10) || 0;
+    var pkCount = parseInt((pickupsEl && pickupsEl.textContent) || '0', 10) || 0;
+    engagementBar.classList.toggle('is-dormant', pCount === 0 && aCount === 0 && pkCount === 0);
+  }
   updateProductViewerBadges();
 }
 
@@ -1226,6 +1233,67 @@ function productAutoBadge(product) {
   return 'THIS WEEK';
 }
 
+function productIsVipListing(product) {
+  if (!product) return false;
+  if (product.vipOnly || product.isVipOnly || product.vipStock) return true;
+  var cat = String(product.category || product.cat || '').toLowerCase();
+  return cat.indexOf('vip') !== -1;
+}
+
+function productIsWholesaleListing(product) {
+  if (!product) return false;
+  var custom = String(product.badge || '').trim().toUpperCase();
+  if (custom === 'WHOLESALE') return true;
+  var wholesale = Number(product.wholesale || product.wholesalePrice || 0);
+  var retail = Number(product.price || product.retail || 0);
+  return wholesale > 0 && retail > 0 && wholesale < retail * 0.98;
+}
+
+function productIsNewListing(product) {
+  if (!product) return false;
+  var custom = String(product.badge || '').trim().toUpperCase();
+  if (custom === 'NEW') return true;
+  var auto = productAutoBadge(product);
+  return auto === 'NEW' || auto === 'THIS WEEK';
+}
+
+function productIsLowStockListing(product) {
+  var stock = parseInt(product && product.stock, 10) || 0;
+  return stock > 0 && stock <= 5;
+}
+
+function productCardBadgeList(product) {
+  if (!product) return [];
+  var badges = [];
+  if (productIsNewListing(product)) {
+    badges.push({ label: 'New', className: 'product-card-badge--new' });
+  }
+  if (productIsVipListing(product)) {
+    badges.push({ label: 'VIP', className: 'product-card-badge--vip' });
+  }
+  if (productIsWholesaleListing(product)) {
+    badges.push({ label: 'Wholesale', className: 'product-card-badge--wholesale' });
+  }
+  if (productIsLowStockListing(product)) {
+    badges.push({ label: 'Low Stock', className: 'product-card-badge--low-stock' });
+  }
+  return badges;
+}
+
+function renderProductCardBadges(product, isComingSoon) {
+  if (isComingSoon) {
+    return '<div class="product-card-badges"><span class="product-card-badge product-card-badge--coming">Coming Soon</span></div>';
+  }
+  var badges = productCardBadgeList(product);
+  if (!badges.length) return '<div class="product-card-badges product-card-badges--empty"></div>';
+  var h = '<div class="product-card-badges">';
+  for (var i = 0; i < badges.length; i++) {
+    h += '<span class="product-card-badge ' + badges[i].className + '">' + escapeHtml(badges[i].label) + '</span>';
+  }
+  h += '</div>';
+  return h;
+}
+
 function stockLabel(product) {
   var stock = Number(product.stock || 0);
   if (stock <= 0) return '';
@@ -1312,9 +1380,24 @@ function buildEbayPromoCardHtml(settings) {
   );
 }
 
+function syncFooterEbayLink(settings, shouldShow) {
+  var footerLink = document.getElementById('footerEbayLink');
+  if (!footerLink) return;
+  if (shouldShow && settings && validEbayUrl(settings.url)) {
+    footerLink.href = settings.url;
+    footerLink.textContent = settings.buttonText || 'Shop on eBay';
+    footerLink.hidden = false;
+    footerLink.removeAttribute('aria-hidden');
+  } else {
+    footerLink.hidden = true;
+    footerLink.setAttribute('aria-hidden', 'true');
+  }
+}
+
 function renderEbayPromo() {
   var settings = safeEbaySettings();
   var shouldShow = settings.enabled === true && validEbayUrl(settings.url);
+  syncFooterEbayLink(settings, shouldShow);
   var wrap = document.getElementById('ebayPromoWrap');
   var headerBtn = document.getElementById('headerEbayBtn');
   var buttonText = settings.buttonText || 'Shop on eBay';
@@ -2141,8 +2224,10 @@ async function handleAuctionDepositReturn() {
       if (typeof notify === 'function') {
         notify(data.alreadyPaid
           ? 'Deposit already confirmed — you can place bids.'
-          : '✓ Deposit paid! You can now place bids on this lot.', 'success');
+          : '✓ Deposit paid! You can now place bids on any active auction.', 'success');
       }
+      var storedContact = getStoredBidderContact() || {};
+      if (storedContact.phone) markActiveDepositPaid(storedContact.phone);
       await reloadAuctionCatalogAfterDeposit(data.auctionId || '');
       return;
     }
@@ -2588,16 +2673,7 @@ function renderProductsNow() {
       h += '<div class="product-coming-soon-overlay">COMING SOON<span>Reserve before release</span></div>';
     }
     h += '<div class="product-image-overlay">';
-    var autoBadge = isComingSoon ? 'COMING SOON' : productAutoBadge(p);
-    if (autoBadge) {
-      var badgeClass = 'product-card-badge--default';
-      if (autoBadge === 'NEW' || autoBadge === 'THIS WEEK') badgeClass = 'product-card-badge--new';
-      else if (autoBadge === 'SALE') badgeClass = 'product-card-badge--sale';
-      else if (autoBadge === 'HOT') badgeClass = 'product-card-badge--hot';
-      h += '<span class="product-card-badge ' + badgeClass + '">' + escapeHtml(autoBadge) + '</span>';
-    } else {
-      h += '<span></span>';
-    }
+    h += renderProductCardBadges(p, isComingSoon);
     h += '<div class="product-image-actions">';
     if (window.isAdminMode && p.active === false) {
       h += '<span class="product-card-badge product-card-badge--hidden">HIDDEN</span>';
@@ -2674,7 +2750,7 @@ function renderProductsNow() {
     } else if (parseInt(p.stock) === 0) {
       h += '<div class="out-of-stock">Out of stock</div>';
     } else {
-      h += '<button type="button" class="btn-action primary" data-action="add-to-cart" data-action-stop="1" data-product-id="' + escapeHtml(String(p.id)) + '"><i class="fas fa-cart-plus"></i> Add to Cart</button>';
+      h += '<button type="button" class="btn-action primary product-add-to-cart-btn" data-action="add-to-cart" data-action-stop="1" data-product-id="' + escapeHtml(String(p.id)) + '"><i class="fas fa-cart-plus" aria-hidden="true"></i><span>Add to Cart</span></button>';
     }
     h += '<button type="button" class="btn-action secondary product-view-details" data-action="product-modal" data-product-id="' + escapeHtml(String(p.id)) + '"><i class="fas fa-expand"></i> Quick view</button>';
     h += '</div>';
@@ -3615,12 +3691,43 @@ function notify(msg, type) {
 }
 
 // ===== AUCTIONS FUNCTIONS =====
+function isActiveVipMemberCached() {
+  try {
+    var raw = localStorage.getItem('aylen_vip_session_v1');
+    if (!raw) return false;
+    var session = JSON.parse(raw);
+    return !!(session && session.active && session.accessToken);
+  } catch (e) {
+    return false;
+  }
+}
+
+function isAuctionPubliclyVisible(auction) {
+  if (!auction || !auction.publicStartAt) return true;
+  return Date.parse(auction.publicStartAt) <= Date.now();
+}
+
+function isAuctionVipEarlyAccess(auction) {
+  if (!auction || !Number(auction.vipEarlyAccessHours || 0)) return false;
+  return !isAuctionPubliclyVisible(auction);
+}
+
+function isAuctionVisibleToShopper(auction) {
+  if (!auction) return false;
+  if (isAuctionPubliclyVisible(auction)) return true;
+  return isActiveVipMemberCached();
+}
+
 function auctionStatusLabel(auction) {
   var status = getAuctionStatus(auction);
   if (status === 'completed') return 'COMPLETED';
+  if (status === 'collected') return 'COLLECTED';
+  if (status === 'collection_booked') return 'COLLECTION BOOKED';
   if (status === 'order_sent') return 'ORDER SENT';
+  if (status === 'paid') return 'PAID';
   if (status === 'winner_pending') return 'WINNER PENDING';
   if (status === 'ended') return 'ENDED';
+  if (isAuctionVipEarlyAccess(auction)) return 'VIP EARLY ACCESS';
   var timeLeft = new Date(auction.endTime) - new Date();
   return timeLeft < 3600000 ? 'ENDING SOON' : 'ACTIVE';
 }
@@ -3630,7 +3737,11 @@ function auctionStatusColor(label) {
   if (label === 'ENDING SOON') return '#f39c12';
   if (label === 'ENDED') return '#555';
   if (label === 'WINNER PENDING') return '#3498db';
+  if (label === 'PAID') return '#2ecc71';
   if (label === 'ORDER SENT') return '#8e44ad';
+  if (label === 'COLLECTION BOOKED') return '#9b59b6';
+  if (label === 'COLLECTED') return '#1abc9c';
+  if (label === 'VIP EARLY ACCESS') return '#f59e0b';
   if (label === 'COMPLETED') return '#00a36c';
   return '#e94560';
 }
@@ -3763,9 +3874,17 @@ function isAuctionWinnerPaymentPaid(auction) {
 }
 
 function needsAuctionWinnerPayment(auction) {
-  if (!auction || getAuctionStatus(auction) !== 'winner_pending') return false;
+  if (!auction) return false;
+  var st = getAuctionStatus(auction);
+  if (st !== 'winner_pending' && st !== 'paid') return false;
   if (getAuctionWinnerPaymentConfig().winnerPaymentEnabled === false) return false;
   return !isAuctionWinnerPaymentPaid(auction);
+}
+
+function canShowWinnerClaimActions(auction) {
+  if (!auction || auction.winnerOrder) return false;
+  var st = getAuctionStatus(auction);
+  return st === 'winner_pending' || st === 'paid';
 }
 
 function getAuctionHammerAmount(auction) {
@@ -3828,6 +3947,17 @@ function auctionDepositFirstLabel() {
   return 'Pay £' + getAuctionDepositAmountGbp().toFixed(0) + ' Deposit First';
 }
 
+function auctionDepositBeforeBidLabel() {
+  return 'Pay £' + getAuctionDepositAmountGbp().toFixed(0) + ' deposit before bidding';
+}
+
+function isDepositRequiredBidResult(result) {
+  if (!result) return false;
+  var code = String(result.code || '').toUpperCase();
+  if (code === 'DEPOSIT_REQUIRED') return true;
+  return /deposit/i.test(String(result.error || ''));
+}
+
 function promptAuctionDepositRequired(auctionId, message) {
   if (typeof notify === 'function') {
     notify(message || auctionDepositFirstLabel(), 'error');
@@ -3875,12 +4005,38 @@ function auctionHighestBidAmount(auction) {
 
 function hasAuctionDepositPaid(auction) {
   var stored = getStoredBidderContact() || {};
-  var phone = String(stored.phone || '').replace(/\D/g, '');
-  if (!phone || !auction || !Array.isArray(auction.deposits)) return false;
+  var phone = String(stored.phone || '').trim();
+  if (!phone) return false;
+
+  try {
+    var activeRaw = localStorage.getItem('aylen_active_deposit');
+    if (activeRaw) {
+      var active = JSON.parse(activeRaw);
+      if (active && phonesMatchForDeposit(phone, active.phone)) return true;
+    }
+  } catch (e) {}
+
+  if (!auction || !Array.isArray(auction.deposits)) return false;
   return auction.deposits.some(function(d) {
     if (!d || d.status !== 'paid') return false;
-    return String(d.bidderPhone || '').replace(/\D/g, '') === phone;
+    return phonesMatchForDeposit(phone, d.bidderPhone);
   });
+}
+
+function phonesMatchForDeposit(a, b) {
+  if (window.AYLEN_UK_PHONE && window.AYLEN_UK_PHONE.ukPhonesMatch) {
+    return window.AYLEN_UK_PHONE.ukPhonesMatch(a, b);
+  }
+  return String(a || '').replace(/\D/g, '') === String(b || '').replace(/\D/g, '');
+}
+
+function markActiveDepositPaid(phone) {
+  try {
+    localStorage.setItem('aylen_active_deposit', JSON.stringify({
+      phone: phone,
+      paidAt: new Date().toISOString()
+    }));
+  } catch (e) {}
 }
 
 function renderAuctionBidHistoryHtml(bids, opts) {
@@ -4040,6 +4196,14 @@ function buildAuctionModalInfoHtml(a) {
     html += '<div class="pdp-modal__desc">' + escapeHtml(a.desc).replace(/\n/g, '<br>') + '</div>';
   }
 
+  if (a.manifest && Array.isArray(a.manifest.lines) && a.manifest.lines.length) {
+    html += '<div class="pdp-manifest-cta">' +
+      '<p><i class="fas fa-list"></i> <b>Manifest:</b> ' + (a.manifest.totalUnits || 0) + ' units · £' +
+      Number(a.manifest.totalRrp || 0).toFixed(2) + ' RRP</p>' +
+      '<a class="btn-action secondary" href="/api/manifest-csv?id=' + encodeURIComponent(a.id) +
+      '&type=auction" download><i class="fas fa-file-csv"></i> Download manifest CSV</a></div>';
+  }
+
   var bids = (auctionBids[String(a.id)] || a.bids || []).slice().sort(function(x, y) {
     return new Date(y.timestamp || 0) - new Date(x.timestamp || 0);
   });
@@ -4098,7 +4262,7 @@ function buildAuctionModalInfoHtml(a) {
     html += '</div>';
   }
 
-  if (getAuctionStatus(a) === 'winner_pending' && !a.winnerOrder) {
+  if (canShowWinnerClaimActions(a)) {
     if (needsAuctionWinnerPayment(a)) {
       var payStatus = getAuctionWinnerPaymentStatus(a);
       html += '<button type="button" class="pdp-modal__btn pdp-modal__btn--deposit" data-auction-winner-pay="' + escapeHtml(String(a.id)) + '">' +
@@ -4779,7 +4943,7 @@ function renderAuctionsSectionMeta() {
 }
 
 function auctionWinnerPaymentUiKey(a) {
-  if (!a || getAuctionStatus(a) !== 'winner_pending') return '';
+  if (!canShowWinnerClaimActions(a)) return '';
   var cfg = getAuctionWinnerPaymentConfig();
   var payStatus = getAuctionWinnerPaymentStatus(a) || 'pending';
   var action = needsAuctionWinnerPayment(a) ? 'pay' : (isAuctionWinnerPaymentPaid(a) ? 'claim' : 'none');
@@ -4793,7 +4957,7 @@ function auctionWinnerPaymentUiKey(a) {
 }
 
 function buildAuctionWinnerActionButtonHtml(a) {
-  if (getAuctionStatus(a) !== 'winner_pending' || a.winnerOrder) return '';
+  if (!canShowWinnerClaimActions(a)) return '';
   if (needsAuctionWinnerPayment(a)) {
     return '<button type="button" class="auction-claim-btn" data-auction-winner-action="pay" onclick="promptAuctionWinnerPayment(' + jsInlineArg(a.id) + ')">' +
       '<i class="fas fa-credit-card" aria-hidden="true"></i> Pay £' + getAuctionHammerAmount(a).toFixed(2) + ' to claim</button>';
@@ -4906,7 +5070,7 @@ function renderAuctions() {
   var grid = document.getElementById('auctionsGrid');
   if (!grid) return;
   grid.classList.add('auctions-rail');
-  var sortedAuctions = auctions.slice().sort(function(a, b) {
+  var sortedAuctions = auctions.slice().filter(isAuctionVisibleToShopper).sort(function(a, b) {
     var aActive = getAuctionStatus(a) === 'active' ? 1 : 0;
     var bActive = getAuctionStatus(b) === 'active' ? 1 : 0;
     if (aActive !== bActive) return bActive - aActive;
@@ -4952,6 +5116,9 @@ function renderAuctions() {
     var aViews = auctionViewTotals[a.id] != null ? auctionViewTotals[a.id] : Number(a.viewCount || 0);
     var h = '<div class="auction-header">';
     h += '<span><i class="fas fa-fire"></i> ' + (isEnded ? 'AUCTION' : 'LIVE AUCTION') + '</span>';
+    if (isAuctionVipEarlyAccess(a)) {
+      h += '<span class="auction-vip-early-badge"><i class="fas fa-crown"></i> VIP Early</span>';
+    }
     h += '<span class="auction-badge">' + (a.bidsCount || bidStats.totalBids || 0) + ' bids · ' + bidStats.participants + ' users · ' + formatViewCount(aViews) + '</span>';
     h += '</div>';
     
@@ -5172,7 +5339,7 @@ function openAuctionDepositModal(auctionId) {
     '<div class="modal-content">' +
       '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
       '<h2><i class="fas fa-credit-card"></i> Pay £' + getAuctionDepositAmountGbp().toFixed(0) + ' Deposit</h2>' +
-      '<p style="margin-bottom:12px;color:#666">Refundable deposit to bid on <b>' + escapeHtml(a.name || 'this lot') + '</b>. Card payment via Stripe.</p>' +
+      '<p style="margin-bottom:12px;color:#666">Refundable £' + getAuctionDepositAmountGbp().toFixed(0) + ' deposit to bid. <b>One active deposit covers all live auctions.</b> Card payment via Stripe.</p>' +
       '<input type="text" id="depName_' + modalId + '" placeholder="Your Name *" value="' + escapeHtml(stored.name || '') + '">' +
       '<input type="tel" id="depPhone_' + modalId + '" placeholder="Phone *" value="' + escapeHtml(stored.phone || '') + '">' +
       '<input type="email" id="depEmail_' + modalId + '" placeholder="Email (optional)" value="">' +
@@ -5201,6 +5368,12 @@ async function startAuctionDepositCheckout(auctionId, modalId) {
       body: JSON.stringify({ auctionId: auctionId, name: name, phone: phone, email: email })
     });
     var data = await response.json();
+    if (response.ok && data.crossAuction) {
+      markActiveDepositPaid(phone);
+      notify(data.message || 'Your active deposit covers this lot.', 'success');
+      if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
+      return;
+    }
     if (!response.ok || !data.url) {
       notify(data.error || 'Deposit checkout failed', 'error');
       return;
@@ -5310,9 +5483,12 @@ async function submitBid(auctionId, bidAmount, modalId) {
     }
     renderAuctions();
     refreshAuctionModalContent(auctionId);
-  } else if (bidResult && bidResult.code === 'DEPOSIT_REQUIRED') {
+  } else if (isDepositRequiredBidResult(bidResult)) {
     if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
-    promptAuctionDepositRequired(auctionId, bidResult.error || auctionDepositFirstLabel());
+    promptAuctionDepositRequired(
+      auctionId,
+      bidResult.error || auctionDepositBeforeBidLabel()
+    );
   } else {
     notify((bidResult && bidResult.error) || 'Error placing bid', 'error');
   }
@@ -5325,7 +5501,9 @@ window.AYLEN_AUCTION_DEPOSIT = {
   getConfig: getAuctionDepositConfig,
   isEnforcementActive: isAuctionDepositEnforcementActive,
   isBidGated: isAuctionBidGated,
-  depositFirstLabel: auctionDepositFirstLabel
+  depositFirstLabel: auctionDepositFirstLabel,
+  depositBeforeBidLabel: auctionDepositBeforeBidLabel,
+  isDepositRequired: isDepositRequiredBidResult
 };
 
 function auctionPickupOptions() {
@@ -5338,12 +5516,56 @@ function auctionPickupOptions() {
   return html;
 }
 
-function toggleWinnerDeliveryFields(modalId) {
-  var method = document.getElementById('winnerMethod_' + modalId).value;
-  var pickup = document.getElementById('winnerPickupWrap_' + modalId);
-  var delivery = document.getElementById('winnerDeliveryWrap_' + modalId);
-  if (pickup) pickup.style.display = method === 'Pickup' ? 'block' : 'none';
-  if (delivery) delivery.style.display = method === 'Delivery' ? 'block' : 'none';
+var AUCTION_COLLECTION_ADDRESS = {
+  warehouse: 'Warehouse 4',
+  line1: 'Old Manton Station',
+  town: 'Oakham',
+  postcode: 'LE15 8SZ'
+};
+
+var AUCTION_COLLECTION_TERMS = [
+  'Collection within 5 working days after payment.',
+  'Buyer collects personally or arranges own courier.',
+  'Storage charges may apply after 5 working days.',
+  'Uncollected lots may be cancelled and resold.',
+  'All lots sold as seen.'
+];
+
+function renderAuctionCollectionAddressHtml() {
+  var a = AUCTION_COLLECTION_ADDRESS;
+  return '<div class="listing-policy-box" style="margin-bottom:12px">' +
+    '<div class="listing-policy-title"><i class="fas fa-warehouse"></i> Collection Address</div>' +
+    '<div class="listing-policy-text">' +
+      escapeHtml(a.warehouse) + '<br>' +
+      escapeHtml(a.line1) + '<br>' +
+      escapeHtml(a.town) + '<br>' +
+      escapeHtml(a.postcode) +
+    '</div></div>';
+}
+
+function renderAuctionCollectionTermsHtml() {
+  var items = AUCTION_COLLECTION_TERMS.map(function(line) {
+    return '<li>' + escapeHtml(line) + '</li>';
+  }).join('');
+  return '<div class="listing-policy-box" style="margin-bottom:12px">' +
+    '<div class="listing-policy-title"><i class="fas fa-scale-balanced"></i> Auction Collection Terms</div>' +
+    '<ul class="listing-policy-text" style="margin:0;padding-left:18px">' + items + '</ul>' +
+    '</div>';
+}
+
+function initWinnerClaimTurnstile(modalId) {
+  if (!window.AYLEN_SPAM || !window.AYLEN_SPAM.renderWidget) return;
+  var containerId = 'winnerTurnstile_' + modalId;
+  var mount = function() {
+    if (window.AYLEN_SPAM.isEnabled && window.AYLEN_SPAM.isEnabled()) {
+      window.AYLEN_SPAM.renderWidget(containerId).catch(function() {});
+    }
+  };
+  if (window.AYLEN_SPAM.isEnabled && window.AYLEN_SPAM.isEnabled()) {
+    mount();
+  } else if (window.AYLEN_SPAM.prefetchConfig) {
+    window.AYLEN_SPAM.prefetchConfig().then(mount).catch(function() {});
+  }
 }
 
 function openWinnerClaimModal(auctionId) {
@@ -5360,28 +5582,33 @@ function openWinnerClaimModal(auctionId) {
     return;
   }
   var stored = getStoredBidderContact() || {};
+  var claimPhone = auction.winner.bidderPhone || stored.phone || '';
   var modalId = 'winnerModal_' + Date.now();
   var html = '<div id="' + modalId + '" class="modal" style="display:flex">' +
     '<div class="modal-content">' +
       '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
       '<h2><i class="fas fa-trophy"></i> Claim Winning Order</h2>' +
       '<p style="margin-bottom:12px;color:#666"><b>' + escapeHtml(auction.name) + '</b><br>Final price: <b>£' + Number(auction.currentPrice || 0).toFixed(2) + '</b></p>' +
+      renderAuctionCollectionAddressHtml() +
+      renderAuctionCollectionTermsHtml() +
       '<input type="text" id="winnerWebsite_' + modalId + '" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0" value="">' +
       '<input type="hidden" id="winnerStartedAt_' + modalId + '" value="' + Date.now() + '">' +
       '<input type="text" id="winnerName_' + modalId + '" placeholder="Your Name *" value="' + escapeHtml(stored.name || auction.winner.bidderName || '') + '" required>' +
-      '<input type="tel" id="winnerPhone_' + modalId + '" placeholder="Phone used for bid *" value="' + escapeHtml(stored.phone || '') + '" required>' +
-      '<select id="winnerMethod_' + modalId + '" onchange="toggleWinnerDeliveryFields(' + jsInlineArg(modalId) + ')"><option value="Pickup">Pickup</option><option value="Delivery">Delivery</option></select>' +
-      '<div id="winnerPickupWrap_' + modalId + '"><select id="winnerPickup_' + modalId + '">' + auctionPickupOptions() + '</select></div>' +
-      '<div id="winnerDeliveryWrap_' + modalId + '" style="display:none">' +
-        '<input type="text" id="winnerAddress_' + modalId + '" placeholder="Delivery address">' +
-        '<input type="text" id="winnerPostcode_' + modalId + '" placeholder="Postcode">' +
-      '</div>' +
-      '<textarea id="winnerComment_' + modalId + '" placeholder="Comment" rows="2"></textarea>' +
+      '<input type="tel" id="winnerPhone_' + modalId + '" placeholder="Phone used for bid *" value="' + escapeHtml(claimPhone) + '" readonly required aria-readonly="true" title="Phone must match your winning bid">' +
+      '<label for="winnerMethod_' + modalId + '" style="display:block;margin:8px 0 4px;font-size:12px;color:#94a3b8">Collection Method *</label>' +
+      '<select id="winnerMethod_' + modalId + '" required>' +
+        '<option value="">-- Select collection method --</option>' +
+        '<option value="Self Collection">Self Collection</option>' +
+        '<option value="Buyer Courier">Buyer Courier</option>' +
+      '</select>' +
+      '<textarea id="winnerComment_' + modalId + '" placeholder="Comment (courier details, collection date, etc.)" rows="2"></textarea>' +
+      '<div id="winnerTurnstile_' + modalId + '" class="aylen-turnstile" aria-hidden="true"></div>' +
       '<button class="btn-order" onclick="submitAuctionWinnerOrder(' + jsInlineArg(auctionId) + ',' + jsInlineArg(modalId) + ')"><i class="fas fa-paper-plane"></i> Send Winning Order</button>' +
     '</div>' +
   '</div>';
   if (window.AYLEN_MODAL) window.AYLEN_MODAL.open(html, { id: modalId });
   else document.body.insertAdjacentHTML('beforeend', html);
+  initWinnerClaimTurnstile(modalId);
 }
 
 async function submitAuctionWinnerOrder(auctionId, modalId) {
@@ -5397,38 +5624,49 @@ async function submitAuctionWinnerOrder(auctionId, modalId) {
   var name = document.getElementById('winnerName_' + modalId).value.trim();
   var phone = document.getElementById('winnerPhone_' + modalId).value.trim();
   var method = document.getElementById('winnerMethod_' + modalId).value;
-  var pickup = document.getElementById('winnerPickup_' + modalId).value;
-  var address = document.getElementById('winnerAddress_' + modalId).value.trim();
-  var postcode = document.getElementById('winnerPostcode_' + modalId).value.trim();
   var comment = document.getElementById('winnerComment_' + modalId).value.trim();
   var honeypot = document.getElementById('winnerWebsite_' + modalId).value;
   var startedAt = document.getElementById('winnerStartedAt_' + modalId).value;
-  var winnerDigits = String(auction.winner.bidderPhone || '').replace(/\D/g, '');
-  var phoneDigits = phone.replace(/\D/g, '');
+  var winnerPhone = auction.winner.bidderPhone || '';
+  var ukPhone = window.AYLEN_UK_PHONE || {};
+  var phonesMatch = ukPhone.ukPhonesMatch || function(a, b) {
+    return String(a || '').replace(/\D/g, '') === String(b || '').replace(/\D/g, '');
+  };
 
-  var validation = SECURITY.validateWinnerForm(name, phone, method, pickup, address, postcode, comment, honeypot, startedAt);
+  var validation = SECURITY.validateWinnerForm(name, phone, method, comment, honeypot, startedAt);
   if (!validation.valid) { notify(validation.error, 'error'); return; }
-  var rateLimit = SECURITY.checkWinnerRateLimit();
-  if (!rateLimit.allowed) { notify(rateLimit.reason, 'error'); return; }
-  if (winnerDigits && phoneDigits.slice(-6) !== winnerDigits.slice(-6)) {
+  if (winnerPhone && !phonesMatch(phone, winnerPhone)) {
     notify('Phone must match the winning bid phone', 'error');
     return;
   }
+
+  var turnstileContainerId = 'winnerTurnstile_' + modalId;
+  if (window.AYLEN_SPAM && window.AYLEN_SPAM.isEnabled && window.AYLEN_SPAM.isEnabled()) {
+    var captchaToken = window.AYLEN_SPAM.getToken(turnstileContainerId);
+    if (!captchaToken) {
+      notify('Complete the security check below the form', 'error');
+      return;
+    }
+  }
+
+  var rateLimit = SECURITY.checkWinnerRateLimit(phone);
+  if (!rateLimit.allowed) { notify(rateLimit.reason, 'error'); return; }
 
   var order = {
     type: 'auction_winner',
     name: name,
     phone: phone,
     method: method,
-    pickup: method === 'Pickup' ? pickup : '',
-    address: method === 'Delivery' ? address : '',
-    postcode: method === 'Delivery' ? postcode : '',
     comment: comment,
     auctionId: auction.id,
     auctionName: auction.name,
     finalPrice: Number(auction.currentPrice || 0),
     bidId: auction.winner.bidId || '',
-    security: SECURITY.submissionMeta(startedAt, honeypot)
+    collectionAddress: AUCTION_COLLECTION_ADDRESS,
+    security: SECURITY.submissionMeta(startedAt, honeypot),
+    turnstileToken: window.AYLEN_SPAM && window.AYLEN_SPAM.getToken
+      ? window.AYLEN_SPAM.getToken(turnstileContainerId)
+      : null
   };
 
   notify('Sending winner order...', 'info');
@@ -5448,8 +5686,19 @@ async function submitAuctionWinnerOrder(auctionId, modalId) {
       throw new Error(data.error || 'Telegram send failed');
     }
     order.telegramMessageId = data.messageId || null;
-    if (!await saveAuctionWinnerOrder(auctionId, order)) {
-      throw new Error('Could not save winner order');
+    SECURITY.clearWinnerRateLimit();
+    var savedLocally = await saveAuctionWinnerOrder(auctionId, order);
+    if (!savedLocally) {
+      var localAuction = auctions.find(function(a) { return sameId(a.id, auctionId); });
+      if (localAuction) {
+        localAuction.status = 'order_sent';
+        localAuction.orderSentAt = new Date().toISOString();
+        localAuction.winnerOrder = Object.assign({}, order, {
+          auctionId: localAuction.id,
+          finalPrice: Number(localAuction.currentPrice || 0),
+          createdAt: new Date().toISOString()
+        });
+      }
     }
     if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
     else {
@@ -5461,5 +5710,8 @@ async function submitAuctionWinnerOrder(auctionId, modalId) {
     refreshAuctionModalContent(auctionId);
   } catch (error) {
     notify('Winner order failed: ' + error.message, 'error');
+    if (window.AYLEN_SPAM && window.AYLEN_SPAM.resetWidget) {
+      window.AYLEN_SPAM.resetWidget(turnstileContainerId);
+    }
   }
 }

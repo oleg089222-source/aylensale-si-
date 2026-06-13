@@ -1175,3 +1175,59 @@ body.aylen-admin-cms-active #aylenAdminShell .aylen-side-nav button.aylen-nav-ex
   border-left-color: #f87171;
   background: rgba(248, 113, 113, 0.08);
 }
+
+/* Deposit refunds panel */
+#aylenAdminShell .arp-root { margin-top: 4px; }
+#aylenAdminShell .arp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 12px 0 16px;
+  font-size: 0.92rem;
+}
+#aylenAdminShell .arp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+#aylenAdminShell .arp-filter {
+  border: 1px solid var(--aylen-admin-border);
+  background: var(--aylen-admin-panel);
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+#aylenAdminShell .arp-filter--active {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.12);
+}
+#aylenAdminShell .arp-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+#aylenAdminShell .arp-badge--pending { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+#aylenAdminShell .arp-badge--approved { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+#aylenAdminShell .arp-badge--rejected { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+#aylenAdminShell .arp-badge--refunded { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+#aylenAdminShell .arp-actions { white-space: nowrap; }
+#aylenAdminShell .arp-toolbar { margin-top: 12px; }
+
+/* Auction workflow in command center */
+.aac-workflow {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.aac-workflow h4 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}

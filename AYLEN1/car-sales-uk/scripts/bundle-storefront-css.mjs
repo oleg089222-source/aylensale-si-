@@ -9,10 +9,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Above-the-fold: blocking sheet (cards, header). Hero reset lives in inline critical CSS. */
 const SHELL_CRITICAL_SOURCES = [
+  'css/ds-v2-tokens.css',
   'css/storefront-cls-guard.css',
   'css/storefront-inline-reset.css',
   'css/header-card-bar.css',
   'css/storefront-header-brand.css',
+  'css/ds-v2-header.css',
   'css/products-section.css',
   'css/tablet-storefront-layout.css',
   'css/ebay-promo.css',
@@ -20,7 +22,11 @@ const SHELL_CRITICAL_SOURCES = [
   'css/product-card-compact-guard.css',
   'css/mobile-perf.css',
   'css/storefront-icons.css',
-  'css/phase6-perf-images.css'
+  'css/phase6-perf-images.css',
+  'css/ds-v2-base.css',
+  'css/ds-v2-buttons.css',
+  'css/ds-v2-forms.css',
+  'css/product-card-v2.css'
 ];
 
 /** Icons, legacy layout, modals: non-blocking async load. */
@@ -39,7 +45,13 @@ const SHELL_DEFERRED_SOURCES = [
   'css/pickup-section.css',
   'css/discount-highlight.css',
   'css/storefront-collapsible.css',
-  'css/storefront-layout-restore.css'
+  'css/storefront-layout-restore.css',
+  'css/ds-v2-modals.css',
+  'css/ds-v2-nav.css',
+  'css/ds-v2-shell.css',
+  'css/auction-card-v2.css',
+  'css/pickup-card-v2.css',
+  'css/vip-card-v2.css'
 ];
 
 const LAZY_PAGE_SOURCES = [

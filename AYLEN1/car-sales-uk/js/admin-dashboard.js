@@ -52,6 +52,7 @@
     products: 'Products',
     orders: 'Shop Orders',
     auctions: 'Auction Command',
+    refunds: 'Deposit Refunds',
     locations: 'Pickup Locations',
     vipmembers: 'VIP Members',
     pricelist: 'Price List',
@@ -104,6 +105,7 @@
       sideLink('products', 'Products', 'fa-box', '2') +
       sideLink('orders', 'Shop Orders', 'fa-receipt', '3') +
       sideLink('auctions', 'Auction Command', 'fa-chart-line', '4') +
+      sideLink('refunds', 'Deposit Refunds', 'fa-rotate-left', 'R') +
       sideLink('locations', 'Pickup Locations', 'fa-map-pin', '5') +
       sideLink('vipmembers', 'VIP Members', 'fa-crown', 'V') +
       sideLink('pricelist', 'Price List', 'fa-list', '6') +
@@ -439,6 +441,17 @@
           '<p class="aylen-hint">Auction Command Center did not load. Hard refresh (Cmd+Shift+R) and open Auctions again.</p>' +
           '<button type="button" class="aylen-btn aylen-btn-quiet" style="margin-top:10px" onclick="location.reload()">Refresh page</button>' +
           '<button type="button" class="aylen-btn aylen-btn-quiet" style="margin-top:10px;margin-left:8px" onclick="AyelenAdminDashboard.showLegacyAuctionsTable()">Legacy table</button>';
+      }
+      return;
+    }
+
+    if (panel === 'refunds') {
+      body.innerHTML = '<h2 class="aylen-page-title">Deposit Refunds</h2><div id="aylenRefundsMount"><p class="aylen-hint">Loading…</p></div>';
+      var refMount = $('aylenRefundsMount');
+      if (global.AyelenAdminRefunds && global.AyelenAdminRefunds.renderPanel && refMount) {
+        await global.AyelenAdminRefunds.renderPanel(refMount);
+      } else if (refMount) {
+        refMount.innerHTML = '<p class="aylen-hint">Refunds module failed to load. Hard refresh admin.</p>';
       }
       return;
     }

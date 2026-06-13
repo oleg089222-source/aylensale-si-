@@ -9,6 +9,8 @@ import {
   handleAuctionDeposit,
   handleAuctionDepositConfig,
   handleAuctionDepositVerify,
+  handleAuctionDepositStatus,
+  handleAuctionRefundRequest,
   handleAuctionBuyNow,
   handleAuctionPaymentConfig,
   handleAuctionWinnerPayment,
@@ -30,6 +32,8 @@ function resolveAction(req) {
   if (url.indexOf('auction-bid') !== -1) return 'auction-bid';
   if (url.indexOf('auction-deposit-verify') !== -1) return 'auction-deposit-verify';
   if (url.indexOf('auction-deposit-config') !== -1) return 'auction-deposit-config';
+  if (url.indexOf('auction-deposit-status') !== -1) return 'auction-deposit-status';
+  if (url.indexOf('auction-refund-request') !== -1) return 'auction-refund-request';
   if (url.indexOf('auction-deposit') !== -1) return 'auction-deposit';
   if (url.indexOf('auction-buy-now') !== -1) return 'auction-buy-now';
   if (url.indexOf('auction-payment-verify') !== -1) return 'auction-payment-verify';
@@ -65,6 +69,12 @@ export default async function handler(req, res) {
     case 'auction-deposit-config':
     case 'auctiondepositconfig':
       return handleAuctionDepositConfig(req, res);
+    case 'auction-deposit-status':
+    case 'auctiondepositstatus':
+      return handleAuctionDepositStatus(req, res);
+    case 'auction-refund-request':
+    case 'auctionrefundrequest':
+      return handleAuctionRefundRequest(req, res);
     case 'auction-buy-now':
     case 'auction-buynow':
       return handleAuctionBuyNow(req, res);

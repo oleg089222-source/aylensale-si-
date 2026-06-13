@@ -72,3 +72,46 @@ cd .../car-sales-uk && ./scripts/deploy-prod.sh
 ```
 
 Пройти `docs/QA-TEST-PLAN.md` фазы A → B → C и дописать PASS/FAIL в этот файл.
+
+---
+
+## Security + prod deploy — 11 Jun 2026
+
+**Deploy:** Firestore rules + Vercel prod → https://aylensale.com  
+**Deployment:** `dpl_LGS16jJwb5EnubrCJNFcDLDGfecn`
+
+### Automated smoke (curl)
+
+| Test | Result | HTTP |
+|------|--------|------|
+| GET `/` | PASS | 200 |
+| POST `/api/send-notify` no auth | PASS | 401 |
+| GET `/api/auction-engine?sub=settings` | PASS | 401 |
+| GET `/api/vip-config` | PASS | 200 |
+| POST `/api/auction-bid` invalid | PASS | 400/403 |
+| POST `/api/vip-verify-checkout` fake session | PASS | 400, no accessToken |
+| GET `/api/storefront-catalog` | PASS | 200, 18 products |
+| GET `/api/spam-config` | PASS | 200, Turnstile on |
+
+### Browser vitrine (prod, desktop)
+
+| Test | Result |
+|------|--------|
+| Homepage loads, products visible | PASS |
+| Load more (8 of 18) | PASS |
+| Nav → Auctions `#auctions` | PASS |
+| Auction cards + bid history buttons | PASS |
+| Pickup section + weather dates | PASS |
+| Footer legal links incl. Auction Deposit Refund | PASS |
+
+### Still manual (needs admin password)
+
+| Item | Status |
+|------|--------|
+| ADM-004 admin overlay after login | OPEN — verify on device |
+| Admin Notify Me → Telegram | OPEN |
+| Admin CRUD B1–B9 | OPEN |
+| Tablet/mobile phases B–D | OPEN |
+| `npm run verify:auction-full` | SKIP — no env credentials in CI shell |
+
+**P2 follow-up:** Stripe invalid session → 400 in `handleVerify` / `handleVipItemVerify` — **deployed** (`dpl_BHqUMWLgJi9kyx4oqFiLDyKXTP33`).

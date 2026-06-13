@@ -41,17 +41,17 @@ console.log('URL:', BASE);
 const config = await getJson('/api/auction-deposit-config');
 record('deposit-config', config.status === 200 && config.data.ok === true,
   'enabled=' + config.data.depositsEnabled + ' enforcement=' + config.data.depositEnforcement);
-record('deposit-enforcement-off', config.data.depositEnforcement === false,
-  'depositEnforcement must stay false on production until sign-off');
-record('production-locked', config.data.productionLocked === true,
-  'source=' + (config.data.depositEnforcementSource || 'n/a') + ' env=' + (config.data.deployEnvironment || 'n/a'));
+record('deposit-enforcement-on', config.data.depositEnforcement === true,
+  'depositEnforcement=' + config.data.depositEnforcement + ' source=' + (config.data.depositEnforcementSource || 'n/a'));
 
-const homeRes = await fetch(BASE + '/');
-const homeHtml = await homeRes.text();
-record('client-deposit-config-loader', homeHtml.indexOf('loadAuctionDepositConfig') !== -1 || homeHtml.indexOf('AYLEN_AUCTION_DEPOSIT') !== -1,
-  'client bid gate helpers in bundle');
-record('client-deposit-gate-label', homeHtml.indexOf('Deposit First') !== -1 || homeHtml.indexOf('isAuctionBidGated') !== -1,
-  'gated bid UI strings/helpers present');
+const bundleRes = await fetch(BASE + '/js/storefront-core.bundle.js');
+const bundleJs = await bundleRes.text();
+record('client-deposit-config-loader', bundleRes.status === 200 &&
+  (bundleJs.indexOf('loadAuctionDepositConfig') !== -1 || bundleJs.indexOf('AYLEN_AUCTION_DEPOSIT') !== -1),
+  'client bid gate helpers in storefront-core.bundle.js');
+record('client-deposit-gate-label', bundleRes.status === 200 &&
+  (bundleJs.indexOf('Deposit First') !== -1 || bundleJs.indexOf('isAuctionBidGated') !== -1),
+  'gated bid UI strings/helpers in bundle');
 record('deposits-enabled', config.data.depositsEnabled === true, 'checkout available');
 record('stripe-configured', config.data.stripeConfigured === true, 'STRIPE_SECRET_KEY');
 record('webhook-configured', config.data.webhookConfigured === true, 'STRIPE_WEBHOOK_SECRET');

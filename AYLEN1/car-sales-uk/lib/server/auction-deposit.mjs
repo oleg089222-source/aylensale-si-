@@ -51,20 +51,33 @@ export function resolveDepositFlags(settings) {
     || process.env.AUCTION_DEPOSITS_ENABLED === '0';
   const production = isProductionDeploy();
   const vercelEnv = String(process.env.VERCEL_ENV || '').trim().toLowerCase() || 'unknown';
-  const stagingEnvEnforcement = !production && isTruthy(process.env.AUCTION_DEPOSIT_ENFORCEMENT);
+  const envForceOff = process.env.AUCTION_DEPOSIT_ENFORCEMENT === 'false'
+    || process.env.AUCTION_DEPOSIT_ENFORCEMENT === '0';
+  const envForceOn = isTruthy(process.env.AUCTION_DEPOSIT_ENFORCEMENT);
   const settingsEnforcement = s.depositEnforcement === true || s.depositEnforcementEnabled === true;
-  // Production: enforcement always OFF (Firestore flag ignored for bids).
-  // Preview/local: ON when AUCTION_DEPOSIT_ENFORCEMENT=true or Firestore flag true.
-  const depositEnforcement = production ? false : (stagingEnvEnforcement || settingsEnforcement);
+
+  let depositEnforcement;
+  let depositEnforcementSource;
+  if (envForceOff) {
+    depositEnforcement = false;
+    depositEnforcementSource = 'env_off';
+  } else if (production) {
+    depositEnforcement = true;
+    depositEnforcementSource = 'production_default';
+  } else if (envForceOn || settingsEnforcement) {
+    depositEnforcement = true;
+    depositEnforcementSource = envForceOn ? 'env' : 'settings';
+  } else {
+    depositEnforcement = false;
+    depositEnforcementSource = 'off';
+  }
 
   return {
     depositsEnabled: !envDepositsOff && s.depositsEnabled !== false,
     depositAmountGbp: Number.isFinite(amount) && amount > 0 ? amount : AUCTION_DEPOSIT_GBP,
     depositEnforcement: depositEnforcement,
-    depositEnforcementSource: production
-      ? 'production_locked'
-      : (stagingEnvEnforcement ? 'env' : (settingsEnforcement ? 'settings' : 'off')),
-    productionLocked: production,
+    depositEnforcementSource: depositEnforcementSource,
+    productionLocked: false,
     deployEnvironment: vercelEnv,
     depositWebhookEnabled: s.depositWebhookEnabled !== false,
     depositVerifyFallbackEnabled: s.depositVerifyFallbackEnabled !== false,
@@ -77,11 +90,11 @@ export function resolveDepositFlags(settings) {
  * Server-side bid gate — throws with code DEPOSIT_REQUIRED when enforcement is on.
  * Buy Now must NOT call this (bids only).
  */
-export function requirePaidDepositForBid(deposits, phoneKeyValue, depositFlags) {
+export async function requirePaidDepositForBid(db, deposits, phoneKeyValue, depositFlags) {
   const flags = depositFlags || {};
   if (!flags.depositEnforcement) return;
   const pKey = String(phoneKeyValue || '').trim();
-  if (hasPaidDeposit(deposits, pKey)) return;
+  if (await bidderHasBidDeposit(db, deposits, pKey)) return;
   const amount = Number(flags.depositAmountGbp || AUCTION_DEPOSIT_GBP);
   const err = new Error('Pay the £' + amount.toFixed(2) + ' deposit before bidding');
   err.code = 'DEPOSIT_REQUIRED';
@@ -151,6 +164,29 @@ export function hasPaidDeposit(deposits, phoneKeyValue) {
   return list.some(function(d) {
     return d && d.phoneKey === pKey && d.status === DEPOSIT_STATUSES.PAID;
   });
+}
+
+/** Cross-auction active deposit via auctionProfiles (one deposit, many lots). */
+export async function hasActiveBidderDeposit(db, phoneKeyValue) {
+  const pKey = String(phoneKeyValue || '').trim();
+  if (!pKey || !db) return false;
+  try {
+    const snap = await db.collection('auctionProfiles').doc(pKey).get();
+    if (!snap.exists) return false;
+    const data = snap.data() || {};
+    if (data.depositPaid !== true) return false;
+    const status = String(data.depositStatus || 'active').toLowerCase();
+    return status !== DEPOSIT_STATUSES.REFUNDED && status !== DEPOSIT_STATUSES.FORFEITED;
+  } catch (err) {
+    console.warn('[auction-deposit] profile deposit check:', err.message || err);
+    return false;
+  }
+}
+
+/** Lot deposit or global profile deposit. */
+export async function bidderHasBidDeposit(db, deposits, phoneKeyValue) {
+  if (hasPaidDeposit(deposits, phoneKeyValue)) return true;
+  return hasActiveBidderDeposit(db, phoneKeyValue);
 }
 
 /** Find deposit index by session id or pending phone key. */
@@ -268,8 +304,10 @@ export async function markAuctionDepositPaidFromSession(session, opts) {
     if (resolvedKey) {
       await db.collection('auctionProfiles').doc(resolvedKey).set({
         depositPaid: true,
+        depositStatus: 'active',
         lastDepositPaidAt: now,
         lastDepositAuctionId: auctionId,
+        lastDepositSessionId: sessionId,
         updatedAt: now
       }, { merge: true });
     }

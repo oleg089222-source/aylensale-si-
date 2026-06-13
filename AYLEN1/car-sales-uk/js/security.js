@@ -288,8 +288,57 @@ var SECURITY = {
     return this.checkNamedRateLimit('bidAttempts', 'aylen_bid_attempts', 4, 60000, 'Too many bids too quickly. Please wait a minute and try again.');
   },
 
-  checkWinnerRateLimit: function() {
-    return this.checkNamedRateLimit('winnerAttempts', 'aylen_winner_attempts', 3, 600000, 'Too many winner form attempts. Please wait and try again.');
+  checkWinnerRateLimit: function(phone) {
+    if (this.isWinnerRateLimitExempt(phone)) {
+      return { allowed: true, remaining: 999, exempt: true };
+    }
+    var limits = this.getWinnerRateLimits();
+    return this.checkNamedRateLimit(
+      'winnerAttempts',
+      'aylen_winner_attempts',
+      limits.maxAttempts,
+      limits.windowMs,
+      'Too many winner form attempts. Please wait and try again.'
+    );
+  },
+
+  getWinnerRateLimits: function() {
+    if (this.isStagingMode()) {
+      return { maxAttempts: 30, windowMs: 600000 };
+    }
+    return { maxAttempts: 3, windowMs: 600000 };
+  },
+
+  isStagingMode: function() {
+    return !!(window.AYLEN_RUNTIME && window.AYLEN_RUNTIME.isStaging);
+  },
+
+  isWinnerRateLimitExempt: function(phone) {
+    var canon = this.canonicalWinnerPhone(phone);
+    if (!canon) return false;
+    if (canon === '447471647771') return true;
+    return this.isStagingMode() && window.AYLEN_RUNTIME && window.AYLEN_RUNTIME.allowProdWrites;
+  },
+
+  canonicalWinnerPhone: function(phone) {
+    if (window.AYLEN_UK_PHONE && window.AYLEN_UK_PHONE.canonicalUkPhoneDigits) {
+      return window.AYLEN_UK_PHONE.canonicalUkPhoneDigits(phone);
+    }
+    var digits = String(phone || '').replace(/\D/g, '');
+    if (digits.indexOf('0044') === 0) digits = digits.slice(2);
+    if (digits.charAt(0) === '0' && digits.length >= 10 && digits.length <= 11) {
+      digits = '44' + digits.slice(1);
+    }
+    return digits;
+  },
+
+  clearWinnerRateLimit: function() {
+    this.winnerAttempts = [];
+    try {
+      localStorage.removeItem('aylen_winner_attempts');
+    } catch (e) {
+      console.warn('Could not clear winner rate limit data', e);
+    }
   },
 
   checkNamedRateLimit: function(field, storageKey, maxAttempts, windowMs, reason) {
@@ -354,7 +403,7 @@ var SECURITY = {
     return { valid: true };
   },
 
-  validateWinnerForm: function(name, phone, method, pickup, address, postcode, comment, honeypotValue, startedAt) {
+  validateWinnerForm: function(name, phone, method, comment, honeypotValue, startedAt) {
     var hp = this.validateHoneypot(honeypotValue);
     if (!hp.valid) return hp;
 
@@ -367,18 +416,15 @@ var SECURITY = {
     var phoneValidation = this.validatePhone(phone);
     if (!phoneValidation.valid) return phoneValidation;
 
-    if (method === 'Pickup' && !pickup) {
-      return { valid: false, error: 'Select pickup point' };
-    }
-    if (method === 'Delivery') {
-      if (!address || address.trim().length < 5) return { valid: false, error: 'Enter delivery address' };
-      if (!postcode || postcode.trim().length < 3 || postcode.trim().length > 12) return { valid: false, error: 'Enter valid postcode' };
+    var safeMethod = String(method || '').trim();
+    if (safeMethod !== 'Self Collection' && safeMethod !== 'Buyer Courier') {
+      return { valid: false, error: 'Select collection method' };
     }
 
     var commentValidation = this.validateComment(comment);
     if (!commentValidation.valid) return commentValidation;
 
-    var botCheck = this.detectBot(name, '', phone, [address, postcode, comment].join(' '));
+    var botCheck = this.detectBot(name, '', phone, comment);
     if (botCheck.isBot) return { valid: false, error: botCheck.reason };
 
     return { valid: true };

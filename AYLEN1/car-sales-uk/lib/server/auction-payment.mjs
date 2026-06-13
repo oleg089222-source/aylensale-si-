@@ -4,6 +4,7 @@
 import { getFirestoreAdmin } from './firebase-admin-app.mjs';
 import { getStripe, getSiteOrigin } from './stripe-client.mjs';
 import { phoneKey } from './auction-engine.mjs';
+import { ukPhonesMatch } from './uk-phone.mjs';
 import { auctionFirestoreDocId } from './auction-deposit.mjs';
 
 export const STRIPE_PRODUCT_AUCTION_WINNER_PAYMENT = 'auction_winner_payment';
@@ -80,12 +81,11 @@ export async function verifyWinnerPaymentForClaim(auctionId, phone) {
   if (!snap.exists) return { ok: false, error: 'Auction not found' };
   const data = snap.data() || {};
   const winner = data.winner || {};
-  const pKey = phoneKey(phone);
-  const winnerKey = winner.bidderKey || phoneKey(winner.bidderPhone);
-  if (!pKey || pKey !== winnerKey) {
+  if (!ukPhonesMatch(phone, winner.bidderPhone)) {
     return { ok: false, error: 'Phone does not match auction winner', code: 'NOT_WINNER' };
   }
-  if (String(data.status || '') !== 'winner_pending') {
+  const auctionStatus = String(data.status || '');
+  if (auctionStatus !== 'winner_pending' && auctionStatus !== 'paid') {
     return { ok: false, error: 'Auction is not awaiting winner collection', code: 'INVALID_STATUS' };
   }
   if (!isWinnerPaymentPaid(winner)) {
@@ -231,6 +231,7 @@ export async function markWinnerPaidFromSession(session, opts) {
   }
 
   await ref.set({
+    status: 'paid',
     winner: winner,
     updatedAt: now,
     winnerPaymentEvent: {
@@ -241,6 +242,16 @@ export async function markWinnerPaidFromSession(session, opts) {
       phoneKey: pKey
     }
   }, { merge: true });
+
+  try {
+    const notifyMod = await import('./auction-notify.mjs');
+    await notifyMod.notifyAdminWinnerPaymentReceived(
+      Object.assign({ id: auctionDoc }, data),
+      { hammerAmount: hammer, source: opts.source || 'webhook' }
+    ).catch(function() {});
+  } catch (notifyErr) {
+    console.warn('[auction-payment] winner paid notify:', notifyErr.message || notifyErr);
+  }
 
   return {
     ok: true,
@@ -254,7 +265,7 @@ export async function markWinnerPaidFromSession(session, opts) {
 
 export async function processOverdueWinnerPayments(db, settings) {
   const flags = resolveWinnerPaymentFlags(settings);
-  if (!flags.winnerPaymentEnabled) return { checked: 0, overdue: 0 };
+  if (!flags.winnerPaymentEnabled) return { checked: 0, overdue: 0, relisted: 0 };
 
   const snap = await db.collection('auctions')
     .where('status', '==', 'winner_pending')
@@ -262,23 +273,27 @@ export async function processOverdueWinnerPayments(db, settings) {
     .get();
 
   const now = Date.now();
-  let overdue = 0;
+  let relisted = 0;
+  const engine = await import('./auction-engine.mjs');
 
   for (const doc of snap.docs) {
     const data = doc.data() || {};
     const winner = data.winner || {};
-    if (winner.paymentStatus !== PAYMENT_STATUSES.PENDING) continue;
+    const payStatus = winner.paymentStatus || PAYMENT_STATUSES.PENDING;
+    if (payStatus === PAYMENT_STATUSES.PAID) continue;
     const dueMs = Date.parse(winner.paymentDueAt || 0);
     if (!dueMs || dueMs > now) continue;
 
-    await doc.ref.set({
-      winner: Object.assign({}, winner, { paymentStatus: PAYMENT_STATUSES.OVERDUE }),
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-    overdue += 1;
+    const result = await engine.cancelUnpaidWinnerAndRelist(
+      db,
+      doc.id,
+      Object.assign({ id: doc.id }, data),
+      settings
+    );
+    if (result && result.relisted) relisted += 1;
   }
 
-  return { checked: snap.size, overdue: overdue };
+  return { checked: snap.size, overdue: relisted, relisted: relisted };
 }
 
 export async function maybeCreateWinnerPaymentAfterFinalize(db, auctionId, settings, origin) {

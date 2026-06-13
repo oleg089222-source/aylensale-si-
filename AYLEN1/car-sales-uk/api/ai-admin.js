@@ -6,6 +6,10 @@
 import { verifyAdminPassword } from '../lib/server/admin-password.mjs';
 import { runScanAndPublish } from '../lib/server/auto-listing-pipeline.mjs';
 
+export const config = {
+  maxDuration: 60
+};
+
 const rateLimits = new Map();
 
 const ALLOWED_CATEGORIES = ['electronics', 'homeware', 'clothing', 'accessories', 'general', 'job-lots', 'cables'];
@@ -480,7 +484,13 @@ export default async function handler(req, res) {
         hint: cleanString(req.body?.hint || req.body?.text, 2000),
         policyId: cleanString(req.body?.policyId, 80),
         priceOverride: Number(req.body?.price) || null,
-        publish: req.body?.publish !== false && req.body?.draft !== true
+        publish: req.body?.publish !== false && req.body?.draft !== true,
+        forceAuction: req.body?.forceAuction === true,
+        forceProduct: req.body?.forceProduct === true,
+        skipManifest: req.body?.skipManifest === true,
+        mirrorVip: req.body?.mirrorVip !== false,
+        vipEarlyAccessHours: Number(req.body?.vipEarlyAccessHours) || undefined,
+        durationType: cleanString(req.body?.durationType, 20) || undefined
       });
       return res.status(200).json(result);
     }

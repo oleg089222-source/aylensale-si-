@@ -25,7 +25,7 @@
 | NTF-001 | P0 | verified-prod | Notify Me | Server restock notify — Telegram + email/fallback on 0→stock |
 | ADM-003 | P0 | verified-prod | Admin CRUD | Create/edit persist; QA product removed after audit |
 | CAT-001 | P1 | verified-prod | Catalog | Bootstrap 18 matches API 18 after rebuild |
-| ADM-004 | P0 | open | Admin UX | Loading overlay stuck after login until CMS opened manually |
+| ADM-004 | P0 | open | Admin UX | Loading overlay stuck after login — code fixed in admin-gate.js; needs manual verify on prod |
 | CAT-001 | P1 | open | Catalog | Load-more + admin refresh confusion |
 | AUC-002 | P1 | open | Auctions | Optimistic duplicate auction push |
 | IMG-001 | P1 | open | Images | `sanitizeProductImageUrls` empties arrays |
