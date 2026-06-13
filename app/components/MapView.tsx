@@ -67,10 +67,10 @@ export function MapView({ locations, selectedId }: Props) {
   }, [locations, selectedId]);
 
   return (
-    <div className="glass rounded-[2rem] border border-white/10 p-6">
+    <div className="glass rounded-4xl border border-white/10 p-6 min-w-0">
       <p className="text-sm uppercase tracking-[0.28em] text-slate-400">Карта</p>
       <p className="mt-2 text-lg font-semibold text-white">Car boot локации</p>
-      <div className="mt-4 h-72 overflow-hidden rounded-[1.5rem] border border-white/10">
+      <div className="mt-4 h-72 overflow-hidden rounded-3xl border border-white/10">
         <div ref={mapRef} className="h-full w-full leaflet-container" />
       </div>
     </div>

@@ -173,3 +173,24 @@ export function listenAuctions(callback: (auctions: Auction[]) => void): Unsubsc
     );
   });
 }
+
+export async function createAuction(data: Omit<Auction, "id">): Promise<string> {
+  const ref = await addDoc(auctionsCol(), {
+    ...data,
+    updatedAt: Timestamp.now(),
+  });
+  return ref.id;
+}
+
+export async function updateAuction(id: string, data: Partial<Auction>): Promise<void> {
+  const rest = { ...data };
+  delete rest.id;
+  await updateDoc(doc(getDb(), "auctions", id), {
+    ...rest,
+    updatedAt: Timestamp.now(),
+  });
+}
+
+export async function deleteAuction(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), "auctions", id));
+}
