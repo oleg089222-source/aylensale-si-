@@ -1,0 +1,188 @@
+AYLENSALE — AI Admin Assistant: русские голосовые/текстовые команды
+====================================================================
+Скопируй фразу в AI Assistant (Admin). Ассистент создаст UK-листинг на английском.
+После генерации: добавь фото коробки и нажми Publish.
+
+────────────────────────────────────────────────────────────────────
+TELEGRAM — АВТОЛИСТИНГ (фото → сайт сам)
+────────────────────────────────────────────────────────────────────
+Отправь боту фото + короткую подпись. Бот сам скачает, загрузит на aylensale.com и пришлёт ссылку.
+
+Настройка (один раз):
+1. Vercel env: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_LISTING_ADMIN_IDS
+2. npm run telegram:webhook
+3. Узнай свой Telegram user ID через @userinfobot → добавь в TELEGRAM_LISTING_ADMIN_IDS
+
+Как отправлять:
+• 1–10 фото (альбом OK) — подпись к первому фото
+• Подпись по-русски, коротко — это подсказка для AI
+
+Примеры подписей к фото:
+  кабели 100 шт grade A опт 35 car boot
+  зарядки 50 шт grade B untested опт 55
+  чехлы 100 шт iPhone Samsung grade A опт 40
+  Amazon returns electronics 30 шт grade B опт 55
+  палета electronics grade B/C опт 249 аукцион
+  черновик кабели 100 шт опт 35   ← не публикует, только draft
+
+Команды:
+  /help — инструкция в боте
+
+Что делает бот автоматически:
+1. Скачивает фото из Telegram
+2. AI анализирует коробку + твою подпись
+3. Загружает фото на Firebase / Cloudinary
+4. Создаёт листинг на aylensale.com
+5. Отвечает ссылкой product.html?id=...
+
+────────────────────────────────────────────────────────────────────
+CORE LINE — 8 якорных SKU (всегда в наличии)
+────────────────────────────────────────────────────────────────────
+
+1. Кабели 100 штук Grade A
+   создай листинг кабели 100 штук Grade A USB-C микро lightning опт 35 фунтов car boot ready SKU AYLE-CABLE-100A
+
+2. Чехлы 100 штук Grade A
+   создай листинг чехлы на телефон 100 штук Grade A iPhone Samsung опт 40 фунтов car boot SKU AYLE-CASE-100A
+
+3. Зарядки 50 штук Grade B untested
+   создай листинг зарядки 50 штук Grade B untested Amazon returns опт 55 фунтов job lot SKU AYLE-CHRG-50B
+
+4. Защитные стёкла 100 штук
+   создай листинг защитное стекло 100 штук Grade A tempered glass опт 25 фунтов SKU AYLE-PROT-100A
+
+5. Weekend Trader Bundle
+   создай листинг бандл 50 кабелей 50 чехлов 25 зарядок car boot starter опт 95 фунтов job lot SKU AYLE-BUNDLE-WKND
+
+6. Держатели телефона 30 штук
+   создай листинг держатели телефона 30 штук Grade A car dashboard опт 30 фунтов SKU AYLE-HOLD-30A
+
+7. Автозарядки 40 штук
+   создай листинг автомобильные зарядки 40 штук Grade A 12V USB опт 35 фунтов SKU AYLE-CARCHG-40A
+
+8. Amazon Returns аксессуары 40 штук
+   создай листинг Amazon returns аксессуары 40 штук Grade B untested VIP early опт 45 фунтов SKU AYLE-AMZ-ACC-40B
+
+────────────────────────────────────────────────────────────────────
+ОСТАЛЬНЫЕ 12 SKU
+────────────────────────────────────────────────────────────────────
+
+9. Наушники 50 штук
+   создай листинг наушники 50 штук wired bluetooth Grade B untested опт 45 фунтов SKU AYLE-EAR-50B
+
+10. Ремешки для часов 50 штук
+    создай листинг ремешки smart watch 50 штук Grade A опт 20 фунтов SKU AYLE-STRAP-50A
+
+11. Power bank 20 штук
+    создай листинг power bank 20 штук 5000 10000 mAh Grade B untested опт 50 фунтов SKU AYLE-PBANK-20B
+
+12. LED лампы 30 штук
+    создай листинг LED lights 30 штук ring light strip torch Grade A опт 35 фунтов SKU AYLE-LED-30A
+
+13. Bluetooth колонки 15 штук
+    создай листинг bluetooth speakers 15 штук Grade B untested опт 60 фунтов stock low SKU AYLE-BTSPK-15B
+
+14. Зарядки для ноутбуков 20 штук
+    создай листинг laptop chargers 20 штук Dell HP USB-C Grade B untested опт 70 фунтов SKU AYLE-LAPCHG-20B
+
+15. Детская электроника 25 штук
+    создай листинг kids electronics 25 штук toys gadgets Grade B опт 40 фунтов SKU AYLE-KIDS-25B
+
+16. Умный дом 20 штук
+    создай листинг smart home 20 штук plugs bulbs sensors Grade B untested опт 55 фунтов SKU AYLE-SMART-20B
+
+17. Селфи-палки 25 штук
+    создай листинг selfie sticks tripods 25 штук Grade A опт 25 фунтов SKU AYLE-TRIP-25A
+
+18. Игровые аксессуары 30 штук
+    создай листинг gaming accessories 30 штук controllers headsets cables Grade B опт 50 фунтов SKU AYLE-GAME-30B
+
+19. Refurb electronics 15 штук
+    создай листинг refurb electronics 15 штук gadgets keyboards mice Grade B опт 65 фунтов SKU AYLE-REFURB-15B
+
+20. Amazon Returns электроника 30 штук
+    создай листинг Amazon returns electronics 30 штук Grade B untested VIP early 48 hours опт 55 фунтов SKU AYLE-AMZ-ELEC-30B
+
+────────────────────────────────────────────────────────────────────
+БЫСТРЫЕ КОМАНДЫ (правка черновика)
+────────────────────────────────────────────────────────────────────
+
+поставь оптовую цену 35 фунтов
+поставь розничную цену 45 фунтов
+поставь stock 50
+поставь min qty 1
+добавь Amazon returns disclaimer
+добавь badge Car Boot Ready
+добавь badge Amazon Returns
+категория cables
+категория accessories
+категория job-lots
+категория electronics
+grade A tested new open box
+grade B untested sold as seen
+grade C for parts only
+добавь pickup note Saturday collection only
+добавь wholesale note MOQ 3 minus 5 percent
+добавь tags car-boot wholesale-box 100pcs
+short title максимум 60 символов
+seo title для eBay UK job lot
+
+────────────────────────────────────────────────────────────────────
+ШАБЛОНЫ ПО ТИПУ ТОВАРА (универсальные)
+────────────────────────────────────────────────────────────────────
+
+Кабели (новая коробка):
+  создай листинг [N] кабелей USB mixed Grade A car boot box опт [цена] фунтов untested нет tested визуально category cables
+
+Зарядки (returns):
+  создай листинг [N] зарядок mixed Grade B untested Amazon returns job lot опт [цена] фунтов policy amazon returns
+
+Чехлы:
+  создай листинг [N] чехлов iPhone Samsung mixed Grade A car boot опт [цена] фунтов category accessories
+
+Amazon Returns mix:
+  создай листинг Amazon returns [категория] [N] штук Grade B untested VIP early опт [цена] фунтов no individual returns
+
+Палета:
+  создай листинг палета electronics [N] units Grade B/C mix Amazon returns collection only опт [цена] фунтов manifest summary job lot
+
+Бандл:
+  создай листинг бандл car boot [описание состава] опт [цена] фунтов sold as one lot weekend trader
+
+────────────────────────────────────────────────────────────────────
+ЧЕКЛИСТ ПЕРЕД ПУБЛИКАЦИЕЙ (склад)
+────────────────────────────────────────────────────────────────────
+
+□ SKU совпадает с CSV
+□ wholesalePrice = опт из price list
+□ grade указан в name и badge
+□ listing policy: returns → policy_amazon_returns, new → policy_new_open_box
+□ conditionDesc: untested или tested — честно
+□ unitCount в desc (breakdown)
+□ Фото: коробка / содержимое / детали / worst example (B/C)
+□ VIP early: только AMZ-ACC и AMZ-ELEC
+
+────────────────────────────────────────────────────────────────────
+ПРИМЕР ПОЛНОЙ СЕССИИ (копируй по шагам)
+────────────────────────────────────────────────────────────────────
+
+Шаг 1 — голос/текст:
+  создай листинг кабели 100 штук Grade A USB-C микро lightning опт 35 розница 45 car boot ready SKU AYLE-CABLE-100A
+
+Шаг 2 — проверь draft, потом:
+  добавь breakdown USB-C 40 micro 35 lightning 25
+  добавь wholesale note core line replenished weekly
+  добавь pickup note Saturday morning collection
+
+Шаг 3 — загрузи 3–4 фото коробки
+
+Шаг 4 — Publish
+
+────────────────────────────────────────────────────────────────────
+WHATSAPP PRICE LIST (четверг 18:00)
+────────────────────────────────────────────────────────────────────
+
+После seed запусти Admin → Price List → Download CSV
+или используй готовый файл: data/wholesale-price-list.csv
+
+Текст для рассылки — см. блок 2 в чате (Пятничный Price List).

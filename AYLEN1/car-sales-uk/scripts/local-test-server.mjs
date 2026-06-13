@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import adminAuth from '../api/admin-auth.js';
 import aiAdmin from '../api/ai-admin.js';
+import telegramWebhook from '../api/telegram-webhook.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STATIC_ROOT = fs.existsSync(path.join(ROOT, 'public', 'index.html'))
@@ -136,6 +137,18 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === '/api/ai-admin') {
     await runApiHandler(aiAdmin, req, res);
+    return;
+  }
+  if (url.pathname === '/api/telegram-webhook') {
+    const mockReq = {
+      method: req.method,
+      body: await readBody(req),
+      headers: req.headers,
+      query: Object.fromEntries(url.searchParams.entries()),
+      url: req.url,
+      socket: { remoteAddress: '127.0.0.1' }
+    };
+    await runApiHandler(telegramWebhook, mockReq, res);
     return;
   }
   serveStatic(url.pathname, res);
