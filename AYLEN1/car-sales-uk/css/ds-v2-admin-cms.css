@@ -1,0 +1,314 @@
+/**
+ * AYLENSALE Design System V2 — Admin CMS (P2)
+ * Token bridge + shell/forms/tables. Loaded after legacy admin CSS.
+ */
+
+html.aylen-admin-cms-active,
+body.aylen-admin-cms-active,
+body.admin-dashboard-open,
+#aylenAdminShell.aylen-shell {
+  --aylen-admin-bg: var(--ds-bg-base);
+  --aylen-admin-panel: var(--ds-bg-elevated);
+  --aylen-admin-panel-2: var(--ds-bg-surface);
+  --aylen-admin-border: var(--ds-border-subtle);
+  --aylen-admin-text: var(--ds-text-primary);
+  --aylen-admin-muted: var(--ds-text-secondary);
+  --aylen-admin-accent: var(--ds-brand);
+  --aylen-admin-accent-2: var(--ds-brand-hover);
+  --aylen-admin-success: var(--ds-success);
+  --aylen-admin-radius: var(--ds-radius-md);
+}
+
+/* Auth loading overlay */
+.admin-auth-overlay {
+  background: rgba(8, 11, 18, 0.92) !important;
+}
+
+.admin-auth-overlay span {
+  background: var(--ds-bg-elevated) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  color: var(--ds-text-primary) !important;
+  font-size: var(--ds-text-body-size) !important;
+}
+
+html.admin-auth-busy body {
+  background: var(--ds-bg-base) !important;
+}
+
+/* CMS shell */
+#aylenAdminShell.aylen-shell {
+  font-family: var(--ds-font-family) !important;
+  background: var(--ds-bg-base) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+#aylenAdminShell .aylen-side {
+  background: var(--ds-bg-elevated) !important;
+  border-right-color: var(--ds-border-subtle) !important;
+}
+
+#aylenAdminShell .aylen-side-brand {
+  border-bottom-color: var(--ds-border-subtle) !important;
+}
+
+#aylenAdminShell .aylen-side-brand strong {
+  color: var(--ds-text-primary) !important;
+  letter-spacing: 0.04em;
+}
+
+#aylenAdminShell .aylen-side-nav button {
+  min-height: var(--ds-control-height-sm) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  color: var(--ds-text-secondary) !important;
+}
+
+#aylenAdminShell .aylen-side-nav button:hover,
+#aylenAdminShell .aylen-side-nav button.active {
+  background: var(--ds-brand-muted) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+#aylenAdminShell .aylen-side-nav button.aylen-nav-exit {
+  color: var(--ds-brand) !important;
+  border: 1px solid rgba(232, 69, 106, 0.28) !important;
+  background: transparent !important;
+}
+
+#aylenAdminShell .aylen-top {
+  background: var(--ds-bg-elevated) !important;
+  border-bottom-color: var(--ds-border-subtle) !important;
+  padding: var(--ds-space-3) var(--ds-space-5) !important;
+}
+
+#aylenAdminShell .aylen-top-left h1 {
+  font-size: var(--ds-text-h2-size) !important;
+  font-weight: var(--ds-text-h2-weight) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+#aylenAdminShell .aylen-pill {
+  border-radius: var(--ds-radius-full) !important;
+  border-color: var(--ds-border-subtle) !important;
+  background: var(--ds-bg-surface) !important;
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-caption-size) !important;
+}
+
+#aylenAdminShell .aylen-pill--live {
+  border-color: rgba(34, 197, 94, 0.35) !important;
+  color: var(--ds-success) !important;
+  background: var(--ds-success-muted) !important;
+}
+
+#aylenAdminShell .aylen-page-title {
+  font-size: var(--ds-text-h1-size) !important;
+  font-weight: var(--ds-text-h1-weight) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+#aylenAdminShell .aylen-btn {
+  min-height: var(--ds-control-height-sm) !important;
+  padding: var(--ds-space-2) var(--ds-space-4) !important;
+  border-radius: var(--ds-radius-md) !important;
+  background: var(--ds-brand) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  font-size: var(--ds-btn-font-sm) !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+#aylenAdminShell .aylen-btn:hover {
+  background: var(--ds-brand-hover) !important;
+}
+
+#aylenAdminShell .aylen-btn-quiet {
+  background: transparent !important;
+  border-color: var(--ds-border-strong) !important;
+  color: var(--ds-text-secondary) !important;
+}
+
+#aylenAdminShell .aylen-btn-quiet:hover {
+  color: var(--ds-text-primary) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+#aylenAdminShell .aylen-btn-outline {
+  background: var(--ds-info-muted) !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+  color: #93c5fd !important;
+}
+
+#aylenAdminShell .aylen-btn-danger {
+  background: var(--ds-danger) !important;
+  border-color: transparent !important;
+}
+
+#aylenAdminShell .aylen-dash-card {
+  border-radius: var(--ds-radius-lg) !important;
+  background: var(--ds-bg-elevated) !important;
+  border-color: var(--ds-border-subtle) !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+  transition:
+    border-color var(--ds-transition-base),
+    box-shadow var(--ds-transition-base);
+}
+
+#aylenAdminShell .aylen-dash-card:hover {
+  border-color: rgba(232, 69, 106, 0.35) !important;
+  box-shadow: var(--ds-shadow-md) !important;
+}
+
+#aylenAdminShell .aylen-dash-card b {
+  font-size: var(--ds-text-price-lg-size) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+#aylenAdminShell .aylen-toolbar input,
+#aylenAdminShell .aylen-toolbar select,
+#aylenAdminShell .aylen-input {
+  min-height: var(--ds-control-height-sm) !important;
+  padding: 0 var(--ds-space-3) !important;
+  border-radius: var(--ds-radius-md) !important;
+  border-color: var(--ds-input-border) !important;
+  background: var(--ds-input-bg) !important;
+  color: var(--ds-input-text) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+}
+
+#aylenAdminShell .aylen-toolbar input:focus,
+#aylenAdminShell .aylen-toolbar select:focus,
+#aylenAdminShell .aylen-input:focus {
+  outline: none !important;
+  border-color: var(--ds-input-border-focus) !important;
+  box-shadow: 0 0 0 var(--ds-focus-ring-width) rgba(232, 69, 106, 0.2) !important;
+}
+
+#aylenAdminShell .aylen-table-wrap {
+  border-radius: var(--ds-radius-lg) !important;
+  border-color: var(--ds-border-subtle) !important;
+  background: var(--ds-bg-elevated) !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+}
+
+#aylenAdminShell .aylen-table th {
+  background: var(--ds-bg-surface) !important;
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-overline-size) !important;
+  letter-spacing: var(--ds-text-overline-tracking);
+}
+
+#aylenAdminShell .aylen-table td {
+  color: var(--ds-text-primary) !important;
+}
+
+/* Add/Edit product modals */
+.aylen-modal-panel.aylen-admin-form {
+  background: var(--ds-modal-bg) !important;
+  color: var(--ds-text-primary) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-modal-radius) !important;
+  box-shadow: var(--ds-modal-shadow) !important;
+  padding: var(--ds-space-6) !important;
+}
+
+.aylen-admin-form .aylen-modal-title {
+  color: var(--ds-text-primary) !important;
+  font-size: var(--ds-text-h2-size) !important;
+  font-weight: var(--ds-text-h2-weight) !important;
+}
+
+.aylen-admin-form .aylen-form-section {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+.aylen-admin-form .aylen-form-section h3 {
+  color: var(--ds-text-secondary) !important;
+  font-size: var(--ds-text-overline-size) !important;
+  letter-spacing: var(--ds-text-overline-tracking);
+}
+
+.aylen-admin-form label.aylen-label {
+  color: var(--ds-text-secondary) !important;
+  font-size: var(--ds-text-label-size) !important;
+}
+
+.aylen-admin-form input[type="text"],
+.aylen-admin-form input[type="number"],
+.aylen-admin-form input[type="email"],
+.aylen-admin-form input[type="password"],
+.aylen-admin-form textarea,
+.aylen-admin-form select {
+  min-height: var(--ds-control-height-sm) !important;
+  padding: 0 var(--ds-space-3) !important;
+  margin-bottom: var(--ds-space-3) !important;
+  border: 1px solid var(--ds-input-border) !important;
+  border-radius: var(--ds-radius-md) !important;
+  background: var(--ds-input-bg) !important;
+  color: var(--ds-input-text) !important;
+  font-size: var(--ds-text-body-size) !important;
+  font-family: var(--ds-font-family) !important;
+}
+
+.aylen-admin-form textarea {
+  min-height: 5rem !important;
+  padding: var(--ds-space-3) !important;
+}
+
+.aylen-admin-form input:focus,
+.aylen-admin-form textarea:focus,
+.aylen-admin-form select:focus {
+  border-color: var(--ds-input-border-focus) !important;
+  box-shadow: 0 0 0 var(--ds-focus-ring-width) rgba(232, 69, 106, 0.2) !important;
+}
+
+.aylen-admin-form .aylen-btn {
+  min-height: var(--ds-control-height-sm) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-sm) !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.aylen-admin-form .aylen-btn-primary {
+  background: var(--ds-brand) !important;
+  color: #fff !important;
+}
+
+.aylen-admin-form .aylen-btn-primary:hover {
+  background: var(--ds-brand-hover) !important;
+}
+
+.aylen-admin-form .aylen-btn-secondary {
+  background: transparent !important;
+  border: 1px solid var(--ds-border-strong) !important;
+  color: var(--ds-text-secondary) !important;
+}
+
+.aylen-admin-form .aylen-btn-danger {
+  background: var(--ds-danger) !important;
+  color: #fff !important;
+}
+
+.aylen-admin-form .aylen-btn-ai {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid rgba(124, 58, 237, 0.35) !important;
+  color: #c4b5fd !important;
+}
+
+.aylen-admin-form .aylen-photo-preview {
+  border: 1px dashed var(--ds-border-strong) !important;
+  border-radius: var(--ds-radius-md) !important;
+  background: var(--ds-bg-base) !important;
+}
+
+.aylen-admin-form .aylen-hint-box {
+  background: var(--ds-success-muted) !important;
+  border-left: 3px solid var(--ds-success) !important;
+  border-radius: var(--ds-radius-sm) !important;
+  color: var(--ds-text-secondary) !important;
+}

@@ -1,0 +1,635 @@
+/**
+ * AYLENSALE DS V2 — legacy admin modals (notify requests, client cards).
+ * Replaces inline styles in js/admin.js auxiliary modals.
+ */
+
+.aylen-admin-aux-modal.open {
+  display: flex !important;
+}
+
+.aylen-admin-aux-modal__panel {
+  width: min(760px, 96vw) !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+.aylen-admin-aux-modal__panel--wide {
+  width: min(980px, 96vw) !important;
+}
+
+.aylen-admin-aux-modal__title {
+  margin: 0 0 var(--ds-space-3) !important;
+  font-size: var(--ds-text-h2-size) !important;
+  font-weight: var(--ds-text-h2-weight) !important;
+}
+
+.aylen-admin-aux-modal__title--notify {
+  color: #16a085 !important;
+}
+
+.aylen-admin-aux-modal__title--cards {
+  color: var(--ds-brand) !important;
+}
+
+.aylen-admin-aux-modal__intro {
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  margin: 0 0 var(--ds-space-3) !important;
+}
+
+.aylen-admin-aux-modal__refresh {
+  width: 100% !important;
+  min-height: var(--ds-control-height-sm) !important;
+  margin-bottom: var(--ds-space-3) !important;
+  padding: var(--ds-btn-padding-sm) !important;
+  background: #16a085 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+}
+
+.aylen-admin-state {
+  color: var(--ds-text-muted) !important;
+  padding: var(--ds-space-4) !important;
+  text-align: center !important;
+}
+
+.aylen-admin-state--dashed {
+  padding: var(--ds-space-5) !important;
+  border: 1px dashed var(--ds-border-strong) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+.aylen-admin-state--error {
+  color: #fecaca !important;
+}
+
+.aylen-admin-summary {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  padding: var(--ds-space-3) !important;
+  margin-bottom: var(--ds-space-3) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.aylen-admin-summary__row {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: var(--ds-space-2) !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+}
+
+.aylen-admin-summary__count {
+  color: var(--ds-brand) !important;
+}
+
+.aylen-admin-summary__hint {
+  font-size: var(--ds-text-caption-size) !important;
+  color: var(--ds-text-muted) !important;
+}
+
+.aylen-admin-chip-row {
+  display: flex !important;
+  gap: var(--ds-space-2) !important;
+  flex-wrap: wrap !important;
+  margin-top: var(--ds-space-2) !important;
+}
+
+.aylen-admin-chip {
+  background: var(--ds-bg-elevated) !important;
+  border: 1px solid var(--ds-border-strong) !important;
+  border-radius: var(--ds-radius-full) !important;
+  padding: 6px 9px !important;
+  font-size: var(--ds-text-caption-size) !important;
+  color: var(--ds-text-secondary) !important;
+}
+
+.aylen-admin-chip b {
+  color: var(--ds-warning) !important;
+}
+
+.aylen-admin-list-grid {
+  display: grid !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.aylen-admin-list-item {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  padding: var(--ds-space-3) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.aylen-admin-list-item--pending {
+  border-color: rgba(232, 69, 106, 0.45) !important;
+}
+
+.aylen-admin-list-item__head {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: var(--ds-space-2) !important;
+  flex-wrap: wrap !important;
+}
+
+.aylen-admin-list-item__status--sent {
+  color: var(--ds-success) !important;
+  font-weight: 700 !important;
+}
+
+.aylen-admin-list-item__status--waiting {
+  color: var(--ds-warning) !important;
+  font-weight: 700 !important;
+}
+
+.aylen-admin-list-item__meta {
+  font-size: var(--ds-text-body-sm-size) !important;
+  color: var(--ds-text-secondary) !important;
+  margin-top: var(--ds-space-1) !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: 6px !important;
+}
+
+.aylen-admin-list-item__meta b {
+  word-break: break-all !important;
+}
+
+.aylen-admin-list-item__error {
+  font-size: var(--ds-text-caption-size) !important;
+  color: #fecaca !important;
+  margin-top: var(--ds-space-1) !important;
+}
+
+.aylen-admin-list-item__message {
+  width: 100% !important;
+  margin-top: var(--ds-space-2) !important;
+  padding: var(--ds-space-2) !important;
+  background: var(--ds-bg-base) !important;
+  color: var(--ds-text-secondary) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-sm) !important;
+  font-family: var(--ds-font-family) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  resize: vertical !important;
+}
+
+.aylen-admin-list-item__actions {
+  display: flex !important;
+  gap: var(--ds-space-2) !important;
+  margin-top: var(--ds-space-2) !important;
+  flex-wrap: wrap !important;
+}
+
+.aylen-admin-action-btn {
+  padding: 9px 11px !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-text-caption-size) !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  text-decoration: none !important;
+  color: #fff !important;
+}
+
+.aylen-admin-action-btn--open {
+  background: var(--ds-info) !important;
+}
+
+.aylen-admin-action-btn--copy {
+  background: var(--ds-neutral) !important;
+}
+
+.aylen-admin-action-btn--done {
+  background: var(--ds-success) !important;
+}
+
+.aylen-admin-form-card {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  padding: var(--ds-space-3) !important;
+  margin-bottom: var(--ds-space-3) !important;
+}
+
+.aylen-admin-form-grid-4 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 110px 120px !important;
+  gap: var(--ds-space-2) !important;
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-form-card .aylen-admin-input,
+.aylen-admin-form-card .aylen-admin-select,
+.aylen-admin-form-card .aylen-admin-textarea,
+.aylen-admin-card-fields .aylen-admin-input,
+.aylen-admin-card-fields .aylen-admin-select,
+.aylen-admin-card-item .aylen-admin-textarea {
+  width: 100% !important;
+  min-height: var(--ds-control-height-sm) !important;
+  padding: 0 var(--ds-space-3) !important;
+  border: 1px solid var(--ds-input-border) !important;
+  background: var(--ds-input-bg) !important;
+  color: var(--ds-input-text) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-family: var(--ds-font-family) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  box-sizing: border-box !important;
+}
+
+.aylen-admin-form-card .aylen-admin-textarea,
+.aylen-admin-card-item .aylen-admin-textarea {
+  min-height: 72px !important;
+  padding: var(--ds-space-2) var(--ds-space-3) !important;
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-form-card #newCardCode {
+  text-transform: uppercase !important;
+}
+
+.aylen-admin-btn-row {
+  display: flex !important;
+  gap: var(--ds-space-2) !important;
+  flex-wrap: wrap !important;
+}
+
+.aylen-admin-tool-btn {
+  padding: 10px 13px !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  cursor: pointer !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+}
+
+.aylen-admin-tool-btn--purple { background: #9b59b6 !important; }
+.aylen-admin-tool-btn--blue { background: var(--ds-info) !important; }
+.aylen-admin-tool-btn--dark { background: var(--ds-bg-surface) !important; color: var(--ds-text-primary) !important; border: 1px solid var(--ds-border-strong) !important; }
+.aylen-admin-tool-btn--muted { background: var(--ds-neutral) !important; }
+
+.aylen-admin-top-customers {
+  background: var(--ds-warning-muted) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  padding: var(--ds-space-3) !important;
+  margin-bottom: var(--ds-space-3) !important;
+  color: #fde68a !important;
+}
+
+.aylen-admin-top-customer-chip {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  border-radius: var(--ds-radius-full) !important;
+  padding: 6px 9px !important;
+  font-size: var(--ds-text-caption-size) !important;
+}
+
+.aylen-admin-card-item {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  padding: var(--ds-space-3) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.aylen-admin-card-item__layout {
+  display: grid !important;
+  grid-template-columns: 96px 1fr !important;
+  gap: var(--ds-space-3) !important;
+}
+
+.aylen-admin-card-qr {
+  width: 96px !important;
+  height: 96px !important;
+  background: #fff !important;
+  border-radius: var(--ds-radius-sm) !important;
+  padding: 4px !important;
+}
+
+.aylen-admin-card-link {
+  display: block !important;
+  color: #93c5fd !important;
+  font-size: 11px !important;
+  word-break: break-all !important;
+  margin-top: 6px !important;
+}
+
+.aylen-admin-card-fields {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 90px 110px !important;
+  gap: var(--ds-space-2) !important;
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-card-fields input[disabled] {
+  background: var(--ds-bg-base) !important;
+  color: var(--ds-text-muted) !important;
+  font-weight: 700 !important;
+}
+
+.aylen-admin-card-stats {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+  gap: var(--ds-space-2) !important;
+  font-size: var(--ds-text-caption-size) !important;
+  color: var(--ds-text-secondary) !important;
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-card-contacts {
+  font-size: var(--ds-text-caption-size) !important;
+  color: var(--ds-text-muted) !important;
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-card-order {
+  font-size: var(--ds-text-caption-size) !important;
+  color: var(--ds-text-secondary) !important;
+  border-top: 1px solid var(--ds-border-subtle) !important;
+  padding-top: 5px !important;
+  margin-top: 5px !important;
+}
+
+.aylen-admin-card-actions {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+  margin-top: 9px !important;
+}
+
+.aylen-admin-card-btn {
+  padding: 8px 10px !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  cursor: pointer !important;
+  color: #fff !important;
+  font-size: var(--ds-text-caption-size) !important;
+  font-weight: 600 !important;
+}
+
+.aylen-admin-card-btn--save { background: var(--ds-success) !important; }
+.aylen-admin-card-btn--block { background: var(--ds-warning) !important; }
+.aylen-admin-card-btn--copy { background: var(--ds-neutral) !important; }
+.aylen-admin-card-btn--delete { background: var(--ds-brand) !important; }
+
+.aylen-label--spaced {
+  margin-top: var(--ds-space-2) !important;
+}
+
+.aylen-hint-box--spaced {
+  margin-top: var(--ds-space-6) !important;
+}
+
+.aylen-admin-form #eprodSKU,
+.aylen-admin-form input.aylen-input-mono {
+  font-family: var(--ds-font-mono) !important;
+}
+
+@media (max-width: 640px) {
+  .aylen-admin-form-grid-4,
+  .aylen-admin-card-fields,
+  .aylen-admin-price-grid-2,
+  .aylen-admin-price-form-grid-3,
+  .aylen-admin-price-form-grid-3col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .aylen-admin-card-item__layout,
+  .aylen-admin-price-item {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Site settings modals (eBay, Marketplace) ───────────────── */
+.aylen-admin-settings-modal {
+  width: min(560px, 94vw) !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  background: var(--ds-modal-bg) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.aylen-admin-settings-title {
+  margin: 0 0 var(--ds-space-3) !important;
+  font-size: var(--ds-text-h2-size) !important;
+  font-weight: var(--ds-text-h2-weight) !important;
+}
+
+.aylen-admin-settings-title--ebay {
+  color: var(--ds-info) !important;
+}
+
+.aylen-admin-settings-title--marketplace {
+  color: var(--ds-brand) !important;
+}
+
+.aylen-admin-settings-intro {
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  margin: 0 0 var(--ds-space-3) !important;
+}
+
+.aylen-admin-settings-label {
+  display: block !important;
+  color: var(--ds-text-secondary) !important;
+  font-size: var(--ds-text-label-size) !important;
+  font-weight: 600 !important;
+  margin-bottom: var(--ds-space-1) !important;
+}
+
+.aylen-admin-settings-label--check {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--ds-space-2) !important;
+  margin-bottom: var(--ds-space-3) !important;
+  cursor: pointer !important;
+}
+
+.aylen-admin-settings-label--check input[type="checkbox"] {
+  width: auto !important;
+  margin: 0 !important;
+  accent-color: var(--ds-brand) !important;
+}
+
+.aylen-admin-settings-modal .aylen-admin-input,
+.aylen-admin-settings-modal .aylen-admin-textarea {
+  width: 100% !important;
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-settings-actions {
+  display: flex !important;
+  gap: var(--ds-space-2) !important;
+  flex-wrap: wrap !important;
+}
+
+.aylen-admin-settings-save {
+  flex: 1 !important;
+  min-width: 180px !important;
+  min-height: var(--ds-control-height-sm) !important;
+  padding: var(--ds-btn-padding-sm) !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+}
+
+.aylen-admin-settings-save--ebay {
+  background: var(--ds-info) !important;
+}
+
+.aylen-admin-settings-save--marketplace {
+  background: var(--ds-brand) !important;
+}
+
+.aylen-admin-settings-cancel {
+  flex: 1 !important;
+  min-width: 120px !important;
+  min-height: var(--ds-control-height-sm) !important;
+  padding: var(--ds-btn-padding-sm) !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  background: var(--ds-neutral) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+
+/* ── Price list admin modal ─────────────────────────────────── */
+.aylen-admin-price-modal {
+  width: min(980px, 96vw) !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  background: var(--ds-modal-bg) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.aylen-admin-price-title {
+  color: var(--ds-brand) !important;
+  margin: 0 0 var(--ds-space-2) !important;
+  font-size: var(--ds-text-h2-size) !important;
+  font-weight: var(--ds-text-h2-weight) !important;
+}
+
+.aylen-admin-price-intro {
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  margin: 0 0 var(--ds-space-3) !important;
+}
+
+.aylen-admin-price-grid-2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: var(--ds-space-3) !important;
+  margin-bottom: var(--ds-space-3) !important;
+}
+
+.aylen-admin-price-card {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  padding: var(--ds-space-3) !important;
+}
+
+.aylen-admin-price-card__title {
+  margin: 0 0 var(--ds-space-2) !important;
+  color: var(--ds-text-primary) !important;
+  font-size: var(--ds-text-body-size) !important;
+  font-weight: 700 !important;
+}
+
+.aylen-admin-price-form {
+  display: grid !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.aylen-admin-price-form-grid-3 {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.aylen-admin-price-form-grid-3col {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: var(--ds-space-2) !important;
+  align-items: center !important;
+}
+
+.aylen-admin-price-check {
+  color: var(--ds-text-secondary) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  cursor: pointer !important;
+}
+
+.aylen-admin-price-check input[type="checkbox"] {
+  accent-color: var(--ds-brand) !important;
+}
+
+.aylen-admin-price-file {
+  padding: var(--ds-space-2) !important;
+  border: 1px dashed rgba(232, 69, 106, 0.45) !important;
+  background: var(--ds-bg-base) !important;
+  color: var(--ds-text-secondary) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+}
+
+.aylen-admin-price-item {
+  display: grid !important;
+  grid-template-columns: 90px 1fr !important;
+  gap: var(--ds-space-2) !important;
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  padding: var(--ds-space-2) !important;
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-price-thumb {
+  width: 90px !important;
+  height: 90px !important;
+  object-fit: cover !important;
+  border-radius: var(--ds-radius-md) !important;
+  background: var(--ds-bg-base) !important;
+}
+
+.aylen-admin-tool-btn--full {
+  width: 100% !important;
+}
+
+.aylen-admin-price-card .aylen-label {
+  color: var(--ds-text-secondary) !important;
+  font-size: var(--ds-text-caption-size) !important;
+  margin: 0 !important;
+}
+
+.aylen-admin-price-card .aylen-admin-select {
+  margin-bottom: var(--ds-space-2) !important;
+}
+
+.aylen-admin-price-card .aylen-admin-input,
+.aylen-admin-price-card .aylen-admin-select,
+.aylen-admin-price-card .aylen-admin-textarea,
+.aylen-admin-price-item .aylen-admin-input,
+.aylen-admin-price-item .aylen-admin-select,
+.aylen-admin-price-item .aylen-admin-textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.aylen-admin-price-item .aylen-admin-textarea {
+  min-height: 60px !important;
+}
