@@ -1,0 +1,239 @@
+/**
+ * Storefront layout — scroll to footer, no bottom cart bar, tighter mobile nav.
+ */
+
+html {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-width: 100%;
+  height: auto !important;
+}
+
+html:not(.aylen-admin-cms-active):not(.admin-auth-busy),
+body:not(.aylen-admin-cms-active):not(.admin-dashboard-open) {
+  /* overflow-x on body breaks position:sticky on .site-header (Safari/Chrome) */
+  overflow-x: visible !important;
+  overflow-y: auto !important;
+  height: auto !important;
+  min-height: 100% !important;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .site-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 120 !important;
+    box-sizing: border-box !important;
+  }
+
+  #storefrontAboveProducts {
+    scroll-margin-top: calc(var(--aylen-header-sticky-h, 104px) + 12px + env(safe-area-inset-top, 0px));
+  }
+
+  section#products.products-section {
+    margin-top: 12px;
+    scroll-margin-top: calc(var(--aylen-header-sticky-h, 104px) + 16px + env(safe-area-inset-top, 0px));
+  }
+}
+
+@media (min-width: 769px) {
+  .site-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 120 !important;
+  }
+}
+
+body:not(.aylen-admin-cms-active):not(.admin-dashboard-open):not(.modal-locked) {
+  position: static !important;
+  width: auto !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+}
+
+.cart-float-bar {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.site-footer {
+  margin-bottom: 12px;
+}
+
+#pickup {
+  scroll-margin-bottom: 100px;
+}
+
+/* Bottom nav — 4 visible items on mobile (Products, Auctions, Pickup, VIP) */
+.bottom-nav {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-bottom: var(--aylen-page-pad-bottom, calc(78px + env(safe-area-inset-bottom, 0px))) !important;
+  }
+
+  .bottom-nav a.bottom-nav-contact {
+    display: none !important;
+  }
+
+  .site-header .header-top:not(.header-top--unified) {
+    flex-wrap: nowrap !important;
+  }
+
+  .site-footer-bottom {
+    padding-bottom: calc(var(--aylen-bottom-nav, 72px) + 12px) !important;
+  }
+
+  .logo {
+    width: auto !important;
+    font-size: 18px !important;
+    justify-content: flex-start !important;
+  }
+
+  .site-header .header-right {
+    display: flex !important;
+    width: auto !important;
+    flex: 1 1 auto !important;
+    grid-template-columns: none !important;
+  }
+
+  #products .product-image-container {
+    max-height: 168px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+}
+
+/* Desktop-only image cap — mobile heights are locked in fold-lock / inline critical CSS */
+@media (min-width: 769px) {
+  #products .product-image-container {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 190px !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+
+  #products #productsGrid.products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  #products #productsGrid.products-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #products .product-image-container {
+    display: grid !important;
+    grid-template: 1fr / 1fr !important;
+    aspect-ratio: 1 / 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  #products .product-image-container::after {
+    display: none !important;
+  }
+
+  #products .product-image-container img {
+    object-fit: cover !important;
+  }
+
+  #products .product-card-grid-item {
+    height: auto !important;
+    align-self: start !important;
+    min-height: 0 !important;
+  }
+
+  #products .product-card {
+    height: auto !important;
+  }
+
+  #products .product-card-body {
+    flex: 0 0 auto !important;
+  }
+
+  #products .product-card-footer {
+    margin-top: 0 !important;
+  }
+
+  #productsGrid {
+    gap: 10px !important;
+  }
+
+  #auctions,
+  section#auctions.auctions-section {
+    padding-bottom: calc(var(--aylen-bottom-nav, 78px) + 28px) !important;
+  }
+
+  #auctionsGrid {
+    padding-bottom: 8px !important;
+  }
+
+  #auctionsGrid.auctions-rail {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    overflow: visible !important;
+    flex-wrap: unset !important;
+    scroll-snap-type: none !important;
+  }
+
+  #auctionsGrid.auctions-rail .auction-card {
+    flex: none !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  #auctionsGrid .auction-card {
+    scroll-margin-bottom: calc(var(--aylen-bottom-nav, 78px) + 16px);
+    margin-bottom: 0 !important;
+  }
+
+  .auction-card--compact .auction-info {
+    padding-bottom: 10px !important;
+  }
+
+  .auction-card-quick {
+    min-height: 44px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* Admin pickup modal — scrollable on phone */
+#aylen-modal-root .aylen-modal-panel.pickup-admin-modal-wrap {
+  max-height: min(92vh, 780px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+#aylen-modal-root .pickup-admin-modal,
+#aylen-modal-root .pickup-admin-modal-wrap .pickup-admin-modal {
+  max-height: min(92vh, 780px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+#aylen-modal-root .pickup-modal-body {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}

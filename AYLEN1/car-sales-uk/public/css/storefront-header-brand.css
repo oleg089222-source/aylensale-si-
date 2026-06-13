@@ -1,0 +1,268 @@
+/**
+ * Shared storefront header — logo, safe-area, section scroll offset.
+ * Loaded on index + product.html so PDP matches the shop chrome.
+ */
+
+:root {
+  --aylen-header-sticky-h: 88px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --aylen-header-sticky-h: 104px;
+  }
+}
+
+/* Admin entry hidden — use Cmd/Ctrl+Shift+A or triple-tap the bolt icon */
+#adminAccessDiv,
+#headerAdminBtn,
+#mobileAdminBtn {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.site-header {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.site-header .header-shell {
+  overflow: visible;
+}
+
+.site-header .logo.logo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.site-header .logo-text {
+  display: inline-block;
+  font-weight: 900;
+  font-size: 25px;
+  letter-spacing: 1.6px;
+  text-decoration: none;
+  background: linear-gradient(100deg, #ffffff 0%, #ffffff 42%, #ffd6e2 58%, #ff4f83 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 10px rgba(255, 47, 104, 0.2);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.site-header a.logo-text {
+  color: inherit;
+}
+
+.site-header .logo-bolt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.site-header .logo-bolt-btn i {
+  display: inline-block;
+  color: #ff4f83 !important;
+  filter: none;
+  opacity: 1;
+  visibility: visible;
+  -webkit-text-fill-color: #ff4f83 !important;
+  text-shadow: 0 0 8px rgba(255, 79, 131, 0.35);
+  font-size: 18px !important;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.site-header .logo-bolt-btn:active {
+  transform: scale(0.94);
+}
+
+.site-header .logo-bolt-btn:focus-visible {
+  outline: 2px solid rgba(255, 79, 131, 0.55);
+  outline-offset: 2px;
+}
+
+.site-header .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  font-weight: 900;
+  font-size: 25px;
+  letter-spacing: 1.6px;
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.15;
+}
+
+.site-header .logo:not(.logo-brand) {
+  background: linear-gradient(100deg, #ffffff 0%, #ffffff 42%, #ffd6e2 58%, #ff4f83 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 10px rgba(255, 47, 104, 0.2);
+}
+
+.site-header .logo:not(.logo-brand) i,
+.site-header .logo > i {
+  -webkit-text-fill-color: initial;
+  color: #ff4f83;
+  filter: none;
+  text-shadow: 0 0 8px rgba(255, 79, 131, 0.22);
+  font-size: 0.92em;
+}
+
+.site-header .header-nav {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 12px;
+}
+
+.site-header .header-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.site-header .nav-link {
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.products-section-title h2,
+#products h2,
+#auctions h2,
+#pickup h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.25;
+  overflow: visible;
+  padding-top: 4px;
+  padding-bottom: 2px;
+  min-height: 1.35em;
+}
+
+.products-section-title h2 i,
+#products h2 i,
+#auctions h2 i,
+#pickup h2 i {
+  flex-shrink: 0;
+  font-size: 0.92em;
+  line-height: 1;
+  opacity: 0.95;
+}
+
+#products,
+#auctions,
+#pickup,
+#vip-stock,
+.product-page-main {
+  scroll-margin-top: calc(var(--aylen-header-sticky-h, 76px) + env(safe-area-inset-top, 0px));
+  scroll-margin-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+body.product-page {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: radial-gradient(circle at 10% 0%, rgba(233, 69, 96, 0.22), transparent 28%),
+    radial-gradient(circle at 90% 10%, rgba(0, 100, 210, 0.18), transparent 28%),
+    linear-gradient(180deg, #070a14 0%, #0d1324 48%, #070a14 100%);
+  color: #f8fafc;
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 768px) {
+  .site-header .logo,
+  .site-header .logo-text {
+    font-size: 20px;
+    letter-spacing: 1.2px;
+    text-shadow: 0 0 7px rgba(255, 47, 104, 0.16);
+  }
+
+  .site-header .logo-bolt-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 9px;
+    background: transparent;
+    border: none;
+  }
+
+  .site-header .logo-bolt-btn i {
+    display: inline-block !important;
+    font-size: 20px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    text-shadow: 0 0 9px rgba(255, 79, 131, 0.4);
+  }
+}
+
+/* Bottom nav — PDP + pages without index inline bundle */
+.bottom-nav {
+  position: fixed;
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 12px));
+  z-index: 330;
+  display: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  padding: 7px 4px calc(7px + env(safe-area-inset-bottom, 0px));
+  background: rgba(10, 15, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
+}
+
+.bottom-nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 1px;
+  border-radius: 15px;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.bottom-nav i {
+  font-size: 17px;
+  color: #fff;
+}
+
+.bottom-nav a:hover {
+  background: rgba(233, 69, 96, 0.18);
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: grid;
+  }
+}

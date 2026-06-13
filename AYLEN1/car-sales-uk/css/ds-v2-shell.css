@@ -1,0 +1,279 @@
+/**
+ * AYLENSALE Design System V2 — Storefront shell (P0 noise reduction)
+ * Hero simplification, engagement bar, eBay demote, VIP strip, footer admin hide.
+ * No markup or business-logic changes — CSS overrides only.
+ */
+
+/* ── Hero: calm layout ────────────────────────────────────────── */
+#hero.hero-marketplace.hero-phase1,
+.hero-marketplace.hero-phase1 {
+  background: var(--ds-bg-base) !important;
+  border-bottom: 1px solid var(--ds-border-subtle) !important;
+  padding: var(--ds-space-3) var(--ds-space-4) !important;
+}
+
+.hero-phase1 .hero-content h1 {
+  font-size: var(--ds-text-h1-size) !important;
+  font-weight: var(--ds-text-h1-weight) !important;
+  line-height: var(--ds-text-h1-leading) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.hero-phase1 .hero-content h2 {
+  font-size: var(--ds-text-body-sm-size) !important;
+  font-weight: 500 !important;
+  color: var(--ds-text-secondary) !important;
+  margin: var(--ds-space-1) 0 0 !important;
+}
+
+/* VIP: strip, not glowing CTA */
+.hero-hub-vip.hero-btn--lead {
+  animation: none !important;
+  background: var(--ds-vip-surface) !important;
+  border: 1px solid rgba(212, 168, 67, 0.28) !important;
+  color: var(--ds-vip-text) !important;
+  box-shadow: none !important;
+  min-height: var(--ds-control-height) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  justify-content: space-between !important;
+  padding: var(--ds-space-3) var(--ds-space-4) !important;
+}
+
+.hero-hub-vip.hero-btn--lead:hover {
+  background: rgba(20, 17, 10, 0.98) !important;
+  border-color: rgba(212, 168, 67, 0.4) !important;
+}
+
+.hero-hub-vip .hero-btn__vip-text strong {
+  color: var(--ds-vip-text);
+  font-weight: 700;
+}
+
+.hero-hub-vip .hero-btn__vip-text small {
+  color: var(--ds-text-secondary);
+  font-weight: 500;
+}
+
+/* Primary shop tiles — flat brand, no gradient shadows */
+.hero-hub-primary .hero-btn--featured {
+  background: var(--ds-brand) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+.hero-hub-primary .hero-btn.auctions {
+  background: var(--ds-bg-surface) !important;
+  color: var(--ds-text-primary) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  box-shadow: none !important;
+}
+
+.hero-hub-primary .hero-btn.secondary {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  box-shadow: none !important;
+}
+
+.hero-hub-primary .hero-btn:hover {
+  transform: none !important;
+}
+
+@keyframes vipCtaGlow {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Mobile: bottom nav is primary — hide duplicate hero nav + tools */
+@media (max-width: 768px) {
+  .hero-hub-primary {
+    display: none !important;
+  }
+
+  .hero-hub-tools {
+    display: none !important;
+  }
+
+  #hero.hero-marketplace.hero-phase1,
+  .hero-marketplace.hero-phase1 {
+    min-height: auto !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: var(--ds-space-3) var(--ds-space-3) var(--ds-space-2) !important;
+  }
+
+  .hero-actions-hub--tiered {
+    gap: var(--ds-space-2) !important;
+    margin-top: var(--ds-space-2) !important;
+  }
+}
+
+/* ── Engagement bar: inventory only, hide vanity metrics ──────── */
+#engagementBar.live-activity-bar .live-activity-item--online,
+#engagementBar.live-activity-bar .live-activity-item:last-child {
+  display: none !important;
+}
+
+#engagementBar.live-activity-bar.is-dormant {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  min-height: var(--aylen-mobile-engagement-h, 92px) !important;
+  max-height: var(--aylen-mobile-engagement-h, 92px) !important;
+  overflow: hidden !important;
+}
+
+#engagementBar.live-activity-bar {
+  gap: var(--ds-space-2) !important;
+  margin: var(--ds-space-2) auto var(--ds-space-3) !important;
+  padding: 0 var(--ds-space-4) !important;
+  min-height: auto !important;
+}
+
+.live-activity-bar .live-activity-item {
+  background: var(--ds-bg-elevated) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  box-shadow: none !important;
+  min-height: var(--ds-control-height-sm) !important;
+  padding: var(--ds-space-2) var(--ds-space-3) !important;
+}
+
+.live-activity-bar .live-activity-data small {
+  color: var(--ds-text-muted) !important;
+}
+
+.live-activity-bar .live-activity-data b {
+  color: var(--ds-text-primary) !important;
+  font-weight: 700;
+}
+
+/* ── eBay promo: compact text link (not above-fold billboard) ─── */
+#ebayPromoWrap.ebay-promo-wrap {
+  min-height: 0 !important;
+  padding: 0 var(--ds-space-4) var(--ds-space-2) !important;
+}
+
+#ebayPromoWrap.ebay-promo-wrap.is-visible,
+#ebayPromoWrap.ebay-promo-wrap[data-ssr-ebay="1"] {
+  min-height: 0 !important;
+}
+
+.ebay-promo-card {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: var(--ds-space-3) !important;
+  padding: var(--ds-space-3) var(--ds-space-4) !important;
+  min-height: 0 !important;
+  border-radius: var(--ds-radius-md) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  background: var(--ds-bg-elevated) !important;
+  box-shadow: none !important;
+}
+
+.ebay-promo-card__icon {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: 16px !important;
+  box-shadow: none !important;
+}
+
+.ebay-promo-card__copy {
+  font-size: var(--ds-text-body-sm-size);
+  color: var(--ds-text-secondary);
+}
+
+.ebay-promo-card__cta {
+  min-height: var(--ds-control-height-sm) !important;
+  padding: 0 var(--ds-space-3) !important;
+  font-size: var(--ds-text-label-size) !important;
+  border-radius: var(--ds-radius-md) !important;
+  background: transparent !important;
+  border: 1px solid var(--ds-border-strong) !important;
+  color: var(--ds-text-secondary) !important;
+  box-shadow: none !important;
+}
+
+.ebay-promo-card__cta:hover {
+  color: var(--ds-text-primary) !important;
+  background: var(--ds-bg-surface) !important;
+}
+
+@media (max-width: 768px) {
+  #storefrontAboveProducts #ebayPromoWrap.ebay-promo-wrap {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+/* Footer eBay link (shown when above-fold promo hidden on mobile) */
+.footer-ebay-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-body-sm-size);
+  color: var(--ds-text-secondary);
+  text-decoration: none;
+}
+
+.footer-ebay-link:hover {
+  color: var(--ds-text-primary);
+  text-decoration: underline;
+}
+
+/* ── Section headings — no decorative icons ─────────────────── */
+.products-section-title h2,
+.auctions-section-head h2,
+.pickup-section-head h2 {
+  font-size: var(--ds-text-h1-size) !important;
+  font-weight: var(--ds-text-h1-weight) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.products-section-title h2 i,
+.auctions-section-head h2 i,
+.pickup-section-head h2 i {
+  display: none;
+}
+
+#products .products-section-sub {
+  display: block !important;
+  font-size: var(--ds-text-body-sm-size);
+  color: var(--ds-text-secondary);
+  margin: var(--ds-space-1) 0 0;
+}
+
+/* ── Trust strip (reuse hero tagline area on desktop) ─────────── */
+@media (min-width: 769px) {
+  .hero-phase1 .hero-tagline {
+    display: block !important;
+    font-size: var(--ds-text-caption-size);
+    color: var(--ds-text-muted);
+    margin-top: var(--ds-space-2);
+  }
+}
+
+/* ── Footer: hide public admin link ───────────────────────────── */
+#footerAdminLink.footer-admin-link {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.site-footer {
+  border-top: 1px solid var(--ds-border-subtle);
+  background: var(--ds-bg-base);
+}
+
+.site-footer-inner {
+  max-width: var(--ds-content-max-width);
+  margin: 0 auto;
+}

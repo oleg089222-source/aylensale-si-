@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AYLENSALE">
+  <defs>
+    <linearGradient id="bgBase" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#161d28"/>
+      <stop offset="55%" stop-color="#0c1018"/>
+      <stop offset="100%" stop-color="#070a14"/>
+    </linearGradient>
+    <radialGradient id="spot" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#2a3548" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#070a14" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="brush" width="512" height="3" patternUnits="userSpaceOnUse">
+      <rect width="512" height="3" fill="#0a0e16"/>
+      <line x1="0" y1="1.5" x2="512" y2="1.5" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+      <line x1="0" y1="0.5" x2="512" y2="0.5" stroke="#000000" stroke-opacity="0.35" stroke-width="0.5"/>
+    </pattern>
+    <linearGradient id="metal" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="38%" stop-color="#d4dde8"/>
+      <stop offset="72%" stop-color="#8fa0b5"/>
+      <stop offset="100%" stop-color="#5f6f82"/>
+    </linearGradient>
+    <linearGradient id="metalShadow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3d4a5c"/>
+      <stop offset="100%" stop-color="#1a2230"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff4f83" stop-opacity="0.55"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.5"/>
+    </linearGradient>
+    <filter id="blurPink" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <filter id="blurBlue" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <filter id="symbolGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+    <clipPath id="round">
+      <rect width="512" height="512" rx="112" ry="112"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="512" height="512" fill="url(#bgBase)"/>
+    <rect width="512" height="512" fill="url(#brush)"/>
+    <rect width="512" height="512" fill="url(#spot)"/>
+    <ellipse cx="168" cy="330" rx="150" ry="118" fill="#e94560" opacity="0.32" filter="url(#blurPink)"/>
+    <ellipse cx="352" cy="250" rx="138" ry="108" fill="#38bdf8" opacity="0.28" filter="url(#blurBlue)"/>
+    <ellipse cx="256" cy="268" rx="118" ry="96" fill="#6366f1" opacity="0.12" filter="url(#blurBlue)"/>
+    <rect width="512" height="512" rx="112" fill="none" stroke="url(#rim)" stroke-width="3" opacity="0.85"/>
+    <g transform="translate(256 272) scale(5.15)" filter="url(#drop)">
+      <path fill="url(#metalShadow)" d="M0.6 -18.2 L14.8 18.4 H9.2 L5.9 6.2 H-5.1 L-8.4 18.4 H-13.8 L0.6 -18.2 Z M-3.3 0.2 H4.3 L0.5 -9.6 Z" transform="translate(0.8 1.2)"/>
+      <path fill="url(#metal)" d="M0 -19 L14 19 H8.4 L5 6.8 H-5 L-8.4 19 H-14 L0 -19 Z M-4 0 H4 L0 -10 Z"/>
+      <path fill="none" stroke="#eef4fc" stroke-width="1.35" stroke-linecap="round" d="M-11.5 14.5 C-1.5 -4.5 10.5 -6.5 16.5 1.5"/>
+      <circle cx="-11.5" cy="14.5" r="1.15" fill="#f8fafc"/>
+      <path fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="0.5" d="M-4 -10 L0 -19 L4 -10"/>
+    </g>
+    <rect width="512" height="512" fill="url(#spot)" opacity="0.35"/>
+  </g>
+</svg>

@@ -1,0 +1,140 @@
+/**
+ * AYLENSALE Design System V2 — Base layer (P0 Step 2)
+ * Scope: body, typography, borders, background, base surfaces, focus.
+ * Does NOT style: header layout, product/auction cards, buttons, forms.
+ */
+
+/* V1 variable bridge — legacy CSS reads these without per-file edits */
+:root {
+  --bg: var(--ds-bg-base);
+  --panel: var(--ds-bg-elevated);
+  --panel2: var(--ds-bg-surface);
+  --line: var(--ds-border-subtle);
+  --text: var(--ds-text-primary);
+  --muted: var(--ds-text-secondary);
+  --pink: var(--ds-brand);
+  --red: var(--ds-brand);
+  --green: var(--ds-success);
+  --blue: var(--ds-info);
+  --glow: none;
+}
+
+/* ── Document & body ──────────────────────────────────────────── */
+html {
+  font-family: var(--ds-font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--ds-font-family);
+  font-size: var(--ds-text-body-size);
+  font-weight: var(--ds-text-body-weight);
+  line-height: var(--ds-text-body-leading);
+  color: var(--ds-text-primary);
+  background: var(--ds-bg-base);
+}
+
+/* Calm dark UI — remove V1 gradient mesh + grid overlay */
+body::before {
+  display: none;
+}
+
+/* ── Typography (generic elements only) ───────────────────────── */
+h1,
+.ds-text-h1 {
+  font-size: var(--ds-text-h1-size);
+  font-weight: var(--ds-text-h1-weight);
+  line-height: var(--ds-text-h1-leading);
+  color: var(--ds-text-primary);
+}
+
+h2,
+.ds-text-h2 {
+  font-size: var(--ds-text-h2-size);
+  font-weight: var(--ds-text-h2-weight);
+  line-height: var(--ds-text-h2-leading);
+  color: var(--ds-text-primary);
+}
+
+h3,
+.ds-text-h3 {
+  font-size: var(--ds-text-h3-size);
+  font-weight: var(--ds-text-h3-weight);
+  line-height: var(--ds-text-h3-leading);
+  color: var(--ds-text-primary);
+}
+
+p {
+  color: var(--ds-text-primary);
+}
+
+small,
+caption,
+.ds-text-caption {
+  font-size: var(--ds-text-caption-size);
+  font-weight: var(--ds-text-caption-weight);
+  line-height: var(--ds-text-caption-leading);
+  color: var(--ds-text-secondary);
+}
+
+label,
+.ds-text-label {
+  font-size: var(--ds-text-label-size);
+  font-weight: var(--ds-text-label-weight);
+  line-height: var(--ds-text-label-leading);
+  color: var(--ds-text-secondary);
+}
+
+a {
+  color: var(--ds-info);
+}
+
+a:hover {
+  color: var(--ds-info);
+}
+
+/* ── Base surfaces & borders ──────────────────────────────────── */
+main,
+.site-main {
+  background: transparent;
+}
+
+section {
+  scroll-margin-top: var(--ds-section-scroll-margin);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+/* Generic elevated panels (not product-card / auction-card) */
+.panel,
+.surface,
+.modal-content,
+.aylen-modal-panel {
+  border-color: var(--ds-border-subtle);
+}
+
+/* ── Focus states ─────────────────────────────────────────────── */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-focus-ring-color);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-focus-ring-color);
+  outline-offset: var(--ds-focus-ring-offset);
+}

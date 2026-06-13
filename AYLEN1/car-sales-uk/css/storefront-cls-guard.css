@@ -1,0 +1,198 @@
+/**
+ * Blocking CLS guards — must load in critical bundle before first paint.
+ * DS V2 hero/engagement rules live here (not deferred) to prevent layout shift.
+ */
+:root {
+  --aylen-mobile-card-row-h: 392px;
+  --aylen-mobile-engagement-h: 92px;
+  --aylen-mobile-above-fold-h: 228px;
+}
+
+@media (max-width: 768px) {
+  /* DS V2 mobile hero — VIP strip only (matches ds-v2-shell, critical path) */
+  .hero-hub-primary,
+  .hero-hub-tools {
+    display: none !important;
+  }
+
+  #hero.hero-marketplace.hero-phase1,
+  .hero-marketplace.hero-phase1 {
+    height: auto !important;
+    min-height: 128px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 10px 12px 8px !important;
+  }
+
+  #storefrontAboveProducts {
+    min-height: var(--storefront-above-reserved-h, var(--aylen-mobile-above-fold-h)) !important;
+  }
+
+  /* Engagement — 3 inventory tiles, hide vanity metrics before deferred CSS */
+  #engagementBar.live-activity-bar .live-activity-item--online,
+  #engagementBar.live-activity-bar .live-activity-item:last-child {
+    display: none !important;
+  }
+
+  #engagementBar.live-activity-bar {
+    min-height: var(--aylen-mobile-engagement-h) !important;
+    max-height: var(--aylen-mobile-engagement-h) !important;
+    margin: 8px auto 10px !important;
+    contain: layout style;
+  }
+
+  #engagementBar.live-activity-bar.is-dormant {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    min-height: var(--aylen-mobile-engagement-h) !important;
+    max-height: var(--aylen-mobile-engagement-h) !important;
+  }
+
+  #ebayPromoWrap.ebay-promo-wrap,
+  #ebayPromoWrap.ebay-promo-wrap.is-visible,
+  #ebayPromoWrap.ebay-promo-wrap[data-ssr-ebay="1"] {
+    display: none !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #products .products-section-head {
+    height: auto !important;
+    min-height: 76px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  :root {
+    --aylen-bottom-nav-h: 58px;
+    --aylen-bottom-nav: calc(var(--aylen-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+    --aylen-page-pad-bottom: calc(36px + var(--aylen-bottom-nav));
+  }
+
+  body.hero-contact-via-hub {
+    min-height: 6800px !important;
+    padding-bottom: var(--aylen-page-pad-bottom) !important;
+  }
+
+  .bottom-nav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: var(--aylen-bottom-nav) !important;
+    box-sizing: border-box !important;
+    z-index: 340 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    background: rgba(7, 10, 20, 0.97) !important;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.42) !important;
+  }
+
+  #productsGrid.products-grid,
+  #productsGrid.products-grid--loading {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(var(--aylen-mobile-card-row-h), var(--aylen-mobile-card-row-h)) !important;
+    gap: 8px !important;
+  }
+
+  #products .product-card-grid-item,
+  #products .product-skeleton {
+    min-height: var(--aylen-mobile-card-row-h) !important;
+  }
+}
+
+@media (min-width: 769px) {
+  body.hero-contact-via-hub {
+    min-height: 6200px !important;
+  }
+
+  #storefrontAboveProducts {
+    min-height: var(--storefront-above-reserved-h-desktop, 316px) !important;
+  }
+
+  #engagementBar.live-activity-bar .live-activity-item--online,
+  #engagementBar.live-activity-bar .live-activity-item:last-child {
+    display: none !important;
+  }
+
+  #engagementBar.live-activity-bar {
+    min-height: 52px !important;
+    contain: layout style;
+  }
+
+  #ebayPromoWrap.ebay-promo-wrap {
+    display: block !important;
+    min-height: 56px !important;
+    visibility: hidden;
+    pointer-events: none;
+    contain: layout style;
+    box-sizing: border-box;
+  }
+
+  #ebayPromoWrap.ebay-promo-wrap.is-visible,
+  #ebayPromoWrap.ebay-promo-wrap[data-ssr-ebay="1"] {
+    visibility: visible !important;
+    pointer-events: auto;
+    min-height: 56px !important;
+  }
+
+  #products .products-section-head {
+    height: auto !important;
+    min-height: 76px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  section#products.products-section--loading,
+  section#products.products-section--settled {
+    min-height: var(--products-section-reserved-h-desktop, var(--products-section-reserved-h, 1400px)) !important;
+    contain: layout style;
+  }
+
+  section#products.products-section--loading {
+    max-height: var(--products-section-reserved-h-desktop, var(--products-section-reserved-h, 1400px)) !important;
+    overflow: hidden !important;
+  }
+
+  section#products.products-section--settled {
+    overflow: visible !important;
+  }
+
+  #productsGrid.products-grid--loading,
+  #productsGrid.products-grid--settled,
+  #productsGrid.products-grid--revealed {
+    min-height: var(--products-grid-reserved-h-desktop, var(--products-grid-reserved-h, 1200px)) !important;
+  }
+
+  #productsGrid.products-grid--loading {
+    max-height: var(--products-grid-reserved-h-desktop, var(--products-grid-reserved-h, 1200px)) !important;
+    overflow: hidden !important;
+  }
+
+  #productsGrid.products-grid--settled,
+  #productsGrid.products-grid--revealed {
+    overflow: visible !important;
+  }
+
+  /* content-visibility intrinsic sizes often under-estimate → CLS on reveal */
+  #auctions.auctions-section,
+  #pickup.pickup-section {
+    content-visibility: visible !important;
+    contain-intrinsic-size: auto !important;
+  }
+}

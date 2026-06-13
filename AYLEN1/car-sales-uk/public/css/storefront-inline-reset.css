@@ -1,0 +1,19 @@
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#070a14;color:#e8edf7}
+header{background:#1a1a2e;color:#fff;position:sticky;top:0;z-index:100}
+.header-top{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;flex-wrap:wrap;gap:10px}
+.logo{font-size:26px;font-weight:bold;color:#e94560;letter-spacing:2px}
+.header-right{display:flex;align-items:center;gap:12px}
+.login-box{display:flex;gap:5px}
+.login-box input{padding:8px 12px;border:none;border-radius:5px;width:130px;font-size:14px}
+.login-box button{background:#e94560;color:#fff;border:none;padding:8px 14px;border-radius:5px;cursor:pointer}
+.cart-btn{background:#e94560;color:#fff;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:16px}
+.admin-link{color:#555;font-size:16px;text-decoration:none}
+header nav,.site-header nav{display:flex;gap:5px;padding:0 20px 10px}
+.nav-link{color:#aaa;text-decoration:none;padding:8px 16px;border-radius:20px;font-size:14px}
+.nav-link.active,.nav-link:hover{background:#e94560;color:#fff}
+.banner{background:linear-gradient(135deg,#e94560,#1a1a2e);color:#fff;text-align:center;padding:30px 20px}
+.banner h2{font-size:24px;margin-bottom:8px}
+.banner p{font-size:16px;opacity:0.9}
+.welcome-banner{background:#16213e;color:#fff;padding:10px 20px;text-align:center;font-size:14px}
+.welcome-banner .discount{color:#00ff88;font-weight:bold;font-size:18px}

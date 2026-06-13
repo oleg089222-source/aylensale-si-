@@ -1,0 +1,22 @@
+/**
+ * Phase 6 — stable image boxes (CLS) + mobile touch targets (above-the-fold).
+ */
+#products .product-thumb {
+  width: 48px;
+  height: 48px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+#products .product-arrow {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+#products .product-image-actions .product-badge--cart,
+#products .product-card-actions .btn-action {
+  min-height: 44px;
+  touch-action: manipulation;
+}

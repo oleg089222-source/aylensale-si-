@@ -1,0 +1,159 @@
+/**
+ * Price list — prominent CTAs (header, hero, strip, products, extras chip).
+ */
+
+/* —— Header icon button (all breakpoints) —— */
+.site-header .header-price-list-btn {
+  flex: 0 0 auto !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 1px solid rgba(52, 211, 153, 0.35) !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.92)) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.38) !important;
+  cursor: pointer !important;
+}
+
+.site-header .header-price-list-btn i {
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+.site-header .header-price-list-btn:hover {
+  filter: brightness(1.06);
+}
+
+@media (min-width: 900px) {
+  .site-header .header-price-list-btn {
+    width: auto !important;
+    min-width: 40px !important;
+    padding: 0 14px 0 12px !important;
+    gap: 7px !important;
+    border-radius: 999px !important;
+  }
+
+  .site-header .header-price-list-btn__label {
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.02em !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .price-list-fold-root.is-visible {
+    padding: 8px 12px 4px;
+    margin-bottom: 8px;
+  }
+
+  .site-header .header-price-list-btn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+  }
+
+  .site-header .header-price-list-btn i {
+    font-size: 15px !important;
+  }
+
+  .site-header .header-price-list-btn__label {
+    display: none !important;
+  }
+}
+
+/* —— Hero button —— */
+.hero-phase1 .hero-btn.price-list:not(.hero-btn--tool) {
+  background: linear-gradient(135deg, #10b981, #047857) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.32) !important;
+}
+
+.hero-phase1 .hero-btn.price-list:not(.hero-btn--tool):hover {
+  transform: translateY(-2px);
+}
+
+/* —— Compact fold panel (chip expands this) —— */
+.price-list-fold-root {
+  display: none;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 8px 20px 0;
+  box-sizing: border-box;
+}
+
+.price-list-fold-root.is-visible {
+  display: block;
+}
+
+.price-list-fold-panel {
+  padding: 8px 4px 2px;
+}
+
+.price-list-fold-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.price-list-fold-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.price-list-fold-action i {
+  font-size: 13px;
+  color: #34d399;
+}
+
+.price-list-fold-action:hover {
+  color: #fff;
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+/* —— Extras bar chip —— */
+.storefront-extras-chip--price-list {
+  border-color: rgba(52, 211, 153, 0.22) !important;
+}
+
+.storefront-extras-chip--price-list i {
+  color: #34d399 !important;
+}
+
+.storefront-extras-chip--price-list:hover {
+  color: #ecfdf5 !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+}
+
+.storefront-extras-chip--price-list.is-active {
+  color: #ecfdf5 !important;
+  border-color: rgba(52, 211, 153, 0.45) !important;
+  background: rgba(16, 185, 129, 0.14) !important;
+}
+
+.storefront-extras-chip--price-list.is-active i {
+  color: #34d399 !important;
+}

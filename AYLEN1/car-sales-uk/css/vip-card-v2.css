@@ -1,0 +1,112 @@
+/**
+ * VIP surface V2 — hero strip + paywall page tokens (P1)
+ */
+
+.vip-section,
+.vip-compact {
+  background: var(--ds-vip-surface) !important;
+  border: 1px solid rgba(212, 168, 67, 0.22) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+}
+
+.vip-section::before {
+  display: none !important;
+}
+
+.vip-compact__badge {
+  color: var(--ds-vip-gold) !important;
+  background: var(--ds-vip-muted) !important;
+  border-color: rgba(212, 168, 67, 0.28) !important;
+}
+
+.vip-compact__left h2 {
+  color: var(--ds-vip-text) !important;
+}
+
+.vip-compact__lead {
+  color: var(--ds-text-primary) !important;
+}
+
+.vip-compact__sub {
+  color: var(--ds-text-secondary) !important;
+}
+
+.vip-urgency {
+  background: var(--ds-vip-muted) !important;
+  border: 1px solid rgba(212, 168, 67, 0.22) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+.vip-urgency__price,
+.vip-urgency__limit {
+  color: var(--ds-vip-text) !important;
+}
+
+.vip-member-counter {
+  color: var(--ds-success) !important;
+}
+
+.vip-benefits-compact li {
+  color: var(--ds-text-secondary) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+}
+
+.vip-benefits-compact li i {
+  color: var(--ds-vip-gold) !important;
+}
+
+/* Paywall page */
+.vip-paywall-root,
+.vip-glass-hub {
+  background: var(--ds-bg-base) !important;
+}
+
+.vip-paywall-panel,
+.vip-glass-panel {
+  background: var(--ds-bg-elevated) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-xl) !important;
+  box-shadow: var(--ds-shadow-lg) !important;
+}
+
+.vip-paywall-lock i,
+.vip-access-lock i {
+  color: var(--ds-vip-gold) !important;
+}
+
+.vip-paywall-title,
+.vip-access-title {
+  color: var(--ds-text-primary) !important;
+}
+
+.vip-paywall-lead,
+.vip-access-lead {
+  color: var(--ds-text-secondary) !important;
+}
+
+.vip-paywall-price-box,
+.vip-urgency-box {
+  background: var(--ds-vip-muted) !important;
+  border: 1px solid rgba(212, 168, 67, 0.22) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+.vip-restore-input {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  color: var(--ds-text-primary) !important;
+  min-height: var(--ds-control-height);
+  border-radius: var(--ds-radius-md);
+}
+
+.vip-restore-btn {
+  border: 1px solid var(--ds-vip-gold) !important;
+  color: var(--ds-vip-gold) !important;
+  background: transparent !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+.vip-restore-btn:hover {
+  background: var(--ds-vip-muted) !important;
+}

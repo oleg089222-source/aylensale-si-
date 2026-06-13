@@ -1,0 +1,87 @@
+/**
+ * AYLENSALE Design System V2 — Mobile bottom navigation (P0 Step 10)
+ */
+
+.bottom-nav {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: var(--ds-z-bottom-nav, 340) !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  min-height: var(--ds-bottom-nav-safe) !important;
+  padding: var(--ds-space-1) var(--ds-space-1) calc(var(--ds-space-1) + env(safe-area-inset-bottom, 0px)) !important;
+  background: rgba(8, 11, 18, 0.97) !important;
+  border-top: 1px solid var(--ds-border-subtle) !important;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.32) !important;
+  border-radius: 0 !important;
+}
+
+.bottom-nav a,
+.bottom-nav button {
+  position: relative;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  min-height: var(--ds-control-height-sm) !important;
+  padding: var(--ds-space-1) var(--ds-space-1) !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  background: transparent !important;
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-overline-size) !important;
+  font-weight: var(--ds-text-overline-weight) !important;
+  letter-spacing: 0.02em;
+  text-decoration: none !important;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: none !important;
+  transition:
+    color var(--ds-transition-base),
+    background-color var(--ds-transition-base);
+}
+
+.bottom-nav a i,
+.bottom-nav button i {
+  font-size: 15px !important;
+  line-height: 1;
+}
+
+/* Active: top indicator bar + brand color */
+.bottom-nav a.is-active,
+.bottom-nav button.is-active {
+  color: var(--ds-brand) !important;
+  background: transparent !important;
+}
+
+.bottom-nav a.is-active::before,
+.bottom-nav button.is-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-brand);
+}
+
+.bottom-nav .bottom-nav-vip.is-active,
+.bottom-nav a.bottom-nav-vip.is-active {
+  color: var(--ds-vip-gold) !important;
+}
+
+.bottom-nav .bottom-nav-vip.is-active::before,
+.bottom-nav a.bottom-nav-vip.is-active::before {
+  background: var(--ds-vip-gold);
+}
+
+.bottom-nav-contact--hide-mobile,
+.bottom-nav-telegram.bottom-nav-contact--hide-mobile,
+.bottom-nav-whatsapp.bottom-nav-contact--hide-mobile {
+  display: none !important;
+}

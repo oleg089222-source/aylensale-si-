@@ -1,0 +1,152 @@
+.ebay-promo-wrap {
+  display: block;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 12px 20px 0;
+  box-sizing: border-box;
+  min-height: 128px;
+  visibility: hidden;
+  pointer-events: none;
+  contain: layout style;
+}
+
+.ebay-promo-wrap.is-visible,
+.ebay-promo-wrap[data-ssr-ebay="1"] {
+  visibility: visible;
+  pointer-events: auto;
+  min-height: 128px;
+}
+
+.ebay-promo-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(29, 155, 240, 0.28);
+  background: linear-gradient(135deg, rgba(0, 100, 210, 0.18), rgba(18, 27, 48, 0.88));
+  box-shadow: 0 8px 24px rgba(0, 100, 210, 0.1);
+  color: #fff;
+}
+
+.ebay-promo-card__main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.ebay-promo-card__icon {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #0064d2;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 6px 16px rgba(0, 100, 210, 0.25);
+}
+
+.ebay-promo-card__copy {
+  min-width: 0;
+}
+
+.ebay-promo-card__logo {
+  display: inline;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0;
+  word-spacing: 0;
+  margin-bottom: 6px;
+  line-height: 1.2;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.ebay-promo-card__logo-e,
+.ebay-promo-card__logo-b,
+.ebay-promo-card__logo-a,
+.ebay-promo-card__logo-y {
+  display: inline;
+}
+
+.ebay-promo-card__logo-e { color: #e53238; }
+.ebay-promo-card__logo-b { color: #0064d2; }
+.ebay-promo-card__logo-a { color: #f5af02; }
+.ebay-promo-card__logo-y { color: #86b817; }
+
+.ebay-promo-card__desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ebay-promo-card__cta {
+  flex: 0 0 auto;
+  background: #0064d2;
+  color: #fff;
+  text-decoration: none;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ebay-promo-card__cta:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 768px) {
+  .ebay-promo-wrap {
+    min-height: 80px;
+    padding: 8px 12px 0;
+  }
+
+  .ebay-promo-wrap.is-visible,
+  .ebay-promo-wrap[data-ssr-ebay="1"] {
+    min-height: 118px;
+  }
+
+  .ebay-promo-card {
+    padding: 14px;
+    gap: 12px;
+    min-height: 100px;
+  }
+
+  .ebay-promo-card__cta {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+@media (min-width: 769px) {
+  .header-ebay-btn {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: #0064d2;
+    color: #fff;
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .header-ebay-btn.is-visible {
+    display: inline-flex;
+  }
+}

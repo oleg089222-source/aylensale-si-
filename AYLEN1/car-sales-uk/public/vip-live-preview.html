@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VIP Live preview — admin</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#070a14">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="css/pickup-section.css?v=202605292700">
+<link rel="stylesheet" href="css/vip-stock-section.css?v=202605292700">
+<link rel="stylesheet" href="css/vip-glass-hub.css?v=202605292700">
+<link rel="stylesheet" href="css/pdp-modal.css?v=202605292700">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Inter, Arial, sans-serif; background: #070a14; color: #e2e8f0; padding-top: 48px; }
+  .vip-demo-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    padding: 10px 14px; text-align: center; font-size: 13px;
+    background: #1e3a8a; color: #bfdbfe; border-bottom: 1px solid #3b82f6;
+  }
+  .vip-demo-bar a { color: #fef08a; margin-left: 10px; }
+  .vip-demo-bar strong { color: #fff; }
+</style>
+</head>
+<body class="vip-page">
+<p class="vip-demo-bar">
+  <strong>LIVE PREVIEW:</strong> real VIP stock from Firestore (visible + not sold)
+  <a href="/vip-member-preview.html">UI demo</a>
+  <a href="/admin-preview.html#vipmembers">VIP admin</a>
+  <a href="/vip-stock.html">Paywall</a>
+</p>
+<div class="vip-page-shell">
+  <div class="vip-page-top">
+    <a href="/"><i class="fas fa-arrow-left"></i> Back to shop</a>
+  </div>
+  <div id="vipMemberRoot">
+    <div class="vip-page-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg",
+    authDomain: "aylensale.firebaseapp.com",
+    projectId: "aylensale",
+    storageBucket: "aylensale.firebasestorage.app",
+    messagingSenderId: "554559570562",
+    appId: "1:554559570562:web:714d322ab781b4314cea9b",
+    measurementId: "G-8XWD4DQFDX"
+  };
+</script>
+<script>window.AYLEN_VIP_ADMIN_LIVE_PREVIEW = true;</script>
+<script src="js/firebase-db.js?v=202605292700"></script>
+<script src="js/admin-session.js?v=202605292700"></script>
+<script src="js/pickup-weather.js?v=202605292700"></script>
+<script src="js/pickup-locations.js?v=202605292700"></script>
+<script src="js/vip-carousel-defaults.js?v=202605292700"></script>
+<script src="js/pdp-modal.js?v=202605292700"></script>
+<script src="js/vip-stock.js?v=202605292700"></script>
+</body>
+</html>

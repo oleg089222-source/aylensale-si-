@@ -1,0 +1,224 @@
+/**
+ * AYLENSALE Design System V2 — Tokens
+ * Source: Artem UX/UI handoff (June 2026)
+ *
+ * Scope: CSS custom properties only. No component styles.
+ * Wire-up: storefront bundles (P0). Loaded via bundle-storefront-css.mjs.
+ */
+
+:root {
+  /* ── Foundation ─────────────────────────────────────────────── */
+  --ds-bg-base: #080b12;
+  --ds-bg-elevated: #0f1520;
+  --ds-bg-surface: #161d2b;
+  --ds-bg-overlay: #1c2433;
+
+  --ds-border-subtle: rgba(255, 255, 255, 0.08);
+  --ds-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* ── Text ───────────────────────────────────────────────────── */
+  --ds-text-primary: #f1f5f9;
+  --ds-text-secondary: #94a3b8;
+  --ds-text-muted: #64748b;
+  --ds-text-inverse: #080b12;
+
+  /* ── Brand (commerce accent — one per screen) ───────────────── */
+  --ds-brand: #e8456a;
+  --ds-brand-hover: #d63a5e;
+  --ds-brand-muted: rgba(232, 69, 106, 0.12);
+
+  /* ── Semantic (status only — never decorative) ──────────────── */
+  --ds-success: #22c55e;
+  --ds-success-muted: rgba(34, 197, 94, 0.12);
+  --ds-warning: #f59e0b;
+  --ds-warning-muted: rgba(245, 158, 11, 0.12);
+  --ds-danger: #ef4444;
+  --ds-danger-muted: rgba(239, 68, 68, 0.12);
+  --ds-info: #3b82f6;
+  --ds-info-muted: rgba(59, 130, 246, 0.12);
+  --ds-neutral: #64748b;
+  --ds-neutral-muted: rgba(100, 116, 139, 0.12);
+
+  /* ── VIP (VIP surfaces only — no glow, no animation) ───────── */
+  --ds-vip-gold: #d4a843;
+  --ds-vip-gold-hover: #c49a3a;
+  --ds-vip-surface: #14110a;
+  --ds-vip-text: #f5e6b8;
+  --ds-vip-muted: rgba(212, 168, 67, 0.12);
+
+  /* ── Typography — family ────────────────────────────────────── */
+  --ds-font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ds-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Desktop-first sizes (mobile overrides below 768px) */
+  --ds-text-display-size: 1.75rem; /* 28px */
+  --ds-text-display-weight: 800;
+  --ds-text-display-leading: 1.15;
+
+  --ds-text-h1-size: 1.5rem; /* 24px */
+  --ds-text-h1-weight: 700;
+  --ds-text-h1-leading: 1.2;
+
+  --ds-text-h2-size: 1.125rem; /* 18px */
+  --ds-text-h2-weight: 700;
+  --ds-text-h2-leading: 1.25;
+
+  --ds-text-h3-size: 0.9375rem; /* 15px */
+  --ds-text-h3-weight: 600;
+  --ds-text-h3-leading: 1.3;
+
+  --ds-text-body-size: 0.875rem; /* 14px */
+  --ds-text-body-weight: 400;
+  --ds-text-body-leading: 1.5;
+
+  --ds-text-body-sm-size: 0.8125rem; /* 13px */
+  --ds-text-body-sm-weight: 400;
+  --ds-text-body-sm-leading: 1.45;
+
+  --ds-text-label-size: 0.75rem; /* 12px */
+  --ds-text-label-weight: 600;
+  --ds-text-label-leading: 1.2;
+
+  --ds-text-caption-size: 0.6875rem; /* 11px */
+  --ds-text-caption-weight: 500;
+  --ds-text-caption-leading: 1.3;
+
+  --ds-text-price-size: 1.25rem; /* 20px */
+  --ds-text-price-weight: 700;
+  --ds-text-price-leading: 1;
+
+  --ds-text-price-lg-size: 1.5rem; /* 24px */
+  --ds-text-price-lg-weight: 700;
+  --ds-text-price-lg-leading: 1;
+
+  --ds-text-overline-size: 0.625rem; /* 10px */
+  --ds-text-overline-weight: 700;
+  --ds-text-overline-leading: 1.2;
+  --ds-text-overline-tracking: 0.06em;
+
+  --ds-icon-inline-size: 1rem; /* 16px — FA inline only */
+
+  /* ── Spacing (4px base) ─────────────────────────────────────── */
+  --ds-space-1: 0.25rem; /* 4px */
+  --ds-space-2: 0.5rem; /* 8px */
+  --ds-space-3: 0.75rem; /* 12px */
+  --ds-space-4: 1rem; /* 16px */
+  --ds-space-5: 1.25rem; /* 20px */
+  --ds-space-6: 1.5rem; /* 24px */
+  --ds-space-8: 2rem; /* 32px */
+  --ds-space-10: 2.5rem; /* 40px */
+  --ds-space-12: 3rem; /* 48px */
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  --ds-content-max-width: 1240px;
+  --ds-grid-gutter: 1.25rem; /* 20px desktop */
+  --ds-section-scroll-margin: 5rem; /* 80px header offset */
+
+  --ds-header-height-desktop: 6.75rem; /* 108px — nav + search row */
+  --ds-header-height-mobile: 3.5rem; /* 56px */
+  --ds-bottom-nav-height: 3.625rem; /* 58px */
+  --ds-bottom-nav-safe: calc(var(--ds-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+
+  /* ── Radius ─────────────────────────────────────────────────── */
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 10px;
+  --ds-radius-lg: 14px;
+  --ds-radius-xl: 18px;
+  --ds-radius-full: 999px;
+
+  /* ── Shadows (no colored glow) ──────────────────────────────── */
+  --ds-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --ds-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.32);
+  --ds-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+
+  /* ── Focus & motion (calm UI) ───────────────────────────────── */
+  --ds-focus-ring-color: var(--ds-brand);
+  --ds-focus-ring-width: 2px;
+  --ds-focus-ring-offset: 2px;
+
+  --ds-transition-fast: 150ms ease;
+  --ds-transition-base: 180ms ease;
+  --ds-transition-slow: 240ms ease;
+
+  /* ── Component primitives (consumed by ds-v2-buttons/forms) ─── */
+  --ds-control-height: 2.75rem; /* 44px */
+  --ds-control-height-sm: 2.25rem; /* 36px */
+  --ds-control-height-lg: 3rem; /* 48px */
+
+  --ds-btn-padding-sm: 0.75rem 1rem;
+  --ds-btn-padding-md: 0.875rem 1.25rem;
+  --ds-btn-padding-lg: 1rem 1.5rem;
+
+  --ds-btn-font-sm: 0.8125rem;
+  --ds-btn-font-md: 0.875rem;
+  --ds-btn-font-lg: 0.9375rem;
+
+  --ds-btn-icon-gap: var(--ds-space-2);
+  --ds-btn-disabled-opacity: 0.45;
+
+  --ds-input-bg: var(--ds-bg-surface);
+  --ds-input-border: var(--ds-border-subtle);
+  --ds-input-border-focus: var(--ds-brand);
+  --ds-input-text: var(--ds-text-primary);
+  --ds-input-placeholder: var(--ds-text-muted);
+
+  --ds-card-bg: var(--ds-bg-elevated);
+  --ds-card-border: var(--ds-border-subtle);
+  --ds-card-padding-mobile: var(--ds-space-3);
+  --ds-card-padding-desktop: var(--ds-space-4);
+  --ds-card-radius: var(--ds-radius-lg);
+  --ds-card-shadow: var(--ds-shadow-sm);
+  --ds-card-shadow-hover: var(--ds-shadow-md);
+
+  --ds-modal-bg: var(--ds-bg-elevated);
+  --ds-modal-radius: var(--ds-radius-xl);
+  --ds-modal-shadow: var(--ds-shadow-lg);
+
+  /* ── Z-index scale ──────────────────────────────────────────── */
+  --ds-z-base: 1;
+  --ds-z-dropdown: 100;
+  --ds-z-sticky: 200;
+  --ds-z-header: 300;
+  --ds-z-bottom-nav: 340;
+  --ds-z-overlay: 900;
+  --ds-z-modal: 1200;
+  --ds-z-toast: 1300;
+  --ds-z-admin: 10060;
+
+  /*
+   * V1 legacy aliases — inactive until P0 step 2 (apply tokens to base).
+   * Uncomment when migrating storefront CSS off inline-legacy vars.
+   *
+   * --bg: var(--ds-bg-base);
+   * --text: var(--ds-text-primary);
+   * --muted: var(--ds-text-secondary);
+   * --line: var(--ds-border-subtle);
+   * --pink: var(--ds-brand);
+   * --red: var(--ds-brand);
+   * --green: var(--ds-success);
+   * --panel: var(--ds-bg-elevated);
+   * --panel2: var(--ds-bg-surface);
+   * --aylen-header-sticky-h: var(--ds-header-height-desktop);
+   * --aylen-bottom-nav-h: var(--ds-bottom-nav-height);
+   */
+}
+
+/* Tablet grid gutter */
+@media (max-width: 1024px) {
+  :root {
+    --ds-grid-gutter: 1rem; /* 16px */
+  }
+}
+
+/* Mobile typography + layout */
+@media (max-width: 768px) {
+  :root {
+    --ds-text-display-size: 1.375rem; /* 22px */
+    --ds-text-h1-size: 1.25rem; /* 20px */
+    --ds-text-h2-size: 1rem; /* 16px */
+    --ds-text-h3-size: 0.875rem; /* 14px */
+    --ds-text-price-size: 1.125rem; /* 18px */
+    --ds-grid-gutter: 0.75rem; /* 12px */
+    --ds-header-height-desktop: var(--ds-header-height-mobile);
+  }
+}

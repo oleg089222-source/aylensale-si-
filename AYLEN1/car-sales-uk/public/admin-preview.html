@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AYLENSALE Admin — local preview</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="css/admin-dashboard.css?v=202605319200">
+<style>
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #070a14; padding-top: 72px; }
+  .admin-preview-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+    padding: 8px 14px; font-size: 12px;
+    background: #1a1a2e; color: #cbd5e1; border-bottom: 1px solid #334155;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+  }
+  .admin-preview-bar a { color: #ff6b93; }
+  .admin-preview-bar input {
+    background: #0f172a; border: 1px solid #334155; color: #e2e8f0;
+    border-radius: 6px; padding: 6px 10px; font-size: 12px; min-width: 140px;
+  }
+  .admin-preview-bar button {
+    background: #ff6b93; color: #fff; border: 0; border-radius: 6px;
+    padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 700;
+  }
+  .notification {
+    position: fixed; top: 72px; right: 16px; z-index: 120000;
+    padding: 12px 18px; border-radius: 8px; color: #fff; font-size: 13px; display: none;
+  }
+  .notification.success { background: #00cc66; display: block; }
+  .notification.error { background: #e94560; display: block; }
+  .notification.info { background: #2563eb; display: block; }
+  .admin-preview-bar .ok { color: #34d399; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="notification" class="notification"></div>
+<div class="admin-preview-bar">
+  <span>Local admin preview</span>
+  <input id="localLogin" type="text" placeholder="Login (admin)" value="admin">
+  <input id="localPass" type="password" placeholder="Admin password">
+  <button type="button" id="localSignIn">Sign in Firebase</button>
+  <span id="localAuthStatus"></span>
+  <a href="/index.html">Main site</a>
+  <a href="#vipmembers">VIP Members</a>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg",
+    authDomain: "aylensale.firebaseapp.com",
+    projectId: "aylensale",
+    storageBucket: "aylensale.firebasestorage.app",
+    messagingSenderId: "554559570562",
+    appId: "1:554559570562:web:714d322ab781b4314cea9b"
+  };
+  if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  window.notify = window.notify || function(msg, type) {
+    console.log('[notify]', type || 'info', msg);
+    var el = document.getElementById('localAuthStatus');
+    if (el && msg) {
+      el.textContent = msg;
+      el.className = type === 'error' ? '' : 'ok';
+    }
+  };
+  window.escapeHtml = window.escapeHtml || function(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  };
+</script>
+<script src="js/modal-manager.js?v=202605319200"></script>
+<script src="js/firebase-db.js?v=202605319200"></script>
+<script src="js/admin-loader.js?v=202605319200"></script>
+<script>
+  (function() {
+    var panel = (location.hash || '').replace(/^#/, '') || 'vipmembers';
+    if (!/^(dashboard|products|auctions|locations|vipmembers|pricelist|discounts|branding|settings|backup)$/.test(panel)) {
+      panel = 'vipmembers';
+    }
+
+    function openPanel(id) {
+      if (!window.AyelenAdminDashboard) return;
+      window.AyelenAdminDashboard.go(id);
+    }
+
+    function setAuthStatus(text, ok) {
+      var el = document.getElementById('localAuthStatus');
+      if (!el) return;
+      el.textContent = text || '';
+      el.className = ok ? 'ok' : '';
+    }
+
+    document.getElementById('localSignIn').addEventListener('click', function() {
+      var login = (document.getElementById('localLogin') || {}).value || 'admin';
+      var pass = (document.getElementById('localPass') || {}).value || '';
+      if (!pass) {
+        setAuthStatus('Enter admin password', false);
+        return;
+      }
+      setAuthStatus('Signing in…', false);
+      if (!window.FBDB || !window.FBDB.signInAdmin) {
+        setAuthStatus('Firebase not ready — wait and retry', false);
+        return;
+      }
+      window.FBDB.signInAdmin(pass, login).then(function() {
+        setAuthStatus('Signed in — reload VIP panel', true);
+        openPanel('vipmembers');
+      }).catch(function(err) {
+        setAuthStatus(err.message || 'Login failed', false);
+      });
+    });
+
+    function waitFirebaseReady() {
+      return new Promise(function(resolve) {
+        if (window.isFirebaseReady) {
+          resolve(true);
+          return;
+        }
+        var tries = 0;
+        var timer = setInterval(function() {
+          if (window.isFirebaseReady || tries++ > 150) {
+            clearInterval(timer);
+            resolve(!!window.isFirebaseReady);
+          }
+        }, 100);
+      });
+    }
+
+    function bootAdmin() {
+      if (!window.AyelenAdminDashboard) return;
+      window.isAdminMode = true;
+      document.body.classList.add('admin-mode-active', 'admin-dashboard-open', 'aylen-admin-cms-active');
+      var shell = document.getElementById('aylenAdminShell');
+      if (shell) shell.classList.add('open');
+      window.AyelenAdminDashboard.open(panel);
+      window.AyelenAdminDashboard.go(panel);
+      if (window.FBDB && window.FBDB.isAdmin && window.FBDB.isAdmin()) {
+        setAuthStatus('Firebase admin session active', true);
+      }
+    }
+
+    AYLEN_ADMIN_LOADER.load()
+      .then(waitFirebaseReady)
+      .then(bootAdmin)
+      .then(function() {
+        window.addEventListener('hashchange', function() {
+          var id = (location.hash || '').replace(/^#/, '');
+          if (id && /^(dashboard|products|auctions|locations|vipmembers|pricelist|discounts|branding|settings|backup)$/.test(id)) {
+            openPanel(id);
+          }
+        });
+      })
+      .catch(function(err) {
+        document.body.insertAdjacentHTML('beforeend', '<p style="color:#f87171;padding:20px">' + (err.message || err) + '</p>');
+      });
+  })();
+</script>
+</body>
+</html>

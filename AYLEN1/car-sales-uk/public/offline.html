@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#070a14">
+<meta name="robots" content="noindex">
+<title>Offline | AYLENSALE</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #070a14;
+    color: #e8edf7;
+    text-align: center;
+  }
+  .card {
+    max-width: 380px;
+    padding: 32px 28px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  }
+  .logo {
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 20px;
+    border-radius: 20px;
+  }
+  h1 { font-size: 1.35rem; margin-bottom: 10px; color: #fff; }
+  p { font-size: 15px; color: #94a3b8; line-height: 1.5; margin-bottom: 22px; }
+  a, button {
+    display: inline-block;
+    padding: 13px 22px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 14px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #ff2f68, #c41e4a);
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="logo" src="/icon-192.png" width="88" height="88" alt="AYLENSALE">
+  <h1>You are offline</h1>
+  <p>AYLENSALE needs a connection to load live stock, auctions and pickup updates. Check your network and try again.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</div>
+</body>
+</html>

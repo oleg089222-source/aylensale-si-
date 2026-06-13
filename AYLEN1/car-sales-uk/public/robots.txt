@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /.env
+Disallow: /.vercel/
+
+Sitemap: https://aylensale.com/sitemap.xml

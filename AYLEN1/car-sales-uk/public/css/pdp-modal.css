@@ -1,0 +1,745 @@
+/**
+ * Shared product detail popup + lightbox (storefront + VIP themes).
+ */
+
+body.pdp-modal-open,
+body.pdp-lightbox-open,
+body.pdp-scroll-locked {
+  overflow: hidden !important;
+}
+
+.pdp-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+.pdp-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.pdp-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 920px);
+  max-height: min(92vh, calc(100dvh - 24px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 18px 16px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.94);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.pdp-modal__close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdp-modal__close:hover {
+  background: rgba(233, 69, 96, 0.28);
+  color: #fff;
+}
+
+.pdp-modal__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.pdp-modal__gallery {
+  min-width: 0;
+}
+
+.pdp-modal__main-wrap {
+  position: relative;
+}
+
+.pdp-modal__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  width: 100%;
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.55);
+}
+
+.pdp-modal__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.pdp-modal__scroll-track {
+  display: flex;
+  min-width: 100%;
+  height: 100%;
+}
+
+.pdp-modal__slide {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.pdp-modal__gallery {
+  touch-action: manipulation;
+}
+
+.pdp-modal__main-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.pdp-modal__main-img {
+  width: 100%;
+  max-height: min(52vh, 420px);
+  object-fit: contain;
+  background: rgba(2, 6, 23, 0.55);
+  border-radius: 14px;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.pdp-modal__zoom-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.pdp-modal__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.pdp-modal__nav--prev { left: 8px; }
+.pdp-modal__nav--next { right: 8px; }
+
+.pdp-modal__nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pdp-modal__thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pdp-modal__thumb {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #0f172a;
+  flex-shrink: 0;
+}
+
+.pdp-modal__thumb.is-active {
+  border-color: #e94560;
+}
+
+.pdp-modal--vip .pdp-modal__thumb.is-active {
+  border-color: #34d399;
+}
+
+.pdp-modal__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pdp-modal__info h3 {
+  margin: 0 0 8px;
+  padding-right: 36px;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  color: #f8fafc;
+}
+
+.pdp-modal__meta {
+  margin: 0 0 10px;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.pdp-modal__price {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.pdp-modal--storefront .pdp-modal__price {
+  color: #ff6b93;
+  text-shadow: 0 0 18px rgba(233, 69, 96, 0.35);
+}
+
+.pdp-modal--vip .pdp-modal__price {
+  color: #fcd34d;
+}
+
+.pdp-modal__price-original {
+  margin-left: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: line-through;
+}
+
+.pdp-modal__desc {
+  margin: 0 0 14px;
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.55;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+  word-break: break-word;
+}
+
+.pdp-modal__actions {
+  display: grid;
+  gap: 8px;
+}
+
+.pdp-modal__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pdp-modal--storefront .pdp-modal__btn--wa {
+  background: linear-gradient(135deg, #25d366, #128c7e);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.pdp-modal--storefront .pdp-modal__btn--tg {
+  background: linear-gradient(135deg, #229ed9, #0088cc);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.pdp-modal--storefront .pdp-modal__btn--cart {
+  background: linear-gradient(135deg, #ff2f68, #b91645);
+  color: #fff;
+}
+
+.pdp-modal--storefront .pdp-modal__btn--ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Auction modal — storefront (pink accent, not VIP gold) */
+.pdp-modal--auction .pdp-modal__panel {
+  border-color: rgba(233, 69, 96, 0.28);
+}
+
+.pdp-modal--auction .pdp-modal__price {
+  color: #ff6b93;
+}
+
+.pdp-auction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #ff2f68, #b91645);
+}
+
+.pdp-auction-leader {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #fcd34d;
+  font-weight: 600;
+}
+
+.pdp-auction-timer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.pdp-auction-timer strong {
+  font-size: clamp(18px, 4.5vw, 22px);
+  font-weight: 900;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.pdp-auction-timer--visible {
+  background: linear-gradient(90deg, rgba(233, 69, 96, 0.18), rgba(15, 23, 42, 0.9));
+  border-color: rgba(233, 69, 96, 0.35);
+  min-height: 52px;
+}
+
+.pdp-auction-timer.is-ending {
+  border-color: rgba(243, 156, 18, 0.45);
+  background: rgba(243, 156, 18, 0.12);
+}
+
+.pdp-auction-timer.is-ending strong {
+  color: #fcd34d;
+}
+
+.pdp-auction-timer.is-ended {
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.pdp-auction-history {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 160px;
+  overflow: auto;
+}
+
+.pdp-auction-history__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pdp-auction-history__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.pdp-auction-history__row:last-child {
+  border-bottom: none;
+}
+
+.pdp-auction-history__row span:nth-child(2) {
+  font-weight: 800;
+  color: #ff6b93;
+}
+
+.pdp-auction-history__row span:nth-child(3) {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.pdp-auction-bid {
+  margin-bottom: 10px;
+}
+
+.pdp-auction-bid__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.pdp-auction-bid__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.pdp-auction-bid__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(2, 6, 23, 0.55);
+  color: #fff;
+  font-size: 16px;
+}
+
+.pdp-modal--auction .pdp-modal__btn--bid {
+  background: linear-gradient(135deg, #ff2f68, #b91645);
+  color: #fff;
+  white-space: nowrap;
+  min-width: 120px;
+}
+
+.pdp-auction-deposit-gate {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.12);
+  color: #bfdbfe;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pdp-auction-bid--gated .pdp-auction-bid__input {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pdp-modal__btn--bid-gated {
+  width: 100%;
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.pdp-modal__actions--stack {
+  margin-top: 4px;
+}
+
+/* Compact auction cards on storefront grid */
+.auction-card--compact .auction-desc,
+.auction-card--compact .auction-highest-bid--admin {
+  display: none !important;
+}
+
+.pdp-auction-pay-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pdp-modal__btn--deposit {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+
+.pdp-modal__btn--buynow {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+}
+
+.auction-card--compact .auction-info {
+  padding: 12px 14px 14px;
+}
+
+.auction-card-hit {
+  cursor: pointer;
+}
+
+.auction-card-quick {
+  width: 100%;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .pdp-auction-bid__row {
+    grid-template-columns: 1fr;
+  }
+
+  .pdp-modal--auction .pdp-modal__btn--bid {
+    width: 100%;
+  }
+}
+
+.pdp-modal__policy-link {
+  margin: 0;
+  font-size: 12px;
+}
+
+.pdp-modal__policy-link button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #94a3b8;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Full-screen lightbox — above modal */
+.pdp-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 14000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px));
+  touch-action: pan-y;
+}
+
+.pdp-lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(0, 0, 0, 0.94);
+}
+
+.pdp-lightbox__close {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  right: max(10px, env(safe-area-inset-right, 0px));
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.pdp-lightbox__img-wrap {
+  position: relative;
+  z-index: 1;
+  max-width: min(100%, 1100px);
+  max-height: min(90vh, calc(100dvh - 80px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pdp-lightbox__img {
+  max-width: 100%;
+  max-height: min(90vh, calc(100dvh - 80px));
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.pdp-lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.pdp-lightbox__nav--prev { left: max(8px, env(safe-area-inset-left, 0px)); }
+.pdp-lightbox__nav--next { right: max(8px, env(safe-area-inset-right, 0px)); }
+
+.pdp-lightbox__counter {
+  position: absolute;
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.pdp-modal--vip .pdp-modal__panel {
+  width: min(100%, 920px);
+}
+
+.pdp-modal--vip .pdp-modal__close {
+  color: #94a3b8;
+  background: transparent;
+  width: auto;
+  height: auto;
+}
+
+.pdp-modal--vip .pdp-modal__main-img {
+  max-height: min(52vh, 420px);
+}
+
+.pdp-modal.vip-pdp-modal {
+  z-index: 12000;
+}
+
+.pdp-modal.vip-pdp-modal .pdp-modal__backdrop {
+  backdrop-filter: blur(6px);
+}
+
+.pdp-modal--vip .pdp-modal__nav {
+  background: rgba(15, 23, 42, 0.75);
+}
+
+@media (min-width: 769px) {
+  .pdp-modal__scroll {
+    cursor: grab;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+  }
+
+  .pdp-modal__scroll.is-dragging {
+    cursor: grabbing;
+  }
+
+  .pdp-modal__scroll::-webkit-scrollbar {
+    display: block;
+    height: 7px;
+  }
+
+  .pdp-modal__scroll::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+    border-radius: 999px;
+  }
+
+  .pdp-modal__scroll .pdp-modal__main-btn {
+    cursor: grab;
+  }
+
+  .pdp-modal__scroll.is-dragging .pdp-modal__main-btn {
+    cursor: grabbing;
+  }
+}
+
+@media (max-width: 768px) {
+  .pdp-modal__layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .pdp-modal__main-img {
+    max-height: min(42vh, 320px);
+  }
+
+  .pdp-modal__desc {
+    max-height: 160px;
+  }
+
+  .pdp-modal__panel {
+    padding: 16px 14px 14px;
+    border-radius: 16px;
+  }
+
+  .pdp-modal__info h3 {
+    font-size: 1.15rem;
+  }
+
+  .pdp-modal__nav {
+    width: 36px;
+    height: 36px;
+  }
+
+  .pdp-lightbox__nav {
+    width: 42px;
+    height: 42px;
+  }
+
+  .pdp-lightbox__close {
+    width: 44px;
+    height: 44px;
+    font-size: 26px;
+  }
+}

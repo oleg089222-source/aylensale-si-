@@ -1,0 +1,370 @@
+/**
+ * AYLENSALE Design System V2 — Buttons (P0 Step 3)
+ * Maps existing storefront classes to DS variants. No markup/JS changes.
+ * Header chrome (.site-header cart/login) intentionally excluded until Header V2.
+ */
+
+/* ── Shared base ──────────────────────────────────────────────── */
+.btn-action,
+.btn-add,
+.btn-order,
+.hero-btn:not(.site-header .hero-btn),
+.auction-btn,
+.auction-claim-btn,
+.cookie-btn,
+.notify-btn,
+.desc-toggle-btn,
+.footer-link-btn,
+.auction-hub-enter-btn,
+.auction-hub-bid-btn,
+.pdp-modal__btn,
+.vip-btn--gold,
+.vip-btn[data-vip-subscribe],
+button[data-vip-subscribe] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-btn-icon-gap);
+  box-sizing: border-box;
+  font-family: var(--ds-font-family);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  border-style: solid;
+  border-width: 1px;
+  background-image: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition:
+    background-color var(--ds-transition-base),
+    border-color var(--ds-transition-base),
+    color var(--ds-transition-base),
+    opacity var(--ds-transition-base);
+}
+
+.btn-action i,
+.btn-add i,
+.btn-order i,
+.hero-btn i,
+.auction-btn i,
+.auction-claim-btn i,
+.cookie-btn i,
+.vip-btn i {
+  font-size: var(--ds-icon-inline-size);
+  flex-shrink: 0;
+}
+
+.btn-action:disabled,
+.btn-add:disabled,
+.btn-order:disabled,
+.auction-btn:disabled,
+.vip-btn:disabled,
+button[data-vip-subscribe]:disabled {
+  opacity: var(--ds-btn-disabled-opacity);
+  pointer-events: none;
+}
+
+/* ── Primary (commerce) ───────────────────────────────────────── */
+.btn-action.primary,
+.btn-add,
+.btn-order,
+.hero-btn.primary,
+.hero-btn--featured,
+.hero-btn.auctions,
+.hero-hub-primary .hero-btn--featured,
+.hero-hub-primary .hero-btn.auctions,
+.auction-card .auction-btn--bid:not(.auction-btn--bid-gated),
+.cookie-btn.primary,
+.pdp-modal--storefront .pdp-modal__btn--cart,
+.pdp-modal--auction .pdp-modal__btn--bid:not(.pdp-modal__btn--bid-gated),
+.pdp-modal--auction .pdp-modal__btn--bid:not(.pdp-modal__btn--bid-gated) {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: var(--ds-brand) !important;
+  border-color: transparent !important;
+}
+
+.btn-action.primary:hover,
+.btn-add:hover,
+.btn-order:hover,
+.hero-btn.primary:hover,
+.hero-btn--featured:hover,
+.hero-btn.auctions:hover,
+.auction-card .auction-btn--bid:not(.auction-btn--bid-gated):hover,
+.cookie-btn.primary:hover,
+.pdp-modal--storefront .pdp-modal__btn--cart:hover,
+.pdp-modal--auction .pdp-modal__btn--bid:not(.pdp-modal__btn--bid-gated):hover {
+  background: var(--ds-brand-hover) !important;
+}
+
+/* ── Secondary ────────────────────────────────────────────────── */
+.btn-action.secondary,
+.hero-btn.secondary,
+.hero-btn--tool,
+.hero-hub-tools .hero-btn--tool,
+.notify-btn,
+.cookie-btn.secondary,
+.auction-card .auction-card-quick,
+#products .btn-action.product-view-details,
+.pdp-modal--storefront .pdp-modal__btn--ghost,
+.price-list-fold-action {
+  min-height: 2.5rem !important; /* 40px — DS secondary */
+  padding: 0.625rem 1rem !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-sm) !important;
+  font-weight: 600 !important;
+  color: var(--ds-text-secondary) !important;
+  background: transparent !important;
+  border-color: var(--ds-border-strong) !important;
+}
+
+.btn-action.secondary:hover,
+.hero-btn.secondary:hover,
+.hero-btn--tool:hover,
+.notify-btn:hover,
+.cookie-btn.secondary:hover,
+.auction-card .auction-card-quick:hover,
+#products .btn-action.product-view-details:hover,
+.pdp-modal--storefront .pdp-modal__btn--ghost:hover,
+.price-list-fold-action:hover {
+  color: var(--ds-text-primary) !important;
+  border-color: var(--ds-border-strong) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Hero hub grid: keep 44px on featured primary tiles only */
+.hero-hub-primary .hero-btn {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-sm) !important;
+  font-weight: 600 !important;
+  gap: var(--ds-btn-icon-gap) !important;
+}
+
+.hero-hub-primary .hero-btn.secondary {
+  min-height: var(--ds-control-height) !important;
+}
+
+/* ── Ghost / text ─────────────────────────────────────────────── */
+.desc-toggle-btn,
+.footer-link-btn {
+  min-height: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--ds-brand) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  font-weight: 600 !important;
+  justify-content: flex-start;
+}
+
+.desc-toggle-btn:hover,
+.footer-link-btn:hover {
+  color: var(--ds-brand-hover) !important;
+  text-decoration: underline;
+}
+
+/* ── Danger (deposit / gated bid) ─────────────────────────────── */
+.auction-card .auction-btn--deposit:not(.is-done),
+.auction-card .auction-btn--bid-gated,
+.pdp-modal__btn--deposit,
+.pdp-modal__btn--bid-gated {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: var(--ds-danger) !important;
+  border-color: transparent !important;
+}
+
+.auction-card .auction-btn--deposit:not(.is-done):hover,
+.auction-card .auction-btn--bid-gated:hover,
+.pdp-modal__btn--deposit:hover,
+.pdp-modal__btn--bid-gated:hover {
+  background: #dc2626 !important;
+}
+
+/* ── Success (winner claim / deposit paid) ────────────────────── */
+.auction-claim-btn,
+.auction-card .auction-btn--deposit.is-done {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: var(--ds-success) !important;
+  border-color: transparent !important;
+}
+
+.auction-claim-btn:hover,
+.auction-card .auction-btn--deposit.is-done:hover {
+  background: #16a34a !important;
+}
+
+/* Buy-now uses warning semantic (existing flow) */
+.auction-card .auction-btn--buynow,
+.pdp-modal__btn--buynow {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  color: var(--ds-text-inverse) !important;
+  background: var(--ds-warning) !important;
+  border-color: transparent !important;
+}
+
+.auction-card .auction-btn--buynow:hover,
+.pdp-modal__btn--buynow:hover {
+  background: #d97706 !important;
+}
+
+/* ── VIP (gold — no glow, no animation) ───────────────────────── */
+.hero-btn.vip,
+.hero-btn--lead.vip,
+.hero-hub-vip,
+.vip-btn--gold,
+.vip-btn[data-vip-subscribe],
+button[data-vip-subscribe],
+button.vip-btn--gold {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  color: var(--ds-text-inverse) !important;
+  background: var(--ds-vip-gold) !important;
+  border-color: transparent !important;
+  animation: none !important;
+}
+
+.hero-btn.vip:hover,
+.hero-hub-vip:hover,
+.vip-btn--gold:hover,
+.vip-btn[data-vip-subscribe]:hover,
+button[data-vip-subscribe]:hover {
+  background: var(--ds-vip-gold-hover) !important;
+}
+
+/* Auction floor entry — VIP gold CTA */
+.auction-hub-enter-btn {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  color: var(--ds-text-inverse) !important;
+  background: var(--ds-vip-gold) !important;
+  border-color: transparent !important;
+  letter-spacing: normal !important;
+}
+
+.auction-hub-enter-btn:hover {
+  background: var(--ds-vip-gold-hover) !important;
+}
+
+.auction-hub-bid-btn {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: var(--ds-brand) !important;
+  border-color: transparent !important;
+}
+
+/* ── Product card actions: width only (layout unchanged) ──────── */
+#products .product-card-actions .btn-action,
+#products .product-card-footer .btn-action {
+  width: 100%;
+}
+
+/* Win over products-section / compact-guard !important rules */
+#products .product-card-footer .btn-action.primary,
+#products .product-card-actions .btn-action.primary {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  gap: var(--ds-btn-icon-gap) !important;
+  color: #fff !important;
+  background: var(--ds-brand) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  background-image: none !important;
+}
+
+#products .product-card-footer .btn-action.primary:hover,
+#products .product-card-actions .btn-action.primary:hover {
+  background: var(--ds-brand-hover) !important;
+}
+
+#products .product-card-footer .btn-action.secondary,
+#products .product-card-actions .btn-action.secondary,
+#products .product-card-footer .product-view-details {
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-sm) !important;
+  font-weight: 600 !important;
+  gap: var(--ds-btn-icon-gap) !important;
+  color: var(--ds-text-secondary) !important;
+  background: transparent !important;
+  border-color: var(--ds-border-strong) !important;
+  box-shadow: none !important;
+}
+
+#products .product-card-footer .btn-action.secondary:hover,
+#products .product-card-actions .btn-action.secondary:hover,
+#products .product-card-footer .product-view-details:hover {
+  color: var(--ds-text-primary) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.auction-card .auction-btn {
+  width: 100%;
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  gap: var(--ds-btn-icon-gap) !important;
+  box-shadow: none !important;
+  background-image: none !important;
+}
+
+.btn-order {
+  width: 100%;
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  background-image: none !important;
+}
+
+/* ── Override V1 motion on DS buttons ─────────────────────────── */
+.btn-action:hover,
+.btn-add:hover,
+.btn-order:hover,
+.hero-btn:hover,
+.auction-btn:hover,
+.auction-claim-btn:hover,
+.cookie-btn:hover,
+.auction-hub-enter-btn:hover,
+.vip-btn--gold:hover {
+  transform: none !important;
+}

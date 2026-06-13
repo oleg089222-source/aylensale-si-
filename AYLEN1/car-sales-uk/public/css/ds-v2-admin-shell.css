@@ -1,0 +1,110 @@
+/**
+ * AYLENSALE Design System V2 — Admin shell (P2 start)
+ * Login modal + admin toolbar surfaces. No JS / business logic changes.
+ */
+
+#adminLoginModal.modal,
+#adminLoginModal {
+  background: rgba(8, 11, 18, 0.82) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+#adminLoginModal .modal-content {
+  background: var(--ds-modal-bg) !important;
+  color: var(--ds-text-primary) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-modal-radius) !important;
+  box-shadow: var(--ds-modal-shadow) !important;
+  padding: var(--ds-space-6) !important;
+  max-width: 400px !important;
+}
+
+#adminLoginModal .modal-content h2,
+#adminLoginModal .modal-content label {
+  color: var(--ds-text-primary) !important;
+  font-size: var(--ds-text-h2-size) !important;
+  font-weight: var(--ds-text-h2-weight) !important;
+}
+
+#adminLoginModal .modal-content label {
+  display: block;
+  font-size: var(--ds-text-label-size) !important;
+  font-weight: var(--ds-text-label-weight) !important;
+  color: var(--ds-text-secondary) !important;
+  margin: var(--ds-space-3) 0 var(--ds-space-1);
+}
+
+#adminLoginModal #adminUser,
+#adminLoginModal #adminPass {
+  width: 100% !important;
+  min-height: var(--ds-control-height) !important;
+  padding: 0 var(--ds-space-4) !important;
+  margin: 0 0 var(--ds-space-2) !important;
+  font-family: var(--ds-font-family) !important;
+  font-size: var(--ds-text-body-size) !important;
+  color: var(--ds-input-text) !important;
+  background: var(--ds-input-bg) !important;
+  border: 1px solid var(--ds-input-border) !important;
+  border-radius: var(--ds-radius-md) !important;
+  box-sizing: border-box !important;
+}
+
+#adminLoginModal #adminUser:focus,
+#adminLoginModal #adminPass:focus {
+  outline: none !important;
+  border-color: var(--ds-input-border-focus) !important;
+  box-shadow: 0 0 0 var(--ds-focus-ring-width) rgba(232, 69, 106, 0.22) !important;
+}
+
+#adminLoginSubmit {
+  width: 100% !important;
+  min-height: var(--ds-control-height) !important;
+  margin: var(--ds-space-4) 0 var(--ds-space-2) !important;
+  padding: var(--ds-btn-padding-md) !important;
+  background: var(--ds-brand) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-md) !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+#adminLoginSubmit:hover {
+  background: var(--ds-brand-hover) !important;
+}
+
+#adminLoginCancel {
+  width: 100% !important;
+  min-height: var(--ds-control-height-sm) !important;
+  margin: 0 !important;
+  padding: var(--ds-btn-padding-sm) !important;
+  background: transparent !important;
+  color: var(--ds-text-secondary) !important;
+  border: 1px solid var(--ds-border-strong) !important;
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-btn-font-sm) !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+
+#adminLoginCancel:hover {
+  color: var(--ds-text-primary) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+#adminToolbar.admin-toolbar,
+.admin-toolbar {
+  background: var(--ds-bg-elevated) !important;
+  border-bottom: 1px solid var(--ds-border-subtle) !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+}
+
+#adminToolbar .admin-toolbar-btn,
+.admin-toolbar button {
+  border-radius: var(--ds-radius-md) !important;
+  font-size: var(--ds-text-label-size) !important;
+  font-weight: 600 !important;
+}

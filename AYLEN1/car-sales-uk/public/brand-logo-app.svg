@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AYLENSALE">
+  <defs>
+    <linearGradient id="bgBase" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#161d28"/>
+      <stop offset="55%" stop-color="#0c1018"/>
+      <stop offset="100%" stop-color="#070a14"/>
+    </linearGradient>
+    <pattern id="brush" width="512" height="3" patternUnits="userSpaceOnUse">
+      <rect width="512" height="3" fill="#0a0e16"/>
+      <line x1="0" y1="1.5" x2="512" y2="1.5" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+      <line x1="0" y1="0.5" x2="512" y2="0.5" stroke="#000000" stroke-opacity="0.35" stroke-width="0.5"/>
+    </pattern>
+    <linearGradient id="metal" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="38%" stop-color="#d4dde8"/>
+      <stop offset="72%" stop-color="#8fa0b5"/>
+      <stop offset="100%" stop-color="#5f6f82"/>
+    </linearGradient>
+    <linearGradient id="metalShadow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3d4a5c"/>
+      <stop offset="100%" stop-color="#1a2230"/>
+    </linearGradient>
+    <linearGradient id="wordmark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="45%" stop-color="#c5d0de"/>
+      <stop offset="100%" stop-color="#7d8fa3"/>
+    </linearGradient>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <clipPath id="round">
+      <rect width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="512" height="512" fill="url(#bgBase)"/>
+    <rect width="512" height="512" fill="url(#brush)"/>
+    <g transform="translate(256 198) scale(4.35)" filter="url(#drop)">
+      <path fill="url(#metalShadow)" d="M0.6 -18.2 L14.8 18.4 H9.2 L5.9 6.2 H-5.1 L-8.4 18.4 H-13.8 L0.6 -18.2 Z M-3.3 0.2 H4.3 L0.5 -9.6 Z" transform="translate(0.8 1.2)"/>
+      <path fill="url(#metal)" d="M0 -19 L14 19 H8.4 L5 6.8 H-5 L-8.4 19 H-14 L0 -19 Z M-4 0 H4 L0 -10 Z"/>
+      <path fill="none" stroke="#eef4fc" stroke-width="1.35" stroke-linecap="round" d="M-11.5 14.5 C-1.5 -4.5 10.5 -6.5 16.5 1.5"/>
+      <circle cx="-11.5" cy="14.5" r="1.15" fill="#f8fafc"/>
+    </g>
+    <text x="256" y="392" text-anchor="middle" fill="url(#wordmark)" font-family="Inter, Arial, Helvetica, sans-serif" font-size="52" font-weight="800" letter-spacing="0.22em">AYLENSALE</text>
+  </g>
+</svg>

@@ -1,0 +1,50 @@
+/**
+ * Tablet (769–1024px): compact hero + 2-col catalog, CLS-safe reserves.
+ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .hero-title-full {
+    display: none !important;
+  }
+
+  .hero-title-short {
+    display: block !important;
+  }
+
+  #hero.hero-marketplace.hero-phase1,
+  .hero-marketplace.hero-phase1 {
+    height: 140px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
+    overflow: hidden !important;
+    contain: layout style;
+  }
+
+  .hero-phase1 .hero-content h2,
+  .hero-phase1 .hero-tagline,
+  .hero-phase1 .hero-actions-hub {
+    display: none !important;
+  }
+
+  #storefrontAboveProducts {
+    min-height: var(--storefront-above-reserved-h, 360px) !important;
+    contain: layout style;
+  }
+
+  #ebayPromoWrap.ebay-promo-wrap {
+    display: block !important;
+    min-height: 92px !important;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  #ebayPromoWrap.ebay-promo-wrap.is-visible,
+  #ebayPromoWrap.ebay-promo-wrap[data-ssr-ebay="1"] {
+    visibility: visible !important;
+    pointer-events: auto;
+  }
+
+  #products #productsGrid.products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+}

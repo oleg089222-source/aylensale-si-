@@ -270,6 +270,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /depositRefundRequests/{requestId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if false;
+    }
+
+    match /auctionSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /auctionProfiles/{profileId} {
+      allow read, write: if false;
+    }
+
+    match /spamGuard/{docId} {
+      allow read, write: if false;
+    }
+
     match /aiAuditLog/{logId} {
       allow read, create: if isAdmin();
       allow update, delete: if false;

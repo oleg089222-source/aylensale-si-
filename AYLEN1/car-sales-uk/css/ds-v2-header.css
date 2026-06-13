@@ -1,0 +1,132 @@
+/**
+ * AYLENSALE Design System V2 — Header (P0 Step 6)
+ * Calm sticky header, desktop nav, search row. No pink-green gradient strip.
+ */
+
+.site-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: var(--ds-z-header, 300) !important;
+  background: rgba(8, 11, 18, 0.96) !important;
+  border-bottom: 1px solid var(--ds-border-subtle) !important;
+  padding-top: env(safe-area-inset-top, 0);
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.site-header .header-shell {
+  max-width: var(--ds-content-max-width);
+  margin: 0 auto;
+  padding: var(--ds-space-2) var(--ds-space-4) var(--ds-space-2);
+  box-sizing: border-box;
+}
+
+/* Replace V1 gradient glass strip with calm surface */
+.site-header .header-top.header-top--unified {
+  background: var(--ds-bg-elevated) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  min-height: var(--ds-control-height) !important;
+  padding: var(--ds-space-2) var(--ds-space-3) !important;
+  margin: var(--ds-space-2) 0 !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.site-header .header-top.header-top--unified::before {
+  display: none !important;
+}
+
+.site-header .logo-text {
+  font-size: var(--ds-text-h3-size) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  color: var(--ds-text-primary) !important;
+}
+
+.site-header .cart-btn {
+  min-width: var(--ds-control-height-sm);
+  min-height: var(--ds-control-height-sm);
+  padding: var(--ds-space-2);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-brand-muted) !important;
+  border: 1px solid rgba(232, 69, 106, 0.28) !important;
+  color: var(--ds-text-primary) !important;
+  box-shadow: none !important;
+}
+
+.site-header .cart-btn:hover {
+  background: rgba(232, 69, 106, 0.2) !important;
+}
+
+/* Desktop nav row */
+@media (min-width: 769px) {
+  .site-header nav.header-nav {
+    display: flex !important;
+    align-items: center;
+    gap: var(--ds-space-1);
+    padding: 0 0 var(--ds-space-2);
+    border-bottom: 1px solid var(--ds-border-subtle);
+    margin-bottom: var(--ds-space-2);
+  }
+
+  .site-header .header-nav .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ds-space-2);
+    padding: var(--ds-space-2) var(--ds-space-3);
+    border-radius: var(--ds-radius-md);
+    font-size: var(--ds-text-body-sm-size);
+    font-weight: 600;
+    color: var(--ds-text-secondary);
+    text-decoration: none;
+    transition:
+      color var(--ds-transition-base),
+      background-color var(--ds-transition-base);
+  }
+
+  .site-header .header-nav .nav-link:hover,
+  .site-header .header-nav .nav-link.is-active {
+    color: var(--ds-text-primary);
+    background: var(--ds-bg-surface);
+  }
+
+  .site-header .header-nav .nav-link--vip {
+    color: var(--ds-vip-text);
+  }
+
+  .site-header .header-nav .nav-link--vip:hover {
+    background: var(--ds-vip-muted);
+    color: var(--ds-vip-text);
+  }
+
+  .site-header .header-nav .nav-link i {
+    font-size: var(--ds-icon-inline-size);
+    opacity: 0.85;
+  }
+
+  .site-header .nav-vip-badge {
+    font-size: var(--ds-text-overline-size);
+    font-weight: var(--ds-text-overline-weight);
+    letter-spacing: var(--ds-text-overline-tracking);
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: var(--ds-radius-sm);
+    background: var(--ds-vip-muted);
+    color: var(--ds-vip-gold);
+  }
+}
+
+@media (max-width: 768px) {
+  .site-header .header-shell {
+    padding: var(--ds-space-1) var(--ds-space-3);
+  }
+
+  .site-header .header-top.header-top--unified {
+    margin: var(--ds-space-1) 0 !important;
+    border-radius: var(--ds-radius-md) !important;
+  }
+}

@@ -1,0 +1,117 @@
+/**
+ * AYLENSALE Design System V2 — Modals (P0 Step 5)
+ * Dark cart/checkout/cookie modals — overrides inline critical + legacy neon.
+ */
+
+.modal {
+  background: rgba(8, 11, 18, 0.78) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: var(--ds-z-modal, 1200) !important;
+}
+
+.modal .modal-content {
+  background: var(--ds-modal-bg) !important;
+  color: var(--ds-text-primary) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-modal-radius) !important;
+  box-shadow: var(--ds-modal-shadow) !important;
+  padding: var(--ds-space-6) !important;
+}
+
+.modal-content h2,
+.modal-content h3,
+.modal-content h4,
+.modal-content label,
+.modal-content p,
+.modal-content span,
+.modal-content .cart-total-label {
+  color: var(--ds-text-primary) !important;
+}
+
+.modal .close {
+  color: var(--ds-text-secondary) !important;
+  border-radius: var(--ds-radius-full);
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--ds-transition-base);
+}
+
+.modal .close:hover {
+  color: var(--ds-text-primary) !important;
+  background: var(--ds-brand-muted);
+}
+
+/* Cart summary — calm success, no neon */
+#cartModal .cart-summary,
+.modal#cartModal .cart-summary {
+  background: var(--ds-success-muted) !important;
+  border: 1px solid rgba(34, 197, 94, 0.22) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+#cartModal .cart-summary-row--savings .cart-summary-value,
+.modal#cartModal .cart-summary-row--savings .cart-summary-value,
+#cartModal .cart-item-price-your,
+.modal#cartModal .cart-item-price-your {
+  color: var(--ds-success) !important;
+}
+
+#cartModal .cart-total #cartTotal,
+.modal#cartModal .cart-total #cartTotal {
+  color: var(--ds-success) !important;
+  font-size: var(--ds-text-price-lg-size) !important;
+}
+
+#cartModal .cart-item-qty button,
+.modal#cartModal .cart-item-qty button {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-strong) !important;
+  color: var(--ds-text-primary) !important;
+  min-width: var(--ds-control-height-sm) !important;
+  min-height: var(--ds-control-height-sm) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+#cartModal .cart-item-qty button:hover,
+.modal#cartModal .cart-item-qty button:hover {
+  border-color: var(--ds-brand) !important;
+  background: var(--ds-bg-overlay) !important;
+}
+
+#cartModal .cart-item,
+.modal#cartModal .cart-item {
+  border-bottom-color: var(--ds-border-subtle) !important;
+}
+
+#cartModal .cart-item-price,
+.modal#cartModal .cart-item-price {
+  color: var(--ds-text-secondary) !important;
+}
+
+/* Cookie consent */
+#cookieConsent.cookie-consent {
+  background: var(--ds-bg-elevated) !important;
+  border-top: 1px solid var(--ds-border-subtle) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+#cookieConsent .cookie-consent-inner {
+  color: var(--ds-text-secondary);
+}
+
+#cookieConsent a {
+  color: var(--ds-info);
+}
+
+/* Notifications */
+.notification.success {
+  background: var(--ds-success) !important;
+}
+
+.notification.error {
+  background: var(--ds-brand) !important;
+}

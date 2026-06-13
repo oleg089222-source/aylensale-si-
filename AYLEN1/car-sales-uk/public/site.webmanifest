@@ -1,0 +1,27 @@
+{
+  "name": "AYLENSALE UK Marketplace",
+  "short_name": "AYLENSALE",
+  "description": "Amazon returns, wholesale electronics and UK car boot pickup deals.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070a14",
+  "theme_color": "#070a14",
+  "lang": "en-GB",
+  "categories": ["shopping", "business"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/og-image.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

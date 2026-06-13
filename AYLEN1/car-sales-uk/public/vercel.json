@@ -1,0 +1,321 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "crons": [
+    {
+      "path": "/api/auction-tick",
+      "schedule": "0 4 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(self), microphone=(self), geolocation=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-site" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://www.google-analytics.com https://www.googletagmanager.com; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com https://firebasestorage.googleapis.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; upgrade-insecure-requests"
+        }
+      ]
+    },
+    {
+      "source": "/(favicon\\.svg|og-image\\.svg|site\\.webmanifest|robots\\.txt|sitemap\\.xml)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "source": "/css/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/js/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/:path*\\.(js|css|woff2|webp|png|svg|ico|jpeg|jpg)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/data/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/api/image-thumb",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/api/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "CDN-Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/(.*\\.html)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" },
+        { "key": "CDN-Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/vip-stock", "destination": "/vip-stock.html" },
+    { "source": "/vip-member-preview", "destination": "/vip-member-preview.html" },
+    { "source": "/vip-live-preview", "destination": "/vip-live-preview.html" }
+  ],
+  "routes": [
+    {
+      "src": "/js/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "CDN-Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/css/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "CDN-Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/data/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "CDN-Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/(.*\\.(woff2|webp|png|svg|ico|jpeg|jpg))",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "CDN-Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/sw.js",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      },
+      "continue": true
+    },
+    {
+      "src": "/api/stripe-webhook",
+      "dest": "/api/vip?action=webhook"
+    },
+    {
+      "src": "/api/stripe-create-checkout",
+      "dest": "/api/vip?action=checkout"
+    },
+    {
+      "src": "/api/vip-config",
+      "dest": "/api/vip?action=config"
+    },
+    {
+      "src": "/api/vip-admin-panel",
+      "dest": "/api/vip?action=admin-panel"
+    },
+    {
+      "src": "/api/vip-admin-member-preview",
+      "dest": "/api/vip?action=admin-member-preview"
+    },
+    {
+      "src": "/api/vip-status",
+      "dest": "/api/vip?action=status"
+    },
+    {
+      "src": "/api/vip-portal",
+      "dest": "/api/vip?action=portal"
+    },
+    {
+      "src": "/api/vip-verify-checkout",
+      "dest": "/api/vip?action=verify"
+    },
+    {
+      "src": "/api/vip-order",
+      "dest": "/api/vip?action=create-order"
+    },
+    {
+      "src": "/api/vip-orders",
+      "dest": "/api/vip?action=member-orders"
+    },
+    {
+      "src": "/api/vip-admin-order",
+      "dest": "/api/vip?action=admin-order-update"
+    },
+    {
+      "src": "/api/vip-admin-stock",
+      "dest": "/api/vip?action=admin-stock"
+    },
+    {
+      "src": "/api/admin-media-upload",
+      "dest": "/api/vip?action=admin-media-upload"
+    },
+    {
+      "src": "/api/vip-magic-link",
+      "dest": "/api/vip?action=magic-link-request"
+    },
+    {
+      "src": "/api/vip-magic-redeem",
+      "dest": "/api/vip?action=magic-link-redeem"
+    },
+    {
+      "src": "/api/vip-item-checkout",
+      "dest": "/api/vip?action=vip-item-checkout"
+    },
+    {
+      "src": "/api/vip-item-verify",
+      "dest": "/api/vip?action=vip-item-verify"
+    },
+    {
+      "src": "/api/vip-item-view",
+      "dest": "/api/vip?action=vip-item-view"
+    },
+    {
+      "src": "/api/vip-auction-bid",
+      "dest": "/api/vip?action=vip-auction-bid"
+    },
+    {
+      "src": "/api/manifest",
+      "dest": "/api/admin-branding"
+    },
+    {
+      "src": "/api/spam-config",
+      "dest": "/api/spam?action=config"
+    },
+    {
+      "src": "/api/notify-request",
+      "dest": "/api/spam?action=notify-request"
+    },
+    {
+      "src": "/api/process-restock-notify",
+      "dest": "/api/spam?action=process-restock-notify"
+    },
+    {
+      "src": "/api/auction-bid",
+      "dest": "/api/spam?action=auction-bid"
+    },
+    {
+      "src": "/api/auction-deposit-verify",
+      "dest": "/api/spam?action=auction-deposit-verify"
+    },
+    {
+      "src": "/api/auction-deposit-config",
+      "dest": "/api/spam?action=auction-deposit-config"
+    },
+    {
+      "src": "/api/auction-deposit-status",
+      "dest": "/api/spam?action=auction-deposit-status"
+    },
+    {
+      "src": "/api/auction-refund-request",
+      "dest": "/api/spam?action=auction-refund-request"
+    },
+    {
+      "src": "/api/auction-deposit",
+      "dest": "/api/spam?action=auction-deposit"
+    },
+    {
+      "src": "/api/auction-buy-now",
+      "dest": "/api/spam?action=auction-buy-now"
+    },
+    {
+      "src": "/api/auction-payment-config",
+      "dest": "/api/spam?action=auction-payment-config"
+    },
+    {
+      "src": "/api/auction-winner-payment",
+      "dest": "/api/spam?action=auction-winner-payment"
+    },
+    {
+      "src": "/api/auction-payment-verify",
+      "dest": "/api/spam?action=auction-payment-verify"
+    },
+    {
+      "src": "/api/loyalty",
+      "dest": "/api/spam?action=loyalty"
+    },
+    {
+      "src": "/api/auction-engine",
+      "dest": "/api/spam?action=auction-engine"
+    },
+    {
+      "src": "/api/auction-tick",
+      "dest": "/api/spam?action=auction-engine&sub=tick"
+    },
+    {
+      "src": "/api/storage-resize",
+      "dest": "/api/spam?action=storage-resize"
+    },
+    {
+      "src": "/api/storage-orphans",
+      "dest": "/api/spam?action=storage-orphans"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/vip-stock",
+      "dest": "/vip-stock.html"
+    },
+    {
+      "src": "/(.*\\..*)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/.*",
+      "headers": {
+        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+        "CDN-Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"
+      },
+      "dest": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/ai-admin.js": {
+      "maxDuration": 60
+    }
+  }
+}

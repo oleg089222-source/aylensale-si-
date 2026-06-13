@@ -1,0 +1,227 @@
+/**
+ * Auction Card V2 — visual layer only (P1)
+ * Calmer badges, compact timer, deposit/bid CTAs unchanged.
+ */
+
+.auction-card {
+  background: var(--ds-bg-elevated) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+  overflow: hidden;
+  transition:
+    box-shadow var(--ds-transition-base),
+    border-color var(--ds-transition-base);
+}
+
+.auction-card:hover {
+  box-shadow: var(--ds-shadow-md) !important;
+  border-color: var(--ds-border-strong) !important;
+}
+
+.auction-card .auction-header {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: var(--ds-space-1);
+  padding: var(--ds-space-2) var(--ds-space-3) 0 !important;
+  font-size: var(--ds-text-overline-size) !important;
+  font-weight: var(--ds-text-overline-weight) !important;
+  letter-spacing: var(--ds-text-overline-tracking);
+  text-transform: uppercase;
+  color: var(--ds-text-muted) !important;
+  background: transparent !important;
+}
+
+.auction-card .auction-header span:first-child {
+  color: #fecaca !important;
+  background: var(--ds-danger-muted);
+  padding: 3px 8px;
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.auction-card .auction-header .auction-badge {
+  font-size: var(--ds-text-caption-size) !important;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 600;
+  color: var(--ds-text-muted) !important;
+}
+
+.auction-card .auction-image {
+  aspect-ratio: 16 / 10 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  position: relative;
+  margin: var(--ds-space-2) var(--ds-space-3) 0 !important;
+  border-radius: var(--ds-radius-md) !important;
+  overflow: hidden;
+  background: var(--ds-bg-surface) !important;
+}
+
+.auction-card .auction-image img,
+.auction-card .auction-image .auction-card-img {
+  object-fit: cover !important;
+}
+
+.auction-card .auction-photo-count {
+  top: var(--ds-space-2) !important;
+  right: var(--ds-space-2) !important;
+  bottom: auto !important;
+  font-size: var(--ds-text-caption-size) !important;
+  padding: 3px 7px !important;
+  border-radius: var(--ds-radius-sm) !important;
+  background: rgba(8, 11, 18, 0.72) !important;
+  border: 1px solid var(--ds-border-subtle);
+}
+
+.auction-card .auction-status {
+  font-size: var(--ds-text-overline-size) !important;
+  font-weight: var(--ds-text-overline-weight) !important;
+  letter-spacing: var(--ds-text-overline-tracking);
+  border-radius: var(--ds-radius-sm) !important;
+  padding: 3px 8px !important;
+}
+
+.auction-card .auction-countdown-overlay,
+.auction-card .auction-image .auction-timer-overlay {
+  border-radius: 0 0 var(--ds-radius-md) var(--ds-radius-md) !important;
+  background: rgba(8, 11, 18, 0.82) !important;
+}
+
+.auction-card .auction-info {
+  padding: var(--ds-space-3) !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.auction-card .auction-title {
+  font-size: var(--ds-text-h3-size) !important;
+  font-weight: var(--ds-text-h3-weight) !important;
+  color: var(--ds-text-primary) !important;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.auction-card .auction-desc {
+  display: none !important;
+}
+
+.auction-card .auction-price-section {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-md) !important;
+  padding: var(--ds-space-3) !important;
+  margin: 0 !important;
+}
+
+.auction-card .auction-current-price {
+  font-size: var(--ds-text-price-size) !important;
+  font-weight: var(--ds-text-price-weight) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+.auction-card .auction-price-label,
+.auction-card .auction-bids {
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-caption-size) !important;
+}
+
+.auction-card .auction-timer {
+  background: var(--ds-bg-surface) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  border-radius: var(--ds-radius-md) !important;
+  padding: var(--ds-space-2) var(--ds-space-3) !important;
+  margin: 0 !important;
+}
+
+.auction-card .timer-display {
+  color: var(--ds-text-primary) !important;
+  font-weight: 700 !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+}
+
+.auction-card .timer-label {
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-caption-size) !important;
+}
+
+/* Hide bid amount input on card — deposit / place bid buttons remain */
+.auction-card .bid-input-section input[type="number"] {
+  display: none !important;
+}
+
+.auction-card .bid-input-section {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.auction-card .auction-card-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.auction-card .auction-card-quick {
+  margin-top: var(--ds-space-2) !important;
+  min-height: auto !important;
+  padding: var(--ds-space-2) 0 0 !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-body-sm-size) !important;
+  font-weight: 600 !important;
+  width: 100%;
+  justify-content: center;
+}
+
+.auction-card .auction-card-quick:hover {
+  color: var(--ds-brand) !important;
+  background: transparent !important;
+}
+
+.auctions-section-head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.auctions-live-meta .auctions-live-pill {
+  font-size: var(--ds-text-overline-size);
+  font-weight: var(--ds-text-overline-weight);
+  letter-spacing: var(--ds-text-overline-tracking);
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-danger-muted);
+  color: #fecaca;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+@media (min-width: 769px) {
+  #auctionsGrid.auctions-rail {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: var(--ds-grid-gutter) !important;
+  }
+
+  #auctionsGrid.auctions-rail .auction-card {
+    flex: none !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #auctionsGrid.auctions-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: var(--ds-grid-gutter) !important;
+  }
+
+  .auction-card .auction-info {
+    padding: var(--ds-space-2) !important;
+  }
+}

@@ -1,0 +1,186 @@
+/**
+ * AYLENSALE Design System V2 — Forms (P0 Step 4)
+ * Inputs, selects, search, catalog toolbar, header Card # field.
+ */
+
+/* ── Shared control base ──────────────────────────────────────── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]),
+select,
+textarea,
+.catalog-search,
+.catalog-select,
+.header-card-access__field input,
+.modal-content input,
+.modal-content select,
+.modal-content textarea,
+#orderForm input,
+#orderForm select,
+#orderForm textarea {
+  font-family: var(--ds-font-family);
+  font-size: var(--ds-text-body-size);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ds-input-text);
+  background: var(--ds-input-bg);
+  border: 1px solid var(--ds-input-border);
+  border-radius: var(--ds-radius-md);
+  box-sizing: border-box;
+  transition:
+    border-color var(--ds-transition-base),
+    box-shadow var(--ds-transition-base);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select,
+.catalog-search,
+.catalog-select,
+.header-card-access__field input,
+.modal-content input,
+.modal-content select,
+#orderForm input,
+#orderForm select {
+  min-height: var(--ds-control-height);
+  padding: 0 var(--ds-space-4);
+}
+
+textarea,
+.modal-content textarea,
+#orderForm textarea {
+  min-height: 5rem;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ds-input-placeholder);
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.catalog-search:focus,
+.catalog-select:focus {
+  outline: none;
+  border-color: var(--ds-input-border-focus);
+  box-shadow: 0 0 0 var(--ds-focus-ring-width) rgba(232, 69, 106, 0.22);
+}
+
+/* ── Catalog toolbar ──────────────────────────────────────────── */
+#products .catalog-toolbar {
+  margin-bottom: var(--ds-space-4);
+  padding: var(--ds-space-4);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-bg-elevated);
+  border: 1px solid var(--ds-border-subtle);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+#products .catalog-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  align-items: center;
+}
+
+#products .catalog-search {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+#products .catalog-select {
+  flex: 0 1 auto;
+  min-width: 0;
+  cursor: pointer;
+}
+
+#products .catalog-chip {
+  padding: 7px 12px;
+  border-radius: var(--ds-radius-full);
+  border: 1px solid var(--ds-border-subtle);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-label-size);
+  font-weight: var(--ds-text-label-weight);
+  cursor: pointer;
+  transition:
+    background-color var(--ds-transition-base),
+    border-color var(--ds-transition-base),
+    color var(--ds-transition-base);
+}
+
+#products .catalog-chip:hover,
+#products .catalog-chip.is-active {
+  background: var(--ds-brand-muted);
+  border-color: rgba(232, 69, 106, 0.35);
+  color: var(--ds-text-primary);
+}
+
+#products .catalog-meta {
+  margin: var(--ds-space-2) 0 0;
+  font-size: var(--ds-text-caption-size);
+  font-weight: var(--ds-text-label-weight);
+  color: var(--ds-text-muted);
+}
+
+/* ── Header Card # ────────────────────────────────────────────── */
+.site-header .header-card-access__label {
+  font-size: var(--ds-text-caption-size);
+  font-weight: var(--ds-text-label-weight);
+  color: var(--ds-text-muted);
+}
+
+.site-header .header-card-access__field input {
+  background: var(--ds-bg-surface);
+  border-color: var(--ds-border-subtle);
+  font-size: var(--ds-text-body-sm-size);
+}
+
+.site-header .header-card-access__field input::placeholder {
+  color: var(--ds-text-muted);
+}
+
+.site-header .header-card-access__field input:focus {
+  border-color: var(--ds-brand);
+}
+
+@media (max-width: 768px) {
+  .site-header .header-card-access__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .site-header .header-card-access__field input {
+    min-height: var(--ds-control-height-sm);
+    font-size: var(--ds-text-caption-size);
+    padding: 0 var(--ds-space-3);
+  }
+
+  .site-header .header-card-access__field input::placeholder {
+    content: "Card #";
+  }
+}
+
+/* ── Order form labels (checkout modal) ───────────────────────── */
+#orderForm input::placeholder,
+#orderForm textarea::placeholder,
+#orderForm select option[value=""] {
+  color: var(--ds-text-muted);
+}
+
+#orderForm select {
+  cursor: pointer;
+  color: var(--ds-text-primary);
+}
+
+#orderForm select:invalid,
+#orderForm select option[value=""] {
+  color: var(--ds-text-muted);
+}

@@ -1,0 +1,42 @@
+/**
+ * Mobile performance — disable layout-shifting motion, stabilize chrome.
+ */
+@media (max-width: 768px) {
+  #products .product-card,
+  #products .product-card-grid-item,
+  #productsGrid.products-grid--revealed .product-card-grid-item,
+  .reveal-item {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html.motion-ready .reveal-item {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  #cookieConsent.cookie-consent {
+    z-index: 320 !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    pointer-events: none;
+  }
+
+  #cookieConsent.cookie-consent.open {
+    pointer-events: none;
+  }
+
+  #cookieConsent .cookie-consent-panel {
+    pointer-events: auto;
+  }
+
+  .bottom-nav {
+    z-index: 340 !important;
+  }
+
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* horizontal clip handled on html — body overflow breaks sticky header */
+}

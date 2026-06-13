@@ -1,0 +1,405 @@
+/* Shared storefront modals — index + product.html */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9000;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.modal.open {
+  display: flex !important;
+}
+
+.modal-content {
+  background: linear-gradient(180deg, rgba(18, 27, 48, 0.98), rgba(11, 17, 32, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 25px;
+  width: min(94vw, 500px);
+  max-height: min(85vh, 720px);
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+}
+
+.modal-content h2,
+.modal-content h3,
+.modal-content label,
+.modal-content p {
+  color: #fff;
+}
+
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 28px;
+  cursor: pointer;
+  color: #9aa7bd;
+  line-height: 1;
+}
+
+.cart-total {
+  font-size: 18px;
+  font-weight: 900;
+  margin: 14px 0;
+  color: #fff;
+}
+
+.btn-order {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff2f68, #c41e4a);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.aylen-turnstile {
+  min-height: 0;
+  margin: 10px 0 4px;
+  overflow: hidden;
+}
+
+.aylen-turnstile--ready {
+  min-height: 65px;
+}
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cart-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-item-info h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #fff;
+}
+
+.cart-item-price {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.cart-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-item-qty button {
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 47, 104, 0.55);
+  background: #1a2540;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.cart-item-qty button:hover {
+  background: #243352;
+  border-color: #ff2f68;
+}
+
+.cart-item-qty span {
+  min-width: 28px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+}
+
+#cartModal .cart-item-line-total,
+.modal#cartModal .cart-item-line-total {
+  font-weight: 800;
+  color: #fff;
+  min-width: 70px;
+  text-align: right;
+}
+
+#cartModal .cart-item-price-was,
+.modal#cartModal .cart-item-price-was {
+  color: #94a3b8;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+#cartModal .cart-item-price-your,
+.modal#cartModal .cart-item-price-your {
+  color: #00ff88;
+  font-weight: 900;
+}
+
+#cartModal .cart-summary,
+.modal#cartModal .cart-summary {
+  margin: 12px 0 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.22);
+}
+
+#cartModal .cart-summary-row,
+.modal#cartModal .cart-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+
+#cartModal .cart-summary-row:last-child,
+.modal#cartModal .cart-summary-row:last-child {
+  margin-bottom: 0;
+}
+
+#cartModal .cart-summary-row--savings .cart-summary-value,
+.modal#cartModal .cart-summary-row--savings .cart-summary-value {
+  color: #00ff88;
+  font-weight: 900;
+}
+
+#cartModal .cart-total,
+.modal#cartModal .cart-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff !important;
+  margin-top: 8px;
+}
+
+#cartModal .cart-total #cartTotal,
+.modal#cartModal .cart-total #cartTotal {
+  color: #00ff88 !important;
+  font-size: 22px;
+}
+
+#cartModal .cart-item-qty button,
+#cartModal .cart-total,
+.modal#cartModal .cart-item-qty button,
+.modal#cartModal .cart-total {
+  color: #fff !important;
+}
+
+#cartModal .cart-item-qty button,
+.modal#cartModal .cart-item-qty button {
+  background: #1a2540 !important;
+  border: 2px solid rgba(255, 47, 104, 0.55) !important;
+}
+
+body.modal-locked {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+/* Admin login — no white storefront flash behind modal (see screenshot bug) */
+html.admin-auth-busy,
+html.admin-auth-busy body,
+body.admin-modal-open {
+  background: #070a14 !important;
+}
+
+body.admin-modal-open .aylen-modal-backdrop,
+body.admin-modal-open .modal {
+  background: rgba(7, 10, 20, 0.94) !important;
+}
+
+/* Hide CMS only when modal opened from storefront (login), not from inside admin panel */
+body.admin-modal-open:not(.aylen-admin-cms-active) #aylenAdminShell.aylen-shell,
+body.admin-modal-open:not(.aylen-admin-cms-active) #aylenAdminShell.aylen-shell.open {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.admin-modal-open .hero-trust-strip,
+body.admin-modal-open #engagementBar,
+body.admin-modal-open #products,
+body.admin-modal-open #auctions,
+body.admin-modal-open #pickup,
+body.admin-modal-open #newArrivalsSection,
+body.admin-modal-open #ebayPromoWrap,
+body.admin-modal-open .site-footer,
+body.admin-modal-open .bottom-nav,
+body.admin-modal-open .contact-float,
+body.admin-modal-open .contact-float-backdrop {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html.admin-auth-busy .hero-trust-strip,
+html.admin-auth-busy #engagementBar,
+html.admin-auth-busy #products,
+html.admin-auth-busy #auctions,
+html.admin-auth-busy #pickup,
+html.admin-auth-busy #newArrivalsSection,
+html.admin-auth-busy #ebayPromoWrap,
+html.admin-auth-busy .site-footer,
+html.admin-auth-busy .bottom-nav,
+html.admin-auth-busy .contact-float,
+html.admin-auth-busy .contact-float-backdrop {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.admin-auth-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10350;
+  align-items: center;
+  justify-content: center;
+  background: #070a14;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: all;
+}
+
+.admin-auth-overlay.is-visible {
+  display: flex;
+}
+
+.admin-auth-overlay i {
+  margin-right: 8px;
+  color: #e94560;
+}
+
+.aylen-modal-panel.aylen-admin-login-panel,
+.aylen-modal-panel.modal-content {
+  background: linear-gradient(180deg, rgba(18, 27, 48, 0.98), rgba(11, 17, 32, 0.98)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+.aylen-admin-login-panel .aylen-password-wrap {
+  position: relative;
+  margin: 10px 0;
+}
+
+.aylen-admin-login-panel .aylen-password-input {
+  width: 100%;
+  padding: 12px 44px 12px 12px;
+  border: 1px solid #333;
+  background: #1a1f2e;
+  color: #e0e0e0;
+  border-radius: 5px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.aylen-admin-login-panel .aylen-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aylen-admin-login-panel .aylen-password-toggle:hover,
+.aylen-admin-login-panel .aylen-password-toggle:focus-visible {
+  color: #e94560;
+  background: rgba(233, 69, 96, 0.12);
+  outline: none;
+}
+
+.aylen-admin-login-panel .aylen-admin-login-hint {
+  color: #7887a0;
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0 0 10px;
+  text-align: center;
+}
+
+.aylen-admin-login-panel .aylen-admin-login-hint b {
+  color: #aab4c8;
+  font-weight: 700;
+}
+
+body.storefront-modal-open .bottom-nav {
+  z-index: 50;
+}
+
+@media (max-width: 768px) {
+  .modal {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  z-index: 12000;
+  display: none;
+}
+
+.notification.success {
+  background: #00cc66;
+  display: block;
+}
+
+.notification.error {
+  background: #e94560;
+  display: block;
+}

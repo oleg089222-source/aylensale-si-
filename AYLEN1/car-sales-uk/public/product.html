@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en-GB" class="product-page-root">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{localStorage.removeItem('aylen_theme');document.documentElement.removeAttribute('data-theme');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070a14">
+<title>Product | AYLENSALE</title>
+<meta name="description" content="Product details — AYLENSALE UK warehouse marketplace">
+<style>
+  html.product-page-root, html.product-page-root body { background: #070a14; color: #f8fafc; }
+  .product-page-root body { margin: 0; }
+</style>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/phase-1-hero.css?v=202605293100">
+<link rel="stylesheet" href="css/storefront-header-brand.css?v=202606063000">
+<link rel="stylesheet" href="css/header-card-bar.css?v=202606081700">
+<link rel="stylesheet" href="css/price-list-cta.css?v=202605298300">
+<link rel="stylesheet" href="css/product-page.css?v=202605293100">
+<link rel="stylesheet" href="css/storefront-modals.css?v=202605298800">
+<link rel="stylesheet" href="css/storefront-polish.css?v=202605293100">
+<link rel="stylesheet" href="css/discount-highlight.css?v=202605293100">
+<link rel="stylesheet" href="css/loyalty-portal.css?v=202606071500">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="css/mobile-marketplace.css?v=202605293100">
+<link rel="stylesheet" href="css/mobile-pwa-ui.css?v=202606063000">
+<link rel="stylesheet" href="css/storefront-layout-fix.css?v=202605293100">
+<link rel="stylesheet" href="css/contact-float.css?v=202605293100">
+<link rel="stylesheet" href="css/font-awesome-storefront.css?v=202605297600" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="css/font-awesome-storefront.css?v=202605297600"></noscript>
+</head>
+<body class="product-page">
+<header class="site-header product-page-header">
+<div class="header-shell">
+<div class="header-top header-top--unified">
+<div class="logo logo-brand">
+<button type="button" class="logo-bolt-btn" id="adminSecretBolt" aria-label="AYLENSALE" tabindex="-1"><i class="fas fa-bolt" aria-hidden="true"></i></button>
+<a href="/" class="logo-text">AYLENSALE</a>
+</div>
+<div class="header-card-bar" id="customerLoginBox">
+<form class="header-card-access login-box" onsubmit="event.preventDefault(); loginCard();" novalidate>
+<i class="fas fa-ticket header-card-access__icon-inline" aria-hidden="true"></i>
+<div class="header-card-access__field">
+<label class="header-card-access__label" for="cardNumber">Code from your visit card</label>
+<input type="text" id="cardNumber" placeholder="Your visit card code — Enter" aria-label="Card number from your visit card" autocomplete="off" maxlength="32" inputmode="text" autocapitalize="characters">
+</div>
+<button type="button" id="cardLogoutBtn" class="header-card-access__exit" hidden onclick="logout()" aria-label="Remove discount code"><span class="header-card-access__exit-x" aria-hidden="true">&times;</span><span class="header-card-access__exit-label">Exit</span></button>
+</form>
+</div>
+<div class="header-tools">
+<button type="button" class="cart-btn cart-btn--dock cart-btn--empty" onclick="openCart()" aria-label="Open cart">
+<i class="fas fa-shopping-cart" aria-hidden="true"></i>
+<span class="cart-btn__badge" id="cartCount">0</span>
+</button>
+</div>
+</div>
+<nav class="header-nav" aria-label="Main">
+<a href="/#products" class="nav-link active"><i class="fas fa-box"></i> Products</a>
+<a href="/#auctions" class="nav-link"><i class="fas fa-gavel"></i> Auctions</a>
+<a href="/#pickup" class="nav-link"><i class="fas fa-map-marker-alt"></i> Pickup</a>
+<a href="/vip-stock.html" class="nav-link nav-link--vip" target="_blank" rel="noopener noreferrer"><i class="fas fa-crown"></i><span>VIP</span><span class="nav-vip-badge">Members</span></a>
+</nav>
+</div>
+</header>
+
+<nav class="bottom-nav product-page-bottom-nav" aria-label="Quick navigation">
+<a href="/#products"><i class="fas fa-box"></i><span>Products</span></a>
+<a href="/#auctions"><i class="fas fa-gavel"></i><span>Auctions</span></a>
+<a href="/#pickup"><i class="fas fa-location-dot"></i><span>Pickup</span></a>
+<a href="/vip-stock.html" class="bottom-nav-vip" target="_blank" rel="noopener noreferrer"><i class="fas fa-crown"></i><span>VIP</span></a>
+</nav>
+
+<main class="product-page-main">
+<nav class="product-page-breadcrumb" aria-label="Breadcrumb">
+<a href="/"><i class="fas fa-home"></i> Home</a>
+<span aria-hidden="true">/</span>
+<a href="/#products">Products</a>
+<span aria-hidden="true">/</span>
+<span id="productBreadcrumbName">Product</span>
+</nav>
+<div id="productPageRoot" class="product-page-root">
+<div class="product-page-skeleton" aria-hidden="true">
+<div class="product-page-skel-gallery"></div>
+<div class="product-page-skel-body">
+<div class="product-page-skel-line w80"></div>
+<div class="product-page-skel-line w60"></div>
+<div class="product-page-skel-line w40"></div>
+<div class="product-page-skel-line w60"></div>
+</div>
+</div>
+</div>
+</main>
+
+<div id="productStickyBar" class="product-sticky-bar" aria-hidden="true">
+<span class="product-sticky-price">—</span>
+<button type="button" class="btn-action primary" data-sticky-add><i class="fas fa-cart-plus"></i> Add to Cart</button>
+</div>
+
+<div class="modal" id="cartModal"><div class="modal-content"><span class="close" onclick="closeCart()">&times;</span><h2><i class="fas fa-shopping-cart"></i> Your Cart</h2><div id="cartItems"></div>
+<div id="cartSummary" class="cart-summary" aria-live="polite"></div>
+<div class="cart-total"><span class="cart-total-label">Your total</span> <span id="cartTotal">£0.00</span></div><button type="button" class="btn-order" onclick="openCheckout()"><i class="fas fa-check"></i> Order</button></div></div>
+
+<div class="modal" id="checkoutModal"><div class="modal-content"><span class="close" onclick="closeCheckout()">&times;</span><h2><i class="fas fa-clipboard-list"></i> Order</h2><form id="orderForm" onsubmit="sendOrder(event)"><input type="text" id="orderWebsite" data-honeypot="true" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0" value=""><input type="hidden" id="orderFormStartedAt" value=""><input type="text" id="custName" placeholder="Your Name" required><input type="tel" id="custPhone" placeholder="Phone" required><select id="custPickup"><option value="">-- Select Pickup Point --</option></select><textarea id="custComment" placeholder="Comment" rows="2"></textarea><div id="orderTurnstile" class="aylen-turnstile" aria-hidden="true"></div><button type="submit" class="btn-order"><i class="fas fa-paper-plane"></i> Send Order</button></form></div></div>
+
+<div id="notification" class="notification"></div>
+
+<div class="contact-float-backdrop" id="contactFloatBackdrop" aria-hidden="true"></div>
+<div class="contact-float contact-float--support" id="contactFloat" aria-label="Support contact">
+<button type="button" class="contact-float-fab" id="contactFloatFab" aria-expanded="false" aria-controls="contactFloatMenu" aria-label="Message — choose Telegram or WhatsApp">
+<i class="fas fa-comment-dots" aria-hidden="true"></i><span class="contact-float-fab-label">Message</span>
+</button>
+<div class="contact-float-menu" id="contactFloatMenu" role="menu" aria-label="Choose how to message us">
+<a class="contact-float-btn contact-float-btn--telegram contact-float-btn--compact" href="https://t.me/OOY999" target="_blank" rel="noopener noreferrer" role="menuitem" aria-label="Telegram support">
+<span class="contact-float-icon" aria-hidden="true"><i class="fab fa-telegram"></i></span>
+<span class="contact-float-text">
+<span class="contact-float-label">Oleg Support</span>
+<span class="contact-float-meta contact-float-meta--desktop">+44 7471 647771 · @OOY999</span>
+</span>
+</a>
+<a class="contact-float-btn contact-float-btn--whatsapp contact-float-btn--compact" href="https://wa.me/447471647771" target="_blank" rel="noopener noreferrer" role="menuitem" aria-label="WhatsApp support">
+<span class="contact-float-icon" aria-hidden="true"><i class="fab fa-whatsapp"></i></span>
+<span class="contact-float-text">
+<span class="contact-float-label">Message on WhatsApp</span>
+<span class="contact-float-meta contact-float-meta--desktop">+44 7471 647771</span>
+</span>
+</a>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyBpnzLxvk3uGQL-8jOIqQ_M_gTlh0a4mqg",
+    authDomain: "aylensale.firebaseapp.com",
+    projectId: "aylensale",
+    storageBucket: "aylensale.firebasestorage.app",
+    messagingSenderId: "554559570562",
+    appId: "1:554559570562:web:714d322ab781b4314cea9b",
+    measurementId: "G-8XWD4DQFDX"
+  };
+</script>
+
+<script src="js/site-config.js?v=202605191200"></script>
+<script src="js/site-defaults.js?v=202605191200"></script>
+<script src="js/site-content.js?v=202605191200"></script>
+<script src="js/runtime-env.js?v=202605212000"></script>
+<script src="js/config.js?v=202605182020"></script>
+<script src="js/listing-policies.js?v=202605192000"></script>
+<script src="js/production-store.js?v=202605192000"></script>
+<script src="js/inventory-core.js?v=202605211400"></script>
+<script src="js/firebase-db.js?v=202605299900"></script>
+<script src="js/firebase-catalog.js?v=202605211000"></script>
+<script src="js/image-utils.js?v=202605297000"></script>
+<script src="js/data.js?v=202605299600"></script>
+<script src="js/perf-mode.js?v=202605211000"></script>
+<script src="js/modal-manager.js?v=202605220300"></script>
+<script src="js/scroll-guard.js?v=202605292700"></script>
+<script src="js/security.js?v=202605182148"></script>
+<script src="js/spam-turnstile.js?v=202605299600"></script>
+<script src="js/compliance.js?v=202605191000"></script>
+<script src="js/seo.js?v=202605191000"></script>
+<script src="js/product-nav.js?v=202605220200"></script>
+<script src="js/discount-engine.js?v=202605281800"></script>
+<script src="js/loyalty-tiers.js?v=202606071200"></script>
+<script src="js/loyalty-portal.js?v=202606071500"></script>
+<script src="js/mobile-ui.js?v=202605293100"></script>
+<script src="js/app.js?v=202606071500"></script>
+<script src="js/manifest-export.js?v=202606112000"></script>
+<script src="js/product-page.js?v=202605298800"></script>
+<script src="js/admin-session.js?v=202605299900"></script>
+<script src="js/admin-loader.js?v=202606081700"></script>
+<script src="js/admin-gate.js?v=202606063000"></script>
+</body>
+</html>

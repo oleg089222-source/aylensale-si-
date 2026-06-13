@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VIP Member — preview (paid subscriber view)</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="css/pickup-section.css?v=202605292700">
+<link rel="stylesheet" href="css/vip-stock-section.css?v=202605292700">
+<link rel="stylesheet" href="css/vip-glass-hub.css?v=202605292700">
+<link rel="stylesheet" href="css/pdp-modal.css?v=202605292700">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Inter, Arial, sans-serif; background: #070a14; color: #e2e8f0; padding-top: 44px; }
+  .vip-demo-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    padding: 10px 14px; text-align: center; font-size: 13px;
+    background: #14532d; color: #bbf7d0; border-bottom: 1px solid #22c55e;
+  }
+  .vip-demo-bar a { color: #fef08a; margin-left: 12px; }
+</style>
+</head>
+<body class="vip-page">
+<p class="vip-demo-bar">
+  <strong>ДЕМО:</strong> так выглядит UI для оплативших VIP (примерные товары)
+  <a href="/vip-live-preview.html">живой каталог (admin)</a>
+  <a href="/vip-stock.html">без оплаты (замок)</a>
+  <a href="/admin-preview.html#vipmembers">админ VIP</a>
+</p>
+<div class="vip-page-shell">
+  <div class="vip-page-top">
+    <a href="/"><i class="fas fa-arrow-left"></i> Back to shop</a>
+  </div>
+  <div id="vipMemberRoot">
+    <div class="vip-page-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+  </div>
+</div>
+<script>window.AYLEN_VIP_DEMO_MEMBER = true;</script>
+<script src="js/pickup-weather.js?v=202605292700"></script>
+<script src="js/pickup-locations.js?v=202605292700"></script>
+<script src="js/vip-carousel-defaults.js?v=202605292700"></script>
+<script src="js/pdp-modal.js?v=202605292700"></script>
+<script src="js/vip-stock.js?v=202605292700"></script>
+</body>
+</html>

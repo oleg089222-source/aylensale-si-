@@ -1,0 +1,148 @@
+/**
+ * Storefront polish — compact trade code, card layout, PWA standalone sharpness.
+ */
+
+/* Discount code — classic header (130px field + pill ticket button) */
+.customer-login-toggle {
+  display: none !important;
+}
+
+.site-header .login-box {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.site-header .login-box input {
+  width: 130px !important;
+  max-width: 130px !important;
+  flex: 0 0 130px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+.site-header .login-box .login-code-btn,
+.site-header .login-box button.login-code-btn {
+  width: auto !important;
+  min-width: 40px !important;
+  height: auto !important;
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+  border-radius: 999px !important;
+}
+
+.site-header .login-box .login-code-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+}
+
+.site-header .login-box .login-code-btn i {
+  font-size: 14px !important;
+}
+
+.site-header .login-box .login-code-label {
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em;
+}
+
+/* Product cards — sharp eBay-style listing (no frosted glass blur) */
+#products .product-card {
+  min-height: 0 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: linear-gradient(180deg, rgba(18, 27, 48, 0.98), rgba(11, 17, 32, 0.98)) !important;
+}
+
+#products .product-card img,
+#products .product-image-container img {
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  image-rendering: auto;
+}
+
+body.storefront-modal-open #products .product-card,
+body.modal-locked #products .product-card {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+#products .product-card-detail-links {
+  gap: 6px 10px !important;
+}
+
+#products .product-card-link-btn {
+  font-size: 10px !important;
+}
+
+/* Policy modal — clamp long text */
+.product-card-modal-text.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-card-modal-expand {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #ff6b8a;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* PWA / home screen — avoid blurry scaled UI */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    zoom: 1;
+    transform: none !important;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .site-header,
+  .product-card,
+  .hero-marketplace,
+  .modal-content {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .product-card img,
+  .hero-marketplace {
+    image-rendering: auto;
+  }
+}
+
+@media (max-width: 1024px) {
+  #products #productsGrid.products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  #products .product-card {
+    min-height: 0 !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #products #productsGrid.products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+}
