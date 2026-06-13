@@ -120,8 +120,8 @@
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  min-height: var(--aylen-mobile-engagement-h, 92px) !important;
-  max-height: var(--aylen-mobile-engagement-h, 92px) !important;
+    min-height: var(--aylen-mobile-engagement-h, 124px) !important;
+    max-height: var(--aylen-mobile-engagement-h, 124px) !important;
   overflow: hidden !important;
 }
 

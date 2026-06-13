@@ -115,3 +115,29 @@ cd .../car-sales-uk && ./scripts/deploy-prod.sh
 | `npm run verify:auction-full` | SKIP — no env credentials in CI shell |
 
 **P2 follow-up:** Stripe invalid session → 400 in `handleVerify` / `handleVipItemVerify` — **deployed** (`dpl_BHqUMWLgJi9kyx4oqFiLDyKXTP33`).
+
+### Mobile vitrine (390×844, prod)
+
+| Test | Result |
+|------|--------|
+| Header: logo + card + cart | PASS |
+| Bottom nav present | PASS (Products / Auctions / Car Boots) |
+| No floating cart bar | PASS |
+| Footer / legal links | PASS |
+
+### Admin maintenance tools (deployed via `/api/admin-auth` audit)
+
+| Action | Purpose |
+|--------|---------|
+| `scrub-auction-bid-pii` | Strip phone/email from historical `auctions.bids[]` |
+| `cleanup-qa-activity` | Remove QA test rows from `activityFeed` |
+
+CLI: `node scripts/scrub-auction-bid-pii.mjs` (dry-run) / `--apply`
+
+### Still manual
+
+| Item | Status |
+|------|--------|
+| ADM-004 admin overlay | OPEN |
+| Admin B1–B9 | OPEN |
+| Run scrub + cleanup on prod Firestore | OPEN (needs `FIREBASE_SERVICE_ACCOUNT` locally) |

@@ -1,5 +1,6 @@
 /**
  * GET /api/manifest (via rewrite) — dynamic PWA manifest
+ * GET /api/manifest-csv (via rewrite) — B2B manifest CSV download
  * POST /api/admin-branding — preview | save | regenerate
  */
 import { generateIconSet, buffersToDataUrls } from '../lib/server/branding-icons.mjs';
@@ -7,6 +8,7 @@ import { loadBrandingDoc, uploadBrandingBuffers, downloadSourceBuffer } from '..
 import { isAdminConfigured } from '../lib/server/firestore-admin.mjs';
 import { verifyAdminPassword } from '../lib/server/admin-password.mjs';
 import { servePwaManifest } from '../lib/server/pwa-manifest.mjs';
+import { serveManifestCsv } from '../lib/server/manifest-csv-handler.mjs';
 
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -44,6 +46,11 @@ function parseImageBase64(body) {
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
+    const route = String(req.query.__route || '').toLowerCase();
+    const url = String(req.url || '');
+    if (route === 'manifest-csv' || url.indexOf('manifest-csv') !== -1) {
+      return serveManifestCsv(req, res);
+    }
     return servePwaManifest(req, res);
   }
 

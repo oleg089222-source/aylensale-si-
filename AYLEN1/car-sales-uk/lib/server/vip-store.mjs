@@ -9,6 +9,7 @@ import {
   resolveVipPaywallCarousel,
   resolveVipHubCarousel
 } from './vip-carousel-defaults.mjs';
+import { toPublicAuctionBid } from './auction-bid-public.mjs';
 
 export const VIP_STATUSES = {
   ACTIVE: 'active',
@@ -85,22 +86,12 @@ function isAuctionOpenForBids(data) {
     status !== 'collection_booked' && status !== 'collected' && status !== 'ended';
 }
 
-function publicBidderDisplayName(name) {
-  const raw = String(name || 'Bidder').trim();
-  const first = raw.split(/\s+/)[0] || 'Bidder';
-  return first.slice(0, 80);
-}
-
 function mapVipAuctionBidPublic(bid) {
-  const b = bid || {};
-  return {
-    id: String(b.id || ''),
-    amount: Number(b.amount || 0),
-    bidderName: publicBidderDisplayName(b.bidderName || b.bidder),
-    bidderKey: String(b.bidderKey || '').slice(0, 120),
-    timestamp: String(b.timestamp || b.createdAt || ''),
-    source: String(b.source || 'shop').slice(0, 20)
-  };
+  const row = toPublicAuctionBid(bid);
+  row.bidderKey = String(row.bidderKey || '').slice(0, 120);
+  row.timestamp = String(row.timestamp || (bid && bid.createdAt) || '');
+  row.source = String(row.source || 'shop').slice(0, 20);
+  return row;
 }
 
 function normalizeBidderKey(params) {

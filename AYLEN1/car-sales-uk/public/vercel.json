@@ -221,6 +221,10 @@
       "dest": "/api/admin-branding"
     },
     {
+      "src": "/api/manifest-csv",
+      "dest": "/api/admin-branding?__route=manifest-csv"
+    },
+    {
       "src": "/api/spam-config",
       "dest": "/api/spam?action=config"
     },
@@ -312,10 +316,5 @@
       },
       "dest": "/index.html"
     }
-  ],
-  "functions": {
-    "api/ai-admin.js": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }

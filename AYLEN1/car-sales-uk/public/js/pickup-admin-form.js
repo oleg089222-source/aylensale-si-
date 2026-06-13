@@ -566,7 +566,7 @@
       debounce = setTimeout(async function() {
         var items = await searchVenueSuggestions(input.value);
         if (!items.length) {
-          list.innerHTML = '<li style="color:#64748b;cursor:default">No matches — type postcode or full address</li>';
+          list.innerHTML = '<li class="pickup-suggestions__empty">No matches — type postcode or full address</li>';
           showList();
           return;
         }

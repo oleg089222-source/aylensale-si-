@@ -16,6 +16,32 @@ var pendingAuctionCreateId = null;
 var pendingProductCreateId = null;
 var notifyRequestsUnsubscribe = null;
 
+function productGradeOptionsHtml(selected) {
+  var sel = normalizeProductGradeValue(selected);
+  var opts = [
+    { value: '', label: 'Not set' },
+    { value: 'A', label: 'Grade A — like new / sealed' },
+    { value: 'B', label: 'Grade B — light use' },
+    { value: 'C', label: 'Grade C — visible wear' },
+    { value: 'mixed', label: 'Mixed grades' }
+  ];
+  var html = '';
+  for (var i = 0; i < opts.length; i++) {
+    var o = opts[i];
+    html += '<option value="' + o.value + '"' + (sel === o.value ? ' selected' : '') + '>' + o.label + '</option>';
+  }
+  return html;
+}
+
+function normalizeProductGradeValue(grade) {
+  var g = String(grade || '').trim();
+  if (!g) return '';
+  var lower = g.toLowerCase();
+  if (lower === 'a' || lower === 'b' || lower === 'c') return lower.toUpperCase();
+  if (lower === 'mixed') return 'mixed';
+  return '';
+}
+
 function syncAdminModeWithFirebaseAuth(user) {
   var allowed = Boolean(window.FBDB && window.FBDB.isAdmin && window.FBDB.isAdmin());
   adminLoggedIn = allowed;
@@ -77,12 +103,12 @@ function updateAdminAccessVisibility() {
   var isAdmin = !!(window.FBDB && window.FBDB.isAdmin && window.FBDB.isAdmin());
   [headerBtn, mobileBtn, adminAccessDiv].forEach(function(el) {
     if (!el) return;
-    el.style.display = 'none';
+    el.hidden = true;
     el.setAttribute('aria-hidden', 'true');
   });
   if (footerLink) {
     footerLink.hidden = false;
-    footerLink.style.display = 'inline-block';
+    footerLink.removeAttribute('hidden');
     footerLink.textContent = isAdmin ? 'Admin panel' : 'Admin login';
     if (!footerLink._aylenBound) {
       footerLink._aylenBound = true;
@@ -155,20 +181,20 @@ function addAdminModeUI() {
   
   var adminToolbar = document.createElement('div');
   adminToolbar.id = 'adminToolbar';
-  adminToolbar.style.cssText = 'display:flex;gap:8px;align-items:center;padding:0 10px;border-left:1px solid #555';
-  
+  adminToolbar.className = 'admin-toolbar';
+
   adminToolbar.innerHTML = `
-    <span style="color:#e94560;font-size:12px;font-weight:bold">ADMIN</span>
-    <button onclick="AyelenAdminDashboard.open()" style="padding:8px 14px;background:#1a1a2e;color:#fff;border:2px solid #e94560;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold"><i class="fas fa-table-columns"></i> Panel</button>
-    <button onclick="AyelenAdminDashboard.open('orders')" style="padding:8px 12px;background:#fff;color:#0064d2;border:2px solid #0064d2;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold" title="Shop orders"><i class="fas fa-receipt"></i> Orders</button>
-    <button onclick="AyelenAdminDashboard.open('discounts')" style="padding:8px 12px;background:#fff;color:#e94560;border:2px solid #e94560;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold" title="Discount codes for visit cards"><i class="fas fa-ticket"></i> Codes</button>
-    <button onclick="openAddProductModal()" style="padding:8px 12px;background:#00cc66;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold">+ Product</button>
-    <button onclick="openAddLocationModal()" style="padding:8px 12px;background:#00ff88;color:#1a1a2e;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold">+ Location</button>
-    <button id="notifyRequestsBtn" onclick="openNotifyRequestsModal()" style="position:relative;padding:8px 12px;background:#16a085;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold">
-      <i class="fas fa-bell"></i> <span id="notifyRequestsBadge" style="display:none;position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#e94560;color:#fff;font-size:11px;line-height:20px;text-align:center;border:2px solid #1a1a2e">0</span>
+    <span class="admin-toolbar-label">ADMIN</span>
+    <button type="button" class="admin-toolbar-btn admin-toolbar-btn--panel" onclick="AyelenAdminDashboard.open()"><i class="fas fa-table-columns"></i> Panel</button>
+    <button type="button" class="admin-toolbar-btn admin-toolbar-btn--orders" onclick="AyelenAdminDashboard.open('orders')" title="Shop orders"><i class="fas fa-receipt"></i> Orders</button>
+    <button type="button" class="admin-toolbar-btn admin-toolbar-btn--codes" onclick="AyelenAdminDashboard.open('discounts')" title="Discount codes for visit cards"><i class="fas fa-ticket"></i> Codes</button>
+    <button type="button" class="admin-toolbar-btn admin-toolbar-btn--add" onclick="openAddProductModal()">+ Product</button>
+    <button type="button" class="admin-toolbar-btn admin-toolbar-btn--location" onclick="openAddLocationModal()">+ Location</button>
+    <button type="button" id="notifyRequestsBtn" class="admin-toolbar-btn admin-toolbar-btn--notify" onclick="openNotifyRequestsModal()">
+      <i class="fas fa-bell"></i> <span id="notifyRequestsBadge" class="admin-toolbar-badge" hidden>0</span>
     </button>
-    <button onclick="downloadProductionBackup()" style="padding:8px 12px;background:#1d4ed8;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold" title="Backup Firestore JSON">Backup</button>
-    <button onclick="toggleAdminMode()" style="padding:8px 12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold">Exit</button>
+    <button type="button" class="admin-toolbar-btn admin-toolbar-btn--backup" onclick="downloadProductionBackup()" title="Backup Firestore JSON">Backup</button>
+    <button type="button" class="admin-toolbar-btn admin-toolbar-btn--exit" onclick="toggleAdminMode()">Exit</button>
   `;
   
   headerRight.appendChild(adminToolbar);
@@ -509,21 +535,33 @@ function closeAdminModal(modalId) {
   return Promise.resolve();
 }
 
+function closeAdminModal(modalId) {
+  if (window.AYLEN_MODAL) return window.AYLEN_MODAL.close(modalId);
+  var el = document.getElementById(modalId);
+  if (el) el.remove();
+  onAdminModalClosed();
+  return Promise.resolve();
+}
+
+function buildProductPhotoPreviewHtml(images, productId, modalId) {
+  if (!images || !images.length) {
+    return '<span class="aylen-photo-empty">No photos yet</span>';
+  }
+  var html = '';
+  for (var i = 0; i < images.length; i++) {
+    html += '<div class="aylen-photo-thumb">';
+    html += '<img src="' + images[i] + '" alt="" onerror="this.hidden=true">';
+    html += '<button type="button" onclick="removeProductPhoto(' + jsInlineArg(productId) + ',' + i + ',' + jsInlineArg(modalId) + ')">×</button>';
+    html += '</div>';
+  }
+  return html;
+}
+
 function renderEditProductPhotoPreview(product, productId, modalId) {
   var preview = queryInAdminModal('#eprodPhotoPreview');
   if (!preview) return;
   var images = (product && product.images) ? product.images.slice() : [];
-  if (!images.length) {
-    preview.innerHTML = '<span class="aylen-photo-empty">No photos yet</span>';
-    return;
-  }
-  var html = '';
-  for (var i = 0; i < images.length; i++) {
-    html += '<div style="position:relative;width:80px;height:80px;border:1px solid #444;border-radius:5px;overflow:hidden;background:#1a1f2e">';
-    html += '<img src="' + images[i] + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">';
-    html += '<button type="button" style="position:absolute;top:-5px;right:-5px;width:24px;height:24px;background:#e94560;color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:18px" onclick="removeProductPhoto(' + jsInlineArg(productId) + ',' + i + ',' + jsInlineArg(modalId) + ')">×</button></div>';
-  }
-  preview.innerHTML = html;
+  preview.innerHTML = buildProductPhotoPreviewHtml(images, productId, modalId);
   var fileInput = queryInAdminModal('#eprodPhotoInput');
   if (fileInput) fileInput.disabled = images.length >= 20;
 }
@@ -555,22 +593,6 @@ function refreshCatalogAfterProductChange(saved) {
     window.AyelenAdminDashboard.reloadProducts(true);
   }
 }
-
-function refreshCatalogAfterAutoScan(data) {
-  if (!data || !data.savedListing) return;
-  if (data.listingType === 'product') {
-    refreshCatalogAfterProductChange(data.savedListing);
-    return;
-  }
-  if (data.listingType === 'auction' && typeof applyCatalogSnapshot === 'function') {
-    applyCatalogSnapshot('auctions', [data.savedListing], { fromServer: true, merge: true });
-    if (typeof renderAuctions === 'function') renderAuctions();
-    if (window.AyelenAdminDashboard && window.AyelenAdminDashboard.reloadProducts) {
-      window.AyelenAdminDashboard.reloadProducts(false);
-    }
-  }
-}
-window.refreshCatalogAfterAutoScan = refreshCatalogAfterAutoScan;
 
 async function openAddProductModal() {
   if (!(await ensureAdminCanWrite())) return;
@@ -632,6 +654,8 @@ async function openAddProductModal() {
               <input type="number" id="prodStock" placeholder="0" min="0">
             </div>
           </div>
+          <label class="aylen-label" for="prodGrade">Condition grade</label>
+          <select id="prodGrade">${productGradeOptionsHtml('')}</select>
           <label class="aylen-label" for="prodPolicyId">Listing policy *</label>
           <select id="prodPolicyId">${(window.AYLEN_LISTING_POLICIES && window.AYLEN_LISTING_POLICIES.optionsHtml) ? window.AYLEN_LISTING_POLICIES.optionsHtml('') : '<option value="">— Select listing policy —</option>'}</select>
         </div>
@@ -640,7 +664,7 @@ async function openAddProductModal() {
           <h3><i class="fas fa-video"></i> Product video (optional)</h3>
           <label class="aylen-label" for="prodVideoUrl">Video URL (MP4)</label>
           <input type="url" id="prodVideoUrl" placeholder="https://.../video.mp4">
-          <label class="aylen-label" for="prodVideoInput" style="margin-top:8px">Or upload video</label>
+          <label class="aylen-label aylen-label--spaced" for="prodVideoInput">Or upload video</label>
           <input type="file" id="prodVideoInput" accept="video/mp4,video/webm,video/quicktime">
         </div>
         <div class="aylen-form-section">
@@ -817,6 +841,14 @@ async function addProductWithUpload(modalId) {
       }
     }
     var product = await addProductWithPhotos(name, desc, retailPrice, category, imageUrls, stock, wholesalePrice, policyId, productId);
+    var gradeEl = queryInAdminModal('#prodGrade');
+    var grade = gradeEl ? normalizeProductGradeValue(gradeEl.value) : '';
+    if (grade) {
+      product.grade = grade;
+      if (window.FBDB && window.FBDB.updateProduct) {
+        product = await window.FBDB.updateProduct(product.id, Object.assign({}, product, { grade: grade }));
+      }
+    }
     try {
       var videoUrl = await resolveListingVideoUrl(product.id, 'prodVideoUrl', 'prodVideoInput', 'products');
       if (videoUrl) {
@@ -874,16 +906,7 @@ function editProduct(id) {
   if (!product.sku) product.sku = generateSKU(product.name, product.id);
   
   var modalId = 'productEditModal_' + Date.now();
-  var photoHTML = '<span class="aylen-photo-empty">No photos yet</span>';
-  
-  if (product.images && product.images.length > 0) {
-    photoHTML = '';
-    for (var i = 0; i < product.images.length; i++) {
-      photoHTML += '<div style="position:relative;width:80px;height:80px;border:1px solid #444;border-radius:5px;overflow:hidden;background:#1a1f2e">';
-      photoHTML += '<img src="' + product.images[i] + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">';
-      photoHTML += '<button style="position:absolute;top:-5px;right:-5px;width:24px;height:24px;background:#e94560;color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:18px" onclick="removeProductPhoto(' + jsInlineArg(id) + ',' + i + ',' + jsInlineArg(modalId) + ')">×</button></div>';
-    }
-  }
+  var photoHTML = buildProductPhotoPreviewHtml(product.images, id, modalId);
   
   var html = `
     <div id="${modalId}" class="modal">
@@ -914,6 +937,8 @@ function editProduct(id) {
               <input type="text" id="eprodBadge" value="${product.badge}" placeholder="NEW, SALE, HOT">
             </div>
           </div>
+          <label class="aylen-label" for="eprodGrade">Condition grade</label>
+          <select id="eprodGrade">${productGradeOptionsHtml(product.grade || '')}</select>
           <label class="aylen-label" for="eprodPolicyId">Listing policy *</label>
           <select id="eprodPolicyId">${(window.AYLEN_LISTING_POLICIES && window.AYLEN_LISTING_POLICIES.optionsHtml) ? window.AYLEN_LISTING_POLICIES.optionsHtml(product.policyId || product.listingPolicyId || '') : ''}</select>
         </div>
@@ -964,7 +989,7 @@ function editProduct(id) {
           <div class="aylen-form-row">
             <div class="aylen-field">
               <label class="aylen-label" for="eprodSKU">Card number / SKU</label>
-              <input type="text" id="eprodSKU" value="${product.sku}" placeholder="AYLE-XXXXX-NNN" style="font-family:monospace">
+              <input type="text" id="eprodSKU" class="aylen-input-mono" value="${product.sku}" placeholder="AYLE-XXXXX-NNN">
             </div>
             <button type="button" class="aylen-btn aylen-btn-secondary" onclick="generateNewSKU()">Generate</button>
           </div>
@@ -974,7 +999,7 @@ function editProduct(id) {
           <h3><i class="fas fa-video"></i> Product video (optional)</h3>
           <label class="aylen-label" for="eprodVideoUrl">Video URL (MP4) or upload below</label>
           <input type="url" id="eprodVideoUrl" class="aylen-input" value="${product.videoUrl || ''}" placeholder="https://.../video.mp4">
-          <label class="aylen-label" for="eprodVideoInput" style="margin-top:8px">Upload video file</label>
+          <label class="aylen-label aylen-label--spaced" for="eprodVideoInput">Upload video file</label>
           <input type="file" id="eprodVideoInput" accept="video/mp4,video/webm,video/quicktime">
           <p class="aylen-hint-box">Shown on product page gallery. Max ~50MB recommended.</p>
         </div>
@@ -1171,6 +1196,8 @@ async function saveEditProduct(productId, modalId) {
     var stock = parseInt((queryInAdminModal('#eprodStock') || {}).value, 10) || 0;
     var badgeEl = queryInAdminModal('#eprodBadge');
     var badge = badgeEl ? badgeEl.value.trim() : '';
+    var gradeEl = queryInAdminModal('#eprodGrade');
+    var grade = gradeEl ? normalizeProductGradeValue(gradeEl.value) : '';
     var active = (queryInAdminModal('#eprodActive') || {}).value === 'true';
     var discount = parseFloat((queryInAdminModal('#eprodDiscount') || {}).value) || 0;
     var salePrice = parseFloat((queryInAdminModal('#eprodSalePrice') || {}).value) || retailPrice;
@@ -1266,6 +1293,7 @@ async function saveEditProduct(productId, modalId) {
       photos: imageUrls,
       videoUrl: videoUrl,
       badge: badge,
+      grade: grade || null,
       active: active,
       status: active ? 'active' : 'hidden',
       discount: discount,
@@ -1394,7 +1422,7 @@ async function openAddAuctionModal() {
               <input type="number" id="auctVipEarlyHours" value="24" min="0" max="168" step="1">
             </div>
             <div class="aylen-field">
-              <p class="aylen-hint-box" style="margin-top:28px">VIP members can bid during early access. Public sees the lot after this window. Auction ends after full duration from public start.</p>
+              <p class="aylen-hint-box aylen-hint-box--spaced">VIP members can bid during early access. Public sees the lot after this window. Auction ends after full duration from public start.</p>
             </div>
           </div>
           <label class="aylen-label" for="auctCategory">Category *</label>
@@ -2368,13 +2396,13 @@ function updateNotifyRequestsBadge(requests) {
 
   var pending = pendingNotifyRequests(requests);
   if (!pending.length) {
-    badge.style.display = 'none';
+    badge.hidden = true;
     badge.textContent = '0';
     btn.title = 'No waiting customers';
     return;
   }
 
-  badge.style.display = 'inline-block';
+  badge.hidden = false;
   badge.textContent = pending.length > 99 ? '99+' : String(pending.length);
   var grouped = notifyRequestsByProduct(pending);
   btn.title = pending.length + ' waiting customers: ' + Object.keys(grouped).map(function(name) {
@@ -2598,74 +2626,74 @@ async function processRestockNotifications(product) {
 async function renderNotifyRequestsList(modalId) {
   var list = document.getElementById('notifyRequestsList_' + modalId);
   if (!list) return;
-  list.innerHTML = '<div style="color:#999;padding:16px;text-align:center">Loading notify requests...</div>';
+  list.innerHTML = '<div class="aylen-admin-state">Loading notify requests...</div>';
 
   try {
     var requests = await window.FBDB.loadNotifyRequests();
     notifyRequests = requests;
     updateNotifyRequestsBadge(requests);
     if (!requests.length) {
-      list.innerHTML = '<div style="color:#999;text-align:center;padding:20px;border:1px dashed #333;border-radius:6px">No notify requests yet</div>';
+      list.innerHTML = '<div class="aylen-admin-state aylen-admin-state--dashed">No notify requests yet</div>';
       return;
     }
 
     var pending = pendingNotifyRequests(requests);
     var grouped = notifyRequestsByProduct(requests);
-    var summary = '<div style="background:#111827;border:1px solid #263244;border-radius:10px;padding:12px;margin-bottom:12px;color:#e0e0e0">' +
-      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">' +
-        '<b>Waiting Customers: <span style="color:#e94560">' + pending.length + '</span></b>' +
-        '<span style="font-size:12px;color:#9ca3af">Admin gets this badge live while admin mode is open.</span>' +
+    var summary = '<div class="aylen-admin-summary">' +
+      '<div class="aylen-admin-summary__row">' +
+        '<b>Waiting Customers: <span class="aylen-admin-summary__count">' + pending.length + '</span></b>' +
+        '<span class="aylen-admin-summary__hint">Admin gets this badge live while admin mode is open.</span>' +
       '</div>';
     var productNames = Object.keys(grouped);
     if (productNames.length) {
-      summary += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">';
+      summary += '<div class="aylen-admin-chip-row">';
       productNames.forEach(function(name) {
-        summary += '<span style="background:#1f2937;border:1px solid #374151;border-radius:999px;padding:6px 9px;font-size:12px">' + escapeHtml(name) + ': <b style="color:#fbbf24">' + grouped[name] + '</b></span>';
+        summary += '<span class="aylen-admin-chip">' + escapeHtml(name) + ': <b>' + grouped[name] + '</b></span>';
       });
       summary += '</div>';
     }
     summary += '</div>';
 
-    var html = summary + '<div style="display:grid;gap:10px">';
+    var html = summary + '<div class="aylen-admin-list-grid">';
     requests.forEach(function(req) {
       var status = req.notified ? 'sent' : (req.status || 'waiting');
       var actionUrl = notifyActionUrl(req);
       var action = '';
       if (actionUrl) {
-        action += '<a href="' + escapeHtml(actionUrl) + '" target="_blank" rel="noopener" style="padding:9px 11px;background:#3498db;color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:bold;display:inline-flex;align-items:center;gap:6px"><i class="fas fa-up-right-from-square"></i> ' + escapeHtml(notifyActionLabel(req)) + '</a>';
+        action += '<a href="' + escapeHtml(actionUrl) + '" target="_blank" rel="noopener" class="aylen-admin-action-btn aylen-admin-action-btn--open"><i class="fas fa-up-right-from-square"></i> ' + escapeHtml(notifyActionLabel(req)) + '</a>';
       }
-      action += '<button onclick="copyNotifyContact(' + jsInlineArg(req.contact || '') + ')" style="padding:9px 11px;background:#6b7280;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold"><i class="fas fa-copy"></i> Copy Contact</button>';
+      action += '<button type="button" onclick="copyNotifyContact(' + jsInlineArg(req.contact || '') + ')" class="aylen-admin-action-btn aylen-admin-action-btn--copy"><i class="fas fa-copy"></i> Copy Contact</button>';
       if (!req.notified) {
-        action += '<button onclick="markNotifyRequestDone(' + jsInlineArg(req.id) + ',' + jsInlineArg(modalId) + ')" style="padding:9px 11px;background:#00cc66;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold"><i class="fas fa-check"></i> Mark sent</button>';
+        action += '<button type="button" onclick="markNotifyRequestDone(' + jsInlineArg(req.id) + ',' + jsInlineArg(modalId) + ')" class="aylen-admin-action-btn aylen-admin-action-btn--done"><i class="fas fa-check"></i> Mark sent</button>';
       }
-      html += '<div style="background:#0f1419;border:1px solid ' + (req.notified ? '#222' : '#e94560') + ';border-radius:10px;padding:12px;color:#e0e0e0">' +
-        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>' + escapeHtml(req.productName || 'Product') + '</b><span style="color:' + (req.notified ? '#00cc66' : '#f39c12') + ';font-weight:bold">' + escapeHtml(status) + '</span></div>' +
-        '<div style="font-size:13px;color:#ccc;margin-top:6px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px">' +
+      html += '<div class="aylen-admin-list-item' + (req.notified ? '' : ' aylen-admin-list-item--pending') + '">' +
+        '<div class="aylen-admin-list-item__head"><b>' + escapeHtml(req.productName || 'Product') + '</b><span class="aylen-admin-list-item__status' + (req.notified ? ' aylen-admin-list-item__status--sent' : ' aylen-admin-list-item__status--waiting') + '">' + escapeHtml(status) + '</span></div>' +
+        '<div class="aylen-admin-list-item__meta">' +
           '<span>Method: <b>' + escapeHtml(req.method) + '</b></span>' +
-          '<span>Contact: <b style="word-break:break-all">' + escapeHtml(req.contact) + '</b></span>' +
-          '<span>Product ID: <b style="word-break:break-all">' + escapeHtml(req.productId || '') + '</b></span>' +
+          '<span>Contact: <b>' + escapeHtml(req.contact) + '</b></span>' +
+          '<span>Product ID: <b>' + escapeHtml(req.productId || '') + '</b></span>' +
         '</div>' +
-        (req.error ? '<div style="font-size:12px;color:#ffb3b3;margin-top:6px">' + escapeHtml(req.error) + '</div>' : '') +
-        (req.adminMessage ? '<textarea readonly style="width:100%;margin-top:8px;padding:8px;background:#111;color:#ddd;border:1px solid #333;border-radius:4px">' + escapeHtml(req.adminMessage) + '</textarea>' : '') +
-        '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">' + action + '</div>' +
+        (req.error ? '<div class="aylen-admin-list-item__error">' + escapeHtml(req.error) + '</div>' : '') +
+        (req.adminMessage ? '<textarea readonly class="aylen-admin-list-item__message">' + escapeHtml(req.adminMessage) + '</textarea>' : '') +
+        '<div class="aylen-admin-list-item__actions">' + action + '</div>' +
       '</div>';
     });
     html += '</div>';
     list.innerHTML = html;
   } catch (error) {
-    list.innerHTML = '<div style="color:#ffb3b3;padding:16px">Could not load notify requests: ' + escapeHtml(error.message || error) + '</div>';
+    list.innerHTML = '<div class="aylen-admin-state aylen-admin-state--error">Could not load notify requests: ' + escapeHtml(error.message || error) + '</div>';
   }
 }
 
 function openNotifyRequestsModal() {
   var modalId = 'notifyRequestsModal_' + Date.now();
   var html = `
-    <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:min(760px,96vw);max-height:90vh;overflow-y:auto">
-        <span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#16a085;margin-bottom:12px"><i class="fas fa-bell"></i> Notify Requests / Waiting Customers</h2>
-        <p style="color:#999;font-size:13px;margin-bottom:12px">New waiting customers appear here with a red badge in admin mode. Email, WhatsApp and Telegram @username have quick open and copy actions.</p>
-        <button onclick="renderNotifyRequestsList('${modalId}')" style="width:100%;padding:10px;background:#16a085;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold;margin-bottom:12px">Refresh Requests</button>
+    <div id="${modalId}" class="modal aylen-admin-aux-modal open">
+      <div class="modal-content aylen-admin-aux-modal__panel">
+        <span class="close" onclick="AYLEN_MODAL.close()">&times;</span>
+        <h2 class="aylen-admin-aux-modal__title aylen-admin-aux-modal__title--notify"><i class="fas fa-bell"></i> Notify Requests / Waiting Customers</h2>
+        <p class="aylen-admin-aux-modal__intro">New waiting customers appear here with a red badge in admin mode. Email, WhatsApp and Telegram @username have quick open and copy actions.</p>
+        <button type="button" onclick="renderNotifyRequestsList('${modalId}')" class="aylen-admin-aux-modal__refresh">Refresh Requests</button>
         <div id="notifyRequestsList_${modalId}"></div>
       </div>
     </div>
@@ -2764,29 +2792,29 @@ function openCardsModal() {
   }
   var modalId = 'cardsModal_' + Date.now();
   var html = `
-    <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:min(980px,96vw);max-height:90vh;overflow-y:auto">
-        <span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#e94560;margin-bottom:10px"><i class="fas fa-id-card"></i> Client Cards</h2>
-        <p style="color:#999;font-size:13px;margin-bottom:14px">Manual unique codes, QR links, discount levels, private notes and customer order stats. Codes are saved in Firestore.</p>
+    <div id="${modalId}" class="modal aylen-admin-aux-modal open">
+      <div class="modal-content aylen-admin-aux-modal__panel aylen-admin-aux-modal__panel--wide">
+        <span class="close" onclick="AYLEN_MODAL.close()">&times;</span>
+        <h2 class="aylen-admin-aux-modal__title aylen-admin-aux-modal__title--cards"><i class="fas fa-id-card"></i> Client Cards</h2>
+        <p class="aylen-admin-aux-modal__intro">Manual unique codes, QR links, discount levels, private notes and customer order stats. Codes are saved in Firestore.</p>
 
-        <div style="background:#0f1419;border:1px solid #222;border-radius:10px;padding:12px;margin-bottom:12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr 110px 120px;gap:8px;margin-bottom:8px">
-            <input type="text" id="newCardCode" placeholder="Manual code e.g. TESTCODE" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;text-transform:uppercase">
-            <input type="text" id="newCardName" placeholder="Customer name / description" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-            <input type="number" id="newCardDiscount" placeholder="%" min="0" max="100" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
-            <select id="newCardStatus" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">
+        <div class="aylen-admin-form-card">
+          <div class="aylen-admin-form-grid-4">
+            <input type="text" id="newCardCode" class="aylen-admin-input" placeholder="Manual code e.g. TESTCODE">
+            <input type="text" id="newCardName" class="aylen-admin-input" placeholder="Customer name / description">
+            <input type="number" id="newCardDiscount" class="aylen-admin-input" placeholder="%" min="0" max="100">
+            <select id="newCardStatus" class="aylen-admin-select">
               <option value="unused">unused</option>
               <option value="active">active</option>
               <option value="blocked">blocked</option>
             </select>
           </div>
-          <textarea id="bulkCardCodes" placeholder="Bulk import: one card code per line" style="width:100%;min-height:72px;padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;margin-bottom:8px"></textarea>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button onclick="createClientCards('${modalId}')" style="padding:10px 13px;background:#9b59b6;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold">Add Code(s)</button>
-            <button onclick="exportClientCardsCsv()" style="padding:10px 13px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold"><i class="fas fa-download"></i> Export Codes CSV</button>
-            <button onclick="printClientCards()" style="padding:10px 13px;background:#1a1a2e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold"><i class="fas fa-print"></i> Print / Save PDF</button>
-            <button onclick="renderCardsList('${modalId}')" style="padding:10px 13px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold">Refresh Stats</button>
+          <textarea id="bulkCardCodes" class="aylen-admin-textarea" placeholder="Bulk import: one card code per line"></textarea>
+          <div class="aylen-admin-btn-row">
+            <button type="button" onclick="createClientCards('${modalId}')" class="aylen-admin-tool-btn aylen-admin-tool-btn--purple">Add Code(s)</button>
+            <button type="button" onclick="exportClientCardsCsv()" class="aylen-admin-tool-btn aylen-admin-tool-btn--blue"><i class="fas fa-download"></i> Export Codes CSV</button>
+            <button type="button" onclick="printClientCards()" class="aylen-admin-tool-btn aylen-admin-tool-btn--dark"><i class="fas fa-print"></i> Print / Save PDF</button>
+            <button type="button" onclick="renderCardsList('${modalId}')" class="aylen-admin-tool-btn aylen-admin-tool-btn--muted">Refresh Stats</button>
           </div>
         </div>
 
@@ -2805,7 +2833,7 @@ async function renderCardsList(modalId) {
   var list = document.getElementById('cardsList_' + modalId);
   var top = document.getElementById('topCustomers_' + modalId);
   if (!list) return;
-  list.innerHTML = '<div style="color:#999;text-align:center;padding:18px">Loading client cards and customer stats...</div>';
+  list.innerHTML = '<div class="aylen-admin-state">Loading client cards and customer stats...</div>';
 
   var stats = await loadCustomerStats();
   var privateNotes = await loadPrivateCardNotes();
@@ -2819,20 +2847,20 @@ async function renderCardsList(modalId) {
   }).slice(0, 8);
 
   if (top) {
-    top.innerHTML = topCodes.length ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px;margin-bottom:12px;color:#7c2d12">' +
-      '<b>Top Customers</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+    top.innerHTML = topCodes.length ? '<div class="aylen-admin-top-customers">' +
+      '<b>Top Customers</b><div class="aylen-admin-chip-row">' +
       topCodes.map(function(code) {
         var s = stats[code];
-        return '<span style="background:#ffedd5;border:1px solid #fdba74;border-radius:999px;padding:6px 9px;font-size:12px"><b>' + escapeHtml(code) + '</b> · ' + s.orderCount + ' orders · £' + s.totalSpend.toFixed(2) + '</span>';
+        return '<span class="aylen-admin-top-customer-chip"><b>' + escapeHtml(code) + '</b> · ' + s.orderCount + ' orders · £' + s.totalSpend.toFixed(2) + '</span>';
       }).join('') + '</div></div>' : '';
   }
 
   if (codes.length === 0) {
-    list.innerHTML = '<div style="color:#999;text-align:center;padding:20px;border:1px dashed #333;border-radius:6px">No client card codes yet</div>';
+    list.innerHTML = '<div class="aylen-admin-state aylen-admin-state--dashed">No client card codes yet</div>';
     return;
   }
 
-  var html = '<div style="display:grid;gap:10px">';
+  var html = '<div class="aylen-admin-list-grid">';
   codes.forEach(function(code) {
     var card = cardHolders[code] || {};
     card.note = privateNotes[code] || card.note || '';
@@ -2841,42 +2869,42 @@ async function renderCardsList(modalId) {
     var s = stats[code] || { orderCount: 0, totalSpend: 0, contacts: {}, orders: [] };
     var contacts = Object.keys(s.contacts || {}).join('<br>');
     var ordersHtml = (s.orders || []).slice(0, 5).map(function(order) {
-      return '<div style="font-size:12px;color:#ccc;border-top:1px solid #222;padding-top:5px;margin-top:5px">' +
+      return '<div class="aylen-admin-card-order">' +
         formatOrderDate(order.createdAt) + ' · £' + Number(order.total || 0).toFixed(2) + ' · ' + escapeHtml(order.pickup || '') +
       '</div>';
     }).join('');
     html += `
-      <div style="background:#0f1419;border:1px solid #222;border-radius:10px;padding:12px;color:#e0e0e0">
-        <div style="display:grid;grid-template-columns:96px 1fr;gap:12px">
+      <div class="aylen-admin-card-item">
+        <div class="aylen-admin-card-item__layout">
           <div>
-            <img src="${escapeHtml(clientCardQrUrl(code))}" alt="QR ${escapeHtml(code)}" style="width:96px;height:96px;background:#fff;border-radius:6px;padding:4px">
-            <a href="${escapeHtml(clientCardLink(code))}" target="_blank" style="display:block;color:#93c5fd;font-size:11px;word-break:break-all;margin-top:6px">Open link</a>
+            <img src="${escapeHtml(clientCardQrUrl(code))}" alt="QR ${escapeHtml(code)}" class="aylen-admin-card-qr">
+            <a href="${escapeHtml(clientCardLink(code))}" target="_blank" rel="noopener" class="aylen-admin-card-link">Open link</a>
           </div>
           <div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 90px 110px;gap:8px;margin-bottom:8px">
-              <input value="${escapeHtml(code)}" disabled style="padding:8px;border:1px solid #333;background:#111;color:#999;border-radius:4px;font-weight:bold">
-              <input id="cardName_${modalId}_${id}" value="${escapeHtml(card.name || '')}" placeholder="Customer / description" style="padding:8px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:4px">
-              <input id="cardDiscount_${modalId}_${id}" type="number" min="0" max="100" value="${Number(card.discount || 0)}" style="padding:8px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:4px">
-              <select id="cardStatus_${modalId}_${id}" style="padding:8px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:4px">
+            <div class="aylen-admin-card-fields">
+              <input value="${escapeHtml(code)}" disabled class="aylen-admin-input">
+              <input id="cardName_${modalId}_${id}" value="${escapeHtml(card.name || '')}" placeholder="Customer / description" class="aylen-admin-input">
+              <input id="cardDiscount_${modalId}_${id}" type="number" min="0" max="100" value="${Number(card.discount || 0)}" class="aylen-admin-input">
+              <select id="cardStatus_${modalId}_${id}" class="aylen-admin-select">
                 <option value="unused" ${status === 'unused' ? 'selected' : ''}>unused</option>
                 <option value="active" ${status === 'active' ? 'selected' : ''}>active</option>
                 <option value="blocked" ${status === 'blocked' ? 'selected' : ''}>blocked</option>
               </select>
             </div>
-            <textarea id="cardNote_${modalId}_${id}" placeholder="Private admin note" style="width:100%;min-height:54px;padding:8px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:4px;margin-bottom:8px">${escapeHtml(card.note || '')}</textarea>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;font-size:12px;color:#ccc;margin-bottom:8px">
+            <textarea id="cardNote_${modalId}_${id}" placeholder="Private admin note" class="aylen-admin-textarea">${escapeHtml(card.note || '')}</textarea>
+            <div class="aylen-admin-card-stats">
               <span>Orders: <b>${s.orderCount || 0}</b></span>
               <span>Total: <b>£${Number(s.totalSpend || 0).toFixed(2)}</b></span>
               <span>First: <b>${formatOrderDate(s.firstOrder)}</b></span>
               <span>Last: <b>${formatOrderDate(s.lastOrder)}</b></span>
             </div>
-            ${contacts ? '<div style="font-size:12px;color:#aaa;margin-bottom:8px">Contacts:<br>' + contacts + '</div>' : ''}
+            ${contacts ? '<div class="aylen-admin-card-contacts">Contacts:<br>' + contacts + '</div>' : ''}
             ${ordersHtml}
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
-              <button onclick="saveClientCard(${jsInlineArg(code)},'${modalId}')" style="padding:8px 10px;background:#00cc66;color:#fff;border:none;border-radius:5px;cursor:pointer">Save</button>
-              <button onclick="blockClientCard(${jsInlineArg(code)},'${modalId}')" style="padding:8px 10px;background:#f39c12;color:#fff;border:none;border-radius:5px;cursor:pointer">Block</button>
-              <button onclick="copyNotifyContact(${jsInlineArg(clientCardLink(code))})" style="padding:8px 10px;background:#6b7280;color:#fff;border:none;border-radius:5px;cursor:pointer">Copy Link</button>
-              <button onclick="removeClientCard(${jsInlineArg(code)},'${modalId}')" style="padding:8px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer">Delete</button>
+            <div class="aylen-admin-card-actions">
+              <button type="button" onclick="saveClientCard(${jsInlineArg(code)},'${modalId}')" class="aylen-admin-card-btn aylen-admin-card-btn--save">Save</button>
+              <button type="button" onclick="blockClientCard(${jsInlineArg(code)},'${modalId}')" class="aylen-admin-card-btn aylen-admin-card-btn--block">Block</button>
+              <button type="button" onclick="copyNotifyContact(${jsInlineArg(clientCardLink(code))})" class="aylen-admin-card-btn aylen-admin-card-btn--copy">Copy Link</button>
+              <button type="button" onclick="removeClientCard(${jsInlineArg(code)},'${modalId}')" class="aylen-admin-card-btn aylen-admin-card-btn--delete">Delete</button>
             </div>
           </div>
         </div>
@@ -3016,23 +3044,23 @@ function printClientCards() {
 
 function priceListItemFormHtml(prefix, item) {
   item = item || {};
-  return '<input id="' + prefix + 'Name" value="' + escapeHtml(item.name || '') + '" placeholder="Item name *" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-    '<textarea id="' + prefix + 'Desc" placeholder="Description" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;min-height:60px">' + escapeHtml(item.desc || '') + '</textarea>' +
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' +
-      '<input id="' + prefix + 'Retail" type="number" step="0.01" min="0" value="' + Number(item.retailPrice || 0) + '" placeholder="Retail £" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-      '<input id="' + prefix + 'Wholesale" type="number" step="0.01" min="0" value="' + Number(item.wholesalePrice || 0) + '" placeholder="Wholesale £" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-      '<input id="' + prefix + 'MinQty" type="number" step="1" min="1" value="' + Number(item.minQty || 1) + '" placeholder="Min qty" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
+  return '<input id="' + prefix + 'Name" class="aylen-admin-input" value="' + escapeHtml(item.name || '') + '" placeholder="Item name *">' +
+    '<textarea id="' + prefix + 'Desc" class="aylen-admin-textarea" placeholder="Description">' + escapeHtml(item.desc || '') + '</textarea>' +
+    '<div class="aylen-admin-price-form-grid-3">' +
+      '<input id="' + prefix + 'Retail" class="aylen-admin-input" type="number" step="0.01" min="0" value="' + Number(item.retailPrice || 0) + '" placeholder="Retail £">' +
+      '<input id="' + prefix + 'Wholesale" class="aylen-admin-input" type="number" step="0.01" min="0" value="' + Number(item.wholesalePrice || 0) + '" placeholder="Wholesale £">' +
+      '<input id="' + prefix + 'MinQty" class="aylen-admin-input" type="number" step="1" min="1" value="' + Number(item.minQty || 1) + '" placeholder="Min qty">' +
     '</div>' +
-    '<label class="aylen-label" style="color:#b8c4dc;font-size:12px">Category</label>' +
-    '<input id="' + prefix + 'Category" value="' + escapeHtml(item.category || '') + '" placeholder="Category" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' +
-      '<input id="' + prefix + 'Bulk" type="number" step="0.01" min="0" value="' + Number(item.bulkPrice || 0) + '" placeholder="Bulk £" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-      '<input id="' + prefix + 'Status" value="' + escapeHtml(item.stockStatus || 'available') + '" placeholder="Stock/status" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-      '<input id="' + prefix + 'Order" type="number" step="1" value="' + Number(item.sortOrder || 0) + '" placeholder="Order" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-      '<label style="color:#e0e0e0;display:flex;align-items:center;gap:6px"><input id="' + prefix + 'Visible" type="checkbox" ' + (item.visible === false ? '' : 'checked') + '> Show</label>' +
+    '<label class="aylen-label">Category</label>' +
+    '<input id="' + prefix + 'Category" class="aylen-admin-input" value="' + escapeHtml(item.category || '') + '" placeholder="Category">' +
+    '<div class="aylen-admin-price-form-grid-3col">' +
+      '<input id="' + prefix + 'Bulk" class="aylen-admin-input" type="number" step="0.01" min="0" value="' + Number(item.bulkPrice || 0) + '" placeholder="Bulk £">' +
+      '<input id="' + prefix + 'Status" class="aylen-admin-input" value="' + escapeHtml(item.stockStatus || 'available') + '" placeholder="Stock/status">' +
+      '<input id="' + prefix + 'Order" class="aylen-admin-input" type="number" step="1" value="' + Number(item.sortOrder || 0) + '" placeholder="Order">' +
+      '<label class="aylen-admin-price-check"><input id="' + prefix + 'Visible" type="checkbox" ' + (item.visible === false ? '' : 'checked') + '> Show</label>' +
     '</div>' +
-    '<input id="' + prefix + 'Note" value="' + escapeHtml(item.note || '') + '" placeholder="Note" style="padding:10px;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px">' +
-    '<input id="' + prefix + 'Photo" type="file" accept="image/*" style="padding:10px;border:1px dashed #e94560;background:#1a1f2e;color:#e0e0e0;border-radius:5px">';
+    '<input id="' + prefix + 'Note" class="aylen-admin-input" value="' + escapeHtml(item.note || '') + '" placeholder="Note">' +
+    '<input id="' + prefix + 'Photo" class="aylen-admin-price-file" type="file" accept="image/*">';
 }
 
 function readPriceListItemForm(prefix, existing) {
@@ -3066,28 +3094,28 @@ function openPriceListAdminModal() {
   var options = products.map(function(p) {
     return '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(p.name || 'Product') + '</option>';
   }).join('');
-  var html = '<div id="' + modalId + '" class="modal" style="display:flex">' +
-    '<div class="modal-content" style="width:min(980px,96vw);max-height:90vh;overflow-y:auto;background:#101522;color:#e0e0e0">' +
-      '<span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer;color:#fff">&times;</span>' +
-      '<h2 style="color:#e94560;margin-bottom:10px"><i class="fas fa-file-invoice"></i> Price List Admin</h2>' +
-      '<p style="color:#aaa;font-size:13px;margin-bottom:12px">Price list is separate from Our Products. Add custom items or copy from Products.</p>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">' +
-        '<div style="background:#0f1419;border:1px solid #222;border-radius:10px;padding:12px">' +
-          '<h3 style="margin:0 0 10px;color:#fff">Add from Products</h3>' +
-          '<select id="priceProductSelect_' + modalId + '" style="width:100%;padding:10px;background:#1a1f2e;color:#e0e0e0;border:1px solid #333;border-radius:5px;margin-bottom:8px">' + options + '</select>' +
-          '<button onclick="addPriceListFromProduct(' + jsInlineArg(modalId) + ')" style="width:100%;padding:10px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold">Add from Products</button>' +
+  var html = '<div id="' + modalId + '" class="modal aylen-admin-aux-modal open">' +
+    '<div class="modal-content aylen-admin-price-modal">' +
+      '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
+      '<h2 class="aylen-admin-price-title"><i class="fas fa-file-invoice"></i> Price List Admin</h2>' +
+      '<p class="aylen-admin-price-intro">Price list is separate from Our Products. Add custom items or copy from Products.</p>' +
+      '<div class="aylen-admin-price-grid-2">' +
+        '<div class="aylen-admin-price-card">' +
+          '<h3 class="aylen-admin-price-card__title">Add from Products</h3>' +
+          '<select id="priceProductSelect_' + modalId + '" class="aylen-admin-select">' + options + '</select>' +
+          '<button type="button" onclick="addPriceListFromProduct(' + jsInlineArg(modalId) + ')" class="aylen-admin-tool-btn aylen-admin-tool-btn--blue aylen-admin-tool-btn--full">Add from Products</button>' +
         '</div>' +
-        '<div style="background:#0f1419;border:1px solid #222;border-radius:10px;padding:12px">' +
-          '<h3 style="margin:0 0 10px;color:#fff">Add Custom Item</h3>' +
-          '<div style="display:grid;gap:8px">' + priceListItemFormHtml('newPrice_', {}) +
-          '<button onclick="addCustomPriceListItem(' + jsInlineArg(modalId) + ')" style="padding:10px;background:#00cc66;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold">Add Custom Item</button></div>' +
+        '<div class="aylen-admin-price-card">' +
+          '<h3 class="aylen-admin-price-card__title">Add Custom Item</h3>' +
+          '<div class="aylen-admin-price-form">' + priceListItemFormHtml('newPrice_', {}) +
+          '<button type="button" onclick="addCustomPriceListItem(' + jsInlineArg(modalId) + ')" class="aylen-admin-tool-btn aylen-admin-tool-btn--purple">Add Custom Item</button></div>' +
         '</div>' +
       '</div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' +
-        '<button onclick="renderPriceListAdminItems(' + jsInlineArg(modalId) + ')" style="padding:9px 12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer">Refresh</button>' +
-        '<button onclick="downloadPriceList()" style="padding:9px 12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer">Download HTML</button>' +
-        '<button onclick="printPriceList()" style="padding:9px 12px;background:#1a1a2e;color:#fff;border:1px solid #555;border-radius:5px;cursor:pointer">Print / Save PDF</button>' +
-        '<button onclick="downloadPriceListCsv()" style="padding:9px 12px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer">Download CSV</button>' +
+      '<div class="aylen-admin-btn-row">' +
+        '<button type="button" onclick="renderPriceListAdminItems(' + jsInlineArg(modalId) + ')" class="aylen-admin-tool-btn aylen-admin-tool-btn--muted">Refresh</button>' +
+        '<button type="button" onclick="downloadPriceList()" class="aylen-admin-tool-btn aylen-admin-tool-btn--purple">Download HTML</button>' +
+        '<button type="button" onclick="printPriceList()" class="aylen-admin-tool-btn aylen-admin-tool-btn--dark">Print / Save PDF</button>' +
+        '<button type="button" onclick="downloadPriceListCsv()" class="aylen-admin-tool-btn aylen-admin-tool-btn--blue">Download CSV</button>' +
       '</div>' +
       '<div id="priceListAdminItems_' + modalId + '"></div>' +
     '</div></div>';
@@ -3152,18 +3180,18 @@ function renderPriceListAdminItems(modalId) {
   if (!wrap) return;
   var list = (priceListItems || []).slice().sort(function(a, b) { return Number(a.sortOrder || 0) - Number(b.sortOrder || 0); });
   if (!list.length) {
-    wrap.innerHTML = '<div style="color:#999;text-align:center;padding:18px;border:1px dashed #333;border-radius:8px">Price list is empty</div>';
+    wrap.innerHTML = '<div class="aylen-admin-state aylen-admin-state--dashed">Price list is empty</div>';
     return;
   }
   wrap.innerHTML = list.map(function(item) {
     var prefix = 'pli_' + cardDomId(item.id) + '_';
     var img = item.photoUrl || (item.images && item.images[0]) || PRODUCT_FALLBACK_IMAGE;
-    return '<div style="display:grid;grid-template-columns:90px 1fr;gap:10px;background:#0f1419;border:1px solid #222;border-radius:10px;padding:10px;margin-bottom:10px">' +
-      '<img src="' + escapeHtml(img) + '" style="width:90px;height:90px;object-fit:cover;border-radius:8px;background:#1a1a2e">' +
-      '<div style="display:grid;gap:8px">' + priceListItemFormHtml(prefix, item) +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-          '<button onclick="saveExistingPriceListItem(' + jsInlineArg(item.id) + ',' + jsInlineArg(prefix) + ',' + jsInlineArg(modalId) + ')" style="padding:8px 10px;background:#00cc66;color:#fff;border:none;border-radius:5px;cursor:pointer">Save</button>' +
-          '<button onclick="deletePriceListItem(' + jsInlineArg(item.id) + ',' + jsInlineArg(modalId) + ')" style="padding:8px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer">Delete</button>' +
+    return '<div class="aylen-admin-price-item">' +
+      '<img src="' + escapeHtml(img) + '" alt="" class="aylen-admin-price-thumb">' +
+      '<div class="aylen-admin-price-form">' + priceListItemFormHtml(prefix, item) +
+        '<div class="aylen-admin-card-actions">' +
+          '<button type="button" onclick="saveExistingPriceListItem(' + jsInlineArg(item.id) + ',' + jsInlineArg(prefix) + ',' + jsInlineArg(modalId) + ')" class="aylen-admin-card-btn aylen-admin-card-btn--save">Save</button>' +
+          '<button type="button" onclick="deletePriceListItem(' + jsInlineArg(item.id) + ',' + jsInlineArg(modalId) + ')" class="aylen-admin-card-btn aylen-admin-card-btn--delete">Delete</button>' +
         '</div></div></div>';
   }).join('');
 }
@@ -3194,23 +3222,23 @@ function openEbaySettingsModal() {
     description: 'Prefer eBay? Shop our AYLENSALE store on eBay.co.uk.'
   }, (siteSettings && siteSettings.ebay) || {});
   var html = `
-    <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:min(560px,94vw);max-height:90vh;overflow-y:auto">
-        <span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#0064d2;margin-bottom:12px"><i class="fas fa-store"></i> eBay Store Block</h2>
-        <p style="color:#777;font-size:13px;margin-bottom:14px">This controls the homepage eBay card and header button. Settings are saved in Firebase.</p>
-        <label style="display:block;color:#1a1a2e;font-weight:bold;margin-bottom:6px">eBay Store URL</label>
-        <input id="ebayStoreUrl_${modalId}" type="url" value="${escapeHtml(settings.url || '')}" placeholder="https://www.ebay.co.uk/str/your-store" style="width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px">
-        <label style="display:block;color:#1a1a2e;font-weight:bold;margin-bottom:6px">Button Text</label>
-        <input id="ebayButtonText_${modalId}" value="${escapeHtml(settings.buttonText || 'Shop on eBay')}" placeholder="Shop on eBay" style="width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px">
-        <label style="display:block;color:#1a1a2e;font-weight:bold;margin-bottom:6px">Description</label>
-        <textarea id="ebayDescription_${modalId}" style="width:100%;min-height:84px;padding:11px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px">${escapeHtml(settings.description || '')}</textarea>
-        <label style="display:flex;align-items:center;gap:8px;color:#1a1a2e;font-weight:bold;margin-bottom:14px">
-          <input id="ebayEnabled_${modalId}" type="checkbox" ${settings.enabled ? 'checked' : ''} style="width:auto;margin:0"> Show eBay block and header button
+    <div id="${modalId}" class="modal aylen-admin-aux-modal open">
+      <div class="modal-content aylen-admin-settings-modal">
+        <span class="close" onclick="AYLEN_MODAL.close()">&times;</span>
+        <h2 class="aylen-admin-settings-title aylen-admin-settings-title--ebay"><i class="fas fa-store"></i> eBay Store Block</h2>
+        <p class="aylen-admin-settings-intro">This controls the homepage eBay card and header button. Settings are saved in Firebase.</p>
+        <label class="aylen-admin-settings-label" for="ebayStoreUrl_${modalId}">eBay Store URL</label>
+        <input id="ebayStoreUrl_${modalId}" class="aylen-admin-input" type="url" value="${escapeHtml(settings.url || '')}" placeholder="https://www.ebay.co.uk/str/your-store">
+        <label class="aylen-admin-settings-label" for="ebayButtonText_${modalId}">Button Text</label>
+        <input id="ebayButtonText_${modalId}" class="aylen-admin-input" value="${escapeHtml(settings.buttonText || 'Shop on eBay')}" placeholder="Shop on eBay">
+        <label class="aylen-admin-settings-label" for="ebayDescription_${modalId}">Description</label>
+        <textarea id="ebayDescription_${modalId}" class="aylen-admin-textarea">${escapeHtml(settings.description || '')}</textarea>
+        <label class="aylen-admin-settings-label aylen-admin-settings-label--check" for="ebayEnabled_${modalId}">
+          <input id="ebayEnabled_${modalId}" type="checkbox" ${settings.enabled ? 'checked' : ''}> Show eBay block and header button
         </label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button onclick="saveEbaySettings('${modalId}')" style="flex:1;min-width:180px;padding:12px;background:#0064d2;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold">Save eBay Settings</button>
-          <button onclick="AYLEN_MODAL.close()" style="flex:1;min-width:120px;padding:12px;background:#555;color:#fff;border:none;border-radius:8px;cursor:pointer">Cancel</button>
+        <div class="aylen-admin-settings-actions">
+          <button type="button" onclick="saveEbaySettings('${modalId}')" class="aylen-admin-settings-save aylen-admin-settings-save--ebay">Save eBay Settings</button>
+          <button type="button" onclick="AYLEN_MODAL.close()" class="aylen-admin-settings-cancel">Cancel</button>
         </div>
       </div>
     </div>
@@ -3256,21 +3284,21 @@ function openMarketplaceSettingsModal() {
     whatsappUrl: 'https://wa.me/?text=Hi%20AYLENSALE!%20I%27m%20interested%20in%20your%20wholesale%20stock%20and%20weekend%20car%20boot%20deals.%20Please%20send%20availability%20and%20prices.%20Thank%20you!'
   }, (siteSettings && siteSettings.marketplace) || {});
   var html = `
-    <div id="${modalId}" class="modal" style="display:flex">
-      <div class="modal-content" style="width:min(560px,94vw);max-height:90vh;overflow-y:auto">
-        <span class="close" onclick="AYLEN_MODAL.close()" style="position:absolute;top:10px;right:15px;font-size:24px;cursor:pointer">&times;</span>
-        <h2 style="color:#e94560;margin-bottom:12px"><i class="fas fa-wand-magic-sparkles"></i> Marketplace Style</h2>
-        <p style="color:#999;font-size:13px;margin-bottom:14px">Controls live marketplace visual sections. Settings are saved in Firebase.</p>
-        <label style="display:flex;align-items:center;gap:8px;color:#fff;font-weight:bold;margin-bottom:14px">
-          <input id="newArrivalsEnabled_${modalId}" type="checkbox" ${settings.newArrivalsEnabled !== false ? 'checked' : ''} style="width:auto;margin:0"> Show New Arrivals carousel
+    <div id="${modalId}" class="modal aylen-admin-aux-modal open">
+      <div class="modal-content aylen-admin-settings-modal">
+        <span class="close" onclick="AYLEN_MODAL.close()">&times;</span>
+        <h2 class="aylen-admin-settings-title aylen-admin-settings-title--marketplace"><i class="fas fa-wand-magic-sparkles"></i> Marketplace Style</h2>
+        <p class="aylen-admin-settings-intro">Controls live marketplace visual sections. Settings are saved in Firebase.</p>
+        <label class="aylen-admin-settings-label aylen-admin-settings-label--check" for="newArrivalsEnabled_${modalId}">
+          <input id="newArrivalsEnabled_${modalId}" type="checkbox" ${settings.newArrivalsEnabled !== false ? 'checked' : ''}> Show New Arrivals carousel
         </label>
-        <label style="display:block;color:#fff;font-weight:bold;margin-bottom:6px">Telegram Button URL</label>
-        <input id="telegramUrl_${modalId}" type="url" value="${escapeHtml(settings.telegramUrl || 'https://t.me/aylensale')}" placeholder="https://t.me/aylensale" style="width:100%;padding:11px;border:1px solid #333;border-radius:8px;margin-bottom:14px">
-        <label style="display:block;color:#fff;font-weight:bold;margin-bottom:6px">WhatsApp Button URL</label>
-        <input id="whatsappUrl_${modalId}" type="url" value="${escapeHtml(settings.whatsappUrl || 'https://wa.me/?text=Hi%20AYLENSALE!%20I%27m%20interested%20in%20your%20wholesale%20stock%20and%20weekend%20car%20boot%20deals.%20Please%20send%20availability%20and%20prices.%20Thank%20you!')}" placeholder="https://wa.me/447..." style="width:100%;padding:11px;border:1px solid #333;border-radius:8px;margin-bottom:14px">
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button onclick="saveMarketplaceSettings('${modalId}')" style="flex:1;min-width:180px;padding:12px;background:#e94560;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold">Save Marketplace Style</button>
-          <button onclick="AYLEN_MODAL.close()" style="flex:1;min-width:120px;padding:12px;background:#555;color:#fff;border:none;border-radius:8px;cursor:pointer">Cancel</button>
+        <label class="aylen-admin-settings-label" for="telegramUrl_${modalId}">Telegram Button URL</label>
+        <input id="telegramUrl_${modalId}" class="aylen-admin-input" type="url" value="${escapeHtml(settings.telegramUrl || 'https://t.me/aylensale')}" placeholder="https://t.me/aylensale">
+        <label class="aylen-admin-settings-label" for="whatsappUrl_${modalId}">WhatsApp Button URL</label>
+        <input id="whatsappUrl_${modalId}" class="aylen-admin-input" type="url" value="${escapeHtml(settings.whatsappUrl || 'https://wa.me/?text=Hi%20AYLENSALE!%20I%27m%20interested%20in%20your%20wholesale%20stock%20and%20weekend%20car%20boot%20deals.%20Please%20send%20availability%20and%20prices.%20Thank%20you!')}" placeholder="https://wa.me/447...">
+        <div class="aylen-admin-settings-actions">
+          <button type="button" onclick="saveMarketplaceSettings('${modalId}')" class="aylen-admin-settings-save aylen-admin-settings-save--marketplace">Save Marketplace Style</button>
+          <button type="button" onclick="AYLEN_MODAL.close()" class="aylen-admin-settings-cancel">Cancel</button>
         </div>
       </div>
     </div>

@@ -33,15 +33,15 @@
 <meta name="twitter:image" content="https://aylensale.com/logo.png">
 <link rel="dns-prefetch" href="https://www.gstatic.com">
 <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com">
-<link rel="preload" href="/data/catalog-bootstrap.json?v=202606122200" as="fetch" crossorigin>
-<link rel="preload" href="css/storefront-shell-critical.bundle.css?v=202606122200" as="style">
-<link rel="stylesheet" href="css/storefront-shell-critical.bundle.css?v=202606122200">
-<link rel="preload" href="css/storefront-shell-deferred.bundle.css?v=202606122200" as="style" media="(min-width:769px)">
-<link rel="preload" href="css/storefront-shell-deferred.bundle.css?v=202606122200" as="style" media="(max-width:768px)">
-<link rel="stylesheet" href="css/storefront-shell-deferred.bundle.css?v=202606122200" media="(min-width:769px)" onload="this.media='all';document.documentElement.classList.add('shell-css-ready','shell-deferred-ready')">
+<link rel="preload" href="/data/catalog-bootstrap.json?v=202606122700" as="fetch" crossorigin>
+<link rel="preload" href="css/storefront-shell-critical.bundle.css?v=202606122700" as="style">
+<link rel="stylesheet" href="css/storefront-shell-critical.bundle.css?v=202606122700">
+<link rel="preload" href="css/storefront-shell-deferred.bundle.css?v=202606122700" as="style" media="(min-width:769px)">
+<link rel="preload" href="css/storefront-shell-deferred.bundle.css?v=202606122700" as="style" media="(max-width:768px)">
+<link rel="stylesheet" href="css/storefront-shell-deferred.bundle.css?v=202606122700" media="(min-width:769px)" onload="this.media='all';document.documentElement.classList.add('shell-css-ready','shell-deferred-ready')">
 <script>
 (function(){
-  var href='css/storefront-shell-deferred.bundle.css?v=202606122200';
+  var href='css/storefront-shell-deferred.bundle.css?v=202606122700';
   function markReady(){document.documentElement.classList.add('shell-css-ready','shell-deferred-ready');}
   function injectMobileDeferred(){
     if(!window.matchMedia||!window.matchMedia('(max-width:768px)').matches){markReady();return;}
@@ -58,7 +58,7 @@
   }
 })();
 </script>
-<noscript><link rel="stylesheet" href="css/storefront-shell-deferred.bundle.css?v=202606122200"></noscript>
+<noscript><link rel="stylesheet" href="css/storefront-shell-deferred.bundle.css?v=202606122700"></noscript>
 <style id="aylen-storefront-critical">
 html,body{font-family:var(--ds-font-family,Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif);background:var(--ds-bg-base,#080B12);color:var(--ds-text-primary,#F1F5F9);margin:0}
 :root{--aylen-bottom-nav-h:58px;--aylen-bottom-nav:calc(var(--aylen-bottom-nav-h) + env(safe-area-inset-bottom,0px));--aylen-page-pad-bottom:calc(36px + var(--aylen-bottom-nav))}
@@ -70,7 +70,7 @@ html,body{font-family:var(--ds-font-family,Inter,system-ui,-apple-system,BlinkMa
 #products .products-section-sub{display:block;font-size:13px;color:#94a3b8;margin:4px 0 0;line-height:1.4}
 #auctions.auctions-section,#pickup.pickup-section{min-height:320px;contain:layout style;box-sizing:border-box}
 #auctionsGrid,#locationsRow{min-height:480px}
-.site-footer{min-height:280px}
+.site-footer{content-visibility:auto;contain-intrinsic-size:auto 280px}
 #cookieConsent.cookie-consent{display:none!important}
 #cookieConsent.cookie-consent.open{display:flex!important}
 .modal{display:none;position:fixed;inset:0;z-index:400;align-items:center;justify-content:center;background:rgba(0,0,0,.72);padding:16px;box-sizing:border-box}
@@ -234,15 +234,15 @@ body.hero-contact-via-hub{min-height:6200px!important}
 }
 </style>
 <!-- aylen-lcp-preload-slot -->
-<meta name="aylen-build" content="202606122200">
-<meta name="aylen-catalog-bootstrap" content="/data/catalog-bootstrap.json?v=202606122200">
+<meta name="aylen-build" content="202606122700">
+<meta name="aylen-catalog-bootstrap" content="/data/catalog-bootstrap.json?v=202606122700">
 <meta name="aylen-mobile-grid-reserve" content="1648">
 <meta name="aylen-mobile-section-reserve" content="1896">
 <meta name="aylen-storefront-above-reserve" content="228">
 <meta name="aylen-engagement-seed" content="{&quot;productsInStock&quot;:0,&quot;activeAuctions&quot;:0,&quot;pickupPoints&quot;:0}">
 <script>
 (function(){
-  var build='202606122200';
+  var build='202606122700';
   try{
     var prev=localStorage.getItem('aylen_build');
     var reloaded=sessionStorage.getItem('aylen_build_reloaded');
@@ -366,7 +366,7 @@ body.hero-contact-via-hub{min-height:6200px!important}
 </div>
 </section>
 </div>
-<section id="products" class="products-section products-section--loading" style="--products-section-reserved-h:1896px;--products-section-reserved-h-desktop:2100px">
+<section id="products" class="products-section products-section--loading" style="--products-section-reserved-h:1896px;height:1896px;min-height:1896px;max-height:1896px;overflow:hidden">
 <div class="products-section-head">
 <div class="products-section-title">
 <h2><i class="fas fa-box"></i> Our Products</h2>
@@ -393,7 +393,7 @@ body.hero-contact-via-hub{min-height:6200px!important}
 </div>
 <p id="catalogResultMeta" class="catalog-meta" aria-live="polite"><span class="catalog-meta-placeholder">&nbsp;</span></p>
 </div>
-<div id="productsGrid" class="products-grid products-grid--loading" aria-busy="true" style="--products-grid-reserved-h:1648px;--products-grid-reserved-h-desktop:1780px">
+<div id="productsGrid" class="products-grid products-grid--loading" aria-busy="true" style="--products-grid-reserved-h:1648px;height:1648px;min-height:1648px;max-height:1648px;overflow:hidden;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(392px,392px);gap:8px">
 <div class="product-skeleton" aria-hidden="true"></div>
 <div class="product-skeleton" aria-hidden="true"></div>
 <div class="product-skeleton" aria-hidden="true"></div>
@@ -477,6 +477,11 @@ body.hero-contact-via-hub{min-height:6200px!important}
 <h2><i class="fas fa-gavel"></i> Live Auctions</h2>
 <div id="auctionsLiveMeta" class="auctions-live-meta"></div>
 <p class="auctions-section-intro"><i class="fas fa-info-circle"></i> Bid on exclusive warehouse deals — highest offer wins.</p>
+<div class="auctions-trust-chips" role="list" aria-label="Auction benefits">
+<span class="auctions-trust-chip" role="listitem"><i class="fas fa-shield-alt"></i> No buyer premium</span>
+<span class="auctions-trust-chip" role="listitem"><i class="fas fa-lock"></i> Refundable £50 deposit</span>
+<span class="auctions-trust-chip" role="listitem"><i class="fas fa-clock"></i> Anti-snipe 3+3 min</span>
+</div>
 </div>
 <div id="auctionsGrid" class="auctions-grid auctions-rail"></div>
 </section>
@@ -564,14 +569,14 @@ body.hero-contact-via-hub{min-height:6200px!important}
 </div>
 </div>
 
-<script defer src="js/storefront-catalog-api.js?v=202606122200"></script>
-<script defer src="js/lazy-script-loader.js?v=202606122200"></script>
-<script defer src="js/admin-bootstrap.js?v=202606122200"></script>
+<script defer src="js/storefront-catalog-api.js?v=202606122700"></script>
+<script defer src="js/lazy-script-loader.js?v=202606122700"></script>
+<script defer src="js/admin-bootstrap.js?v=202606122700"></script>
 <!-- Firebase SDK deferred until after first paint -->
-<script defer src="js/firebase-loader.js?v=202606122200"></script>
-<script defer src="js/storefront-icons.js?v=202606122200"></script>
-<script defer src="js/storefront-core.bundle.js?v=202606122200"></script>
-<script defer src="js/storefront-actions.js?v=202606122200"></script>
+<script defer src="js/firebase-loader.js?v=202606122700"></script>
+<script defer src="js/storefront-icons.js?v=202606122700"></script>
+<script defer src="js/storefront-core.bundle.js?v=202606122700"></script>
+<script defer src="js/storefront-actions.js?v=202606122700"></script>
 <script>
 (function () {
   if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return;

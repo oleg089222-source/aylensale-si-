@@ -20,12 +20,12 @@
     var isAdmin = !!(global.FBDB && global.FBDB.isAdmin && global.FBDB.isAdmin());
     [headerBtn, mobileBtn, adminWrap].forEach(function(el) {
       if (!el) return;
-      el.style.display = 'none';
+      el.hidden = true;
       el.setAttribute('aria-hidden', 'true');
     });
     if (footerLink) {
       footerLink.hidden = false;
-      footerLink.style.display = 'inline-block';
+      footerLink.removeAttribute('hidden');
       footerLink.textContent = isAdmin ? 'Admin panel' : 'Admin login';
       if (!footerLink._aylenBound) {
         footerLink._aylenBound = true;
@@ -205,12 +205,12 @@
         savedLogin = global.AYLEN_ADMIN_SESSION.getSessionLogin() || 'admin';
       }
       var loginHtml =
-        '<div id="adminLoginModal" class="modal" style="display:flex">' +
-          '<div class="modal-content aylen-admin-login-panel" style="width:min(94vw,380px)">' +
+        '<div id="adminLoginModal" class="modal admin-login-modal open">' +
+          '<div class="modal-content aylen-admin-login-panel">' +
             '<form id="adminLoginForm" novalidate>' +
-            '<h2 style="color:#e94560;text-align:center">Admin Login</h2>' +
-            '<p style="color:#888;font-size:12px;margin:0 0 10px;text-align:center">Use <b style="color:#ccc">admin</b> or <b style="color:#ccc">admin@aylensale.com</b></p>' +
-            '<input type="text" id="adminUser" value="' + (savedLogin.replace(/"/g, '&quot;')) + '" autocomplete="username" placeholder="admin or admin@aylensale.com" style="width:100%;padding:12px;margin:10px 0;border:1px solid #333;background:#1a1f2e;color:#e0e0e0;border-radius:5px;box-sizing:border-box">' +
+            '<h2 class="aylen-admin-login-title">Admin Login</h2>' +
+            '<p class="aylen-admin-login-subtitle">Use <b>admin</b> or <b>admin@aylensale.com</b></p>' +
+            '<input type="text" id="adminUser" class="aylen-admin-login-input" value="' + (savedLogin.replace(/"/g, '&quot;')) + '" autocomplete="username" placeholder="admin or admin@aylensale.com">' +
             '<div class="aylen-password-wrap">' +
               '<input type="password" id="adminPass" autocomplete="current-password" placeholder="Password" class="aylen-password-input">' +
               '<button type="button" id="adminPassToggle" class="aylen-password-toggle" aria-label="Show password" aria-pressed="false">' +
@@ -218,11 +218,11 @@
               '</button>' +
             '</div>' +
             '<p class="aylen-admin-login-hint">Forgot password? After login open <b>Admin → Settings → Admin password</b> to set a new one.</p>' +
-            '<label style="display:flex;align-items:center;gap:8px;color:#aab4c8;font-size:12px;margin:4px 0 12px;cursor:pointer">' +
-              '<input type="checkbox" id="adminRememberDevice" ' + (rememberChecked ? 'checked' : '') + ' style="width:16px;height:16px">' +
+            '<label class="aylen-admin-login-remember">' +
+              '<input type="checkbox" id="adminRememberDevice" ' + (rememberChecked ? 'checked' : '') + '>' +
               ' Remember this phone / computer</label>' +
-            '<button type="submit" id="adminLoginSubmit" style="width:100%;padding:12px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold;margin:10px 0">Login</button>' +
-            '<button type="button" id="adminLoginCancel" style="width:100%;padding:12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;margin:5px 0">Cancel</button>' +
+            '<button type="submit" id="adminLoginSubmit" class="aylen-admin-login-submit">Login</button>' +
+            '<button type="button" id="adminLoginCancel" class="aylen-admin-login-cancel">Cancel</button>' +
             '</form>' +
           '</div>' +
         '</div>';

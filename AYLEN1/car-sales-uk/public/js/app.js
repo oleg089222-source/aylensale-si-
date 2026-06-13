@@ -1262,9 +1262,30 @@ function productIsLowStockListing(product) {
   return stock > 0 && stock <= 5;
 }
 
+function normalizeProductGrade(grade) {
+  var g = String(grade || '').trim().toLowerCase();
+  if (g === 'a' || g === 'b' || g === 'c' || g === 'mixed') return g;
+  return '';
+}
+
+function productGradeBadge(product) {
+  var g = normalizeProductGrade(product && product.grade);
+  if (!g) return null;
+  if (g === 'mixed') return { label: 'Mixed grades', className: 'product-card-badge--grade-mixed' };
+  return { label: 'Grade ' + g.toUpperCase(), className: 'product-card-badge--grade-' + g };
+}
+
+function renderAuctionGradeBadgeHtml(grade) {
+  var badge = productGradeBadge({ grade: grade });
+  if (!badge) return '';
+  return '<span class="auction-grade-badge ' + badge.className + '">' + escapeHtml(badge.label) + '</span>';
+}
+
 function productCardBadgeList(product) {
   if (!product) return [];
   var badges = [];
+  var gradeBadge = productGradeBadge(product);
+  if (gradeBadge) badges.push(gradeBadge);
   if (productIsNewListing(product)) {
     badges.push({ label: 'New', className: 'product-card-badge--new' });
   }
@@ -1703,6 +1724,100 @@ function ensureStorefrontInteraction() {
   return Promise.resolve(true);
 }
 
+var CATEGORY_PREFS_KEY = 'aylen_category_prefs_v1';
+var CATEGORY_PREFS_DISMISS_KEY = 'aylen_category_prefs_dismissed_v1';
+var STOREFRONT_CATEGORY_OPTIONS = [
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'homeware', label: 'Homeware' },
+  { value: 'clothing', label: 'Clothing' },
+  { value: 'accessories', label: 'Accessories' },
+  { value: 'job-lots', label: 'Job lots / Mixed' },
+  { value: 'cables', label: 'Cables' },
+  { value: 'general', label: 'General' }
+];
+
+function getStoredCategoryPrefs() {
+  try {
+    var raw = localStorage.getItem(CATEGORY_PREFS_KEY);
+    var parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(function(c) {
+      return STOREFRONT_CATEGORY_OPTIONS.some(function(opt) { return opt.value === c; });
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCategoryPrefs(categories) {
+  var clean = (categories || []).filter(function(c, i, arr) {
+    return arr.indexOf(c) === i && STOREFRONT_CATEGORY_OPTIONS.some(function(opt) { return opt.value === c; });
+  });
+  try {
+    localStorage.setItem(CATEGORY_PREFS_KEY, JSON.stringify(clean));
+    localStorage.setItem(CATEGORY_PREFS_DISMISS_KEY, '1');
+  } catch (e) { /* ignore */ }
+  applyCategoryPrefsFilter(clean);
+}
+
+function applyCategoryPrefsFilter(categories) {
+  if (!window.AYLEN_CATALOG || !window.AYLEN_CATALOG.state) return;
+  window.AYLEN_CATALOG.state.preferredCategories = (categories || []).slice();
+  if (window.AYLEN_CATALOG.resetVisibleLimit) window.AYLEN_CATALOG.resetVisibleLimit();
+  if (typeof renderProducts === 'function') renderProducts();
+}
+
+function openCategoryPrefsModal() {
+  if (!window.AYLEN_MODAL) {
+    ensureStorefrontInteraction().then(function() { openCategoryPrefsModal(); });
+    return;
+  }
+  var stored = getStoredCategoryPrefs();
+  var modalId = 'categoryPrefsModal_' + Date.now();
+  var checks = '';
+  for (var i = 0; i < STOREFRONT_CATEGORY_OPTIONS.length; i++) {
+    var opt = STOREFRONT_CATEGORY_OPTIONS[i];
+    var checked = stored.indexOf(opt.value) !== -1 ? ' checked' : '';
+    checks += '<label class="category-prefs-option"><input type="checkbox" name="categoryPref" value="' +
+      escapeHtml(opt.value) + '"' + checked + '> ' + escapeHtml(opt.label) + '</label>';
+  }
+  var html = '<div id="' + modalId + '" class="modal category-prefs-modal" style="display:flex">' +
+    '<div class="modal-content">' +
+      '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
+      '<h2><i class="fas fa-sliders-h"></i> What are you looking for?</h2>' +
+      '<p class="category-prefs-intro">Pick categories you care about — we will prioritise them in the shop catalog. Change anytime via filters.</p>' +
+      '<div class="category-prefs-grid">' + checks + '</div>' +
+      '<div class="category-prefs-actions">' +
+        '<button type="button" class="btn-order" onclick="submitCategoryPrefs(' + jsInlineArg(modalId) + ')"><i class="fas fa-check"></i> Save preferences</button>' +
+        '<button type="button" class="btn-order secondary" onclick="dismissCategoryPrefs(' + jsInlineArg(modalId) + ')">Show everything</button>' +
+      '</div>' +
+    '</div></div>';
+  if (window.AYLEN_MODAL) window.AYLEN_MODAL.open(html, { id: modalId });
+}
+
+function submitCategoryPrefs(modalId) {
+  var panel = document.getElementById(modalId);
+  var inputs = panel ? panel.querySelectorAll('input[name="categoryPref"]:checked') : [];
+  var selected = [];
+  for (var i = 0; i < inputs.length; i++) selected.push(inputs[i].value);
+  saveCategoryPrefs(selected);
+  if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
+  notify(selected.length ? 'Catalog tailored to your picks' : 'Showing all categories', 'success');
+}
+
+function dismissCategoryPrefs(modalId) {
+  try { localStorage.setItem(CATEGORY_PREFS_DISMISS_KEY, '1'); } catch (e) { /* ignore */ }
+  if (window.AYLEN_MODAL) window.AYLEN_MODAL.close(modalId);
+}
+
+function maybeShowCategoryPrefsModal() {
+  if (document.body.classList.contains('product-page')) return;
+  try {
+    if (localStorage.getItem(CATEGORY_PREFS_DISMISS_KEY)) return;
+  } catch (e) { return; }
+  setTimeout(function() { openCategoryPrefsModal(); }, 800);
+}
+
 document.addEventListener("DOMContentLoaded", function() {
   initSsrDeferredProductImages();
   var footerYear = document.getElementById('footerYear');
@@ -1748,6 +1863,7 @@ document.addEventListener("DOMContentLoaded", function() {
   if (window.AYLEN_VIP_SHOP_BRIDGE && window.AYLEN_VIP_SHOP_BRIDGE.apply) {
     await window.AYLEN_VIP_SHOP_BRIDGE.apply();
   }
+  applyCategoryPrefsFilter(getStoredCategoryPrefs());
   validateCurrentUserCard();
   normalizeCart();
   if (isProductPage && typeof initProductDetailPage === 'function') {
@@ -1758,6 +1874,7 @@ document.addEventListener("DOMContentLoaded", function() {
   requestAnimationFrame(function() {
     document.dispatchEvent(new CustomEvent('aylen-catalog-ready'));
   });
+  maybeShowCategoryPrefsModal();
   if (!isProductPage) renderTelegramLinks();
   updateCartCount();
   if (!isProductPage) {
@@ -4088,6 +4205,7 @@ function buildAuctionMarketHtml(a, domKey, ctx) {
   h += '<div class="auction-current-price">£' + highAmount.toFixed(2) + '</div>';
   h += '<div class="auction-bids">Start £' + Number(a.startingPrice || 0).toFixed(2) +
     ' · ' + (a.bidsCount || bidStats.totalBids || 0) + ' bids</div>';
+  h += '<div class="auction-no-bp-note"><i class="fas fa-shield-alt"></i> No buyer premium — your bid is the total</div>';
   if (isAdmin && highestBid) {
     h += '<div class="auction-highest-bid auction-highest-bid--admin"><i class="fas fa-crown" style="color:#f5af02"></i> Leading: <b>' +
       escapeHtml(highestBid.bidderName || highestBid.bidder || 'Customer') + '</b></div>';
@@ -4194,14 +4312,6 @@ function buildAuctionModalInfoHtml(a) {
 
   if (a.desc) {
     html += '<div class="pdp-modal__desc">' + escapeHtml(a.desc).replace(/\n/g, '<br>') + '</div>';
-  }
-
-  if (a.manifest && Array.isArray(a.manifest.lines) && a.manifest.lines.length) {
-    html += '<div class="pdp-manifest-cta">' +
-      '<p><i class="fas fa-list"></i> <b>Manifest:</b> ' + (a.manifest.totalUnits || 0) + ' units · £' +
-      Number(a.manifest.totalRrp || 0).toFixed(2) + ' RRP</p>' +
-      '<a class="btn-action secondary" href="/api/manifest-csv?id=' + encodeURIComponent(a.id) +
-      '&type=auction" download><i class="fas fa-file-csv"></i> Download manifest CSV</a></div>';
   }
 
   var bids = (auctionBids[String(a.id)] || a.bids || []).slice().sort(function(x, y) {
@@ -5132,6 +5242,7 @@ function renderAuctions() {
       h += '<span class="auction-photo-count"><i class="fas fa-images"></i> ' + a.images.length + '</span>';
     }
     h += '<div class="auction-status" style="background:' + auctionStatusColor(statusLabel) + '">' + escapeHtml(statusLabel) + '</div>';
+    h += renderAuctionGradeBadgeHtml(a.grade);
     h += renderAuctionCountdownOverlayHtml(domKey, timeLeft, isEnding, isEnded);
     h += '</div>';
 
@@ -5313,7 +5424,13 @@ function openBidModal(auctionId) {
     '<div class="modal-content">' +
       '<span class="close" onclick="AYLEN_MODAL.close()">&times;</span>' +
       '<h2><i class="fas fa-gavel"></i> Confirm Bid</h2>' +
-      '<p style="margin-bottom:12px;color:#666">Bid for <b>' + escapeHtml(a.name) + '</b>: <b>£' + bidAmount.toFixed(2) + '</b></p>' +
+      '<p style="margin-bottom:8px;color:#666">Lot: <b>' + escapeHtml(a.name) + '</b></p>' +
+      '<div class="auction-bid-total-preview">' +
+        '<div class="auction-bid-total-row"><span>Your bid</span><strong>£' + bidAmount.toFixed(2) + '</strong></div>' +
+        '<div class="auction-bid-total-row auction-bid-total-row--muted"><span>Buyer premium</span><strong>£0.00</strong></div>' +
+        '<div class="auction-bid-total-row auction-bid-total-row--total"><span>Total if you win</span><strong>£' + bidAmount.toFixed(2) + '</strong></div>' +
+        '<p class="auction-bid-total-note"><i class="fas fa-check-circle"></i> No buyer premium — what you bid is what you pay.</p>' +
+      '</div>' +
       '<input type="text" id="bidWebsite_' + modalId + '" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0" value="">' +
       '<input type="hidden" id="bidStartedAt_' + modalId + '" value="' + Date.now() + '">' +
       '<input type="text" id="bidName_' + modalId + '" placeholder="Your Name *" value="' + escapeHtml(stored.name || (currentUser && currentUser.name ? currentUser.name : '')) + '" required>' +

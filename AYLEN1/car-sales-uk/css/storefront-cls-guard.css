@@ -4,8 +4,8 @@
  */
 :root {
   --aylen-mobile-card-row-h: 392px;
-  --aylen-mobile-engagement-h: 92px;
-  --aylen-mobile-above-fold-h: 228px;
+  --aylen-mobile-engagement-h: 132px;
+  --aylen-mobile-above-fold-h: 400px;
 }
 
 @media (max-width: 768px) {
@@ -18,7 +18,7 @@
   #hero.hero-marketplace.hero-phase1,
   .hero-marketplace.hero-phase1 {
     height: auto !important;
-    min-height: 128px !important;
+    min-height: 180px !important;
     max-height: none !important;
     overflow: visible !important;
     padding: 10px 12px 8px !important;
@@ -26,6 +26,8 @@
 
   #storefrontAboveProducts {
     min-height: var(--storefront-above-reserved-h, var(--aylen-mobile-above-fold-h)) !important;
+    contain: layout style;
+    box-sizing: border-box;
   }
 
   /* Engagement — 3 inventory tiles, hide vanity metrics before deferred CSS */
@@ -132,7 +134,7 @@
 
   #engagementBar.live-activity-bar {
     min-height: 52px !important;
-    contain: layout style;
+    max-height: 52px !important;
   }
 
   #ebayPromoWrap.ebay-promo-wrap {
@@ -165,6 +167,7 @@
   }
 
   section#products.products-section--loading {
+    height: var(--products-section-reserved-h-desktop, var(--products-section-reserved-h, 1400px)) !important;
     max-height: var(--products-section-reserved-h-desktop, var(--products-section-reserved-h, 1400px)) !important;
     overflow: hidden !important;
   }
@@ -180,6 +183,7 @@
   }
 
   #productsGrid.products-grid--loading {
+    height: var(--products-grid-reserved-h-desktop, var(--products-grid-reserved-h, 1200px)) !important;
     max-height: var(--products-grid-reserved-h-desktop, var(--products-grid-reserved-h, 1200px)) !important;
     overflow: hidden !important;
   }

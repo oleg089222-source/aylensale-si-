@@ -2,7 +2,7 @@
  * Lazy-load admin panel scripts and styles (not for public shoppers).
  */
 (function(global) {
-  var VERSION = '202606122100';
+  var VERSION = '202606122700';
   var coreLoaded = false;
   var extrasLoaded = false;
   var coreLoading = null;
@@ -10,13 +10,16 @@
 
   var STYLES = [
     'css/ds-v2-tokens.css',
-    'css/ds-v2-admin-shell.css',
     'css/admin-dashboard.css',
     'css/pickup-admin-form.css',
     'css/admin-modals.css',
     'css/admin-discount-cards.css',
     'css/admin-visit-cards.css',
-    'css/admin-auction-command.css'
+    'css/admin-auction-command.css',
+    'css/ds-v2-admin-shell.css',
+    'css/ds-v2-admin-cms.css',
+    'css/ds-v2-admin-panels.css',
+    'css/ds-v2-admin-legacy-modals.css'
   ];
 
   var STYLES_AI = ['css/ai-assistant.css', 'css/warehouse-scan.css'];
@@ -44,7 +47,6 @@
   var SCRIPTS_EXTRAS = [
     'js/ai-settings.js',
     'js/ai-assistant-media.js',
-    'js/manifest-export.js',
     'js/admin-ai-assistant.js',
     'js/warehouse-scan.js'
   ];

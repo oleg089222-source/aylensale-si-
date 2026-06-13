@@ -53,18 +53,6 @@ function isTruthy(v) {
   return v === true || v === 'true' || v === '1' || v === 'yes';
 }
 
-function stripeVerifyHttpError(error) {
-  const msg = String(error && error.message || error || '');
-  const type = String(error && error.type || '');
-  if (type === 'StripeInvalidRequestError' || /no such checkout\.session/i.test(msg)) {
-    return { status: 400, error: 'Invalid or expired checkout session' };
-  }
-  if (/Invalid API Key/i.test(msg)) {
-    return { status: 503, error: 'Payment verification is not configured' };
-  }
-  return null;
-}
-
 function vipDisabled() {
   const enabled = process.env.VIP_ENABLED;
   return enabled === 'false' || enabled === '0' || enabled === 'no';
@@ -775,8 +763,6 @@ export async function handleVipItemVerify(req, res) {
     return res.status(200).json({ order: mapVipOrderPublic(order), paid: true });
   } catch (error) {
     console.error('vip item verify:', error.message);
-    const mapped = stripeVerifyHttpError(error);
-    if (mapped) return res.status(mapped.status).json({ error: mapped.error });
     return res.status(500).json({ error: error.message || 'Verification failed' });
   }
 }
@@ -997,8 +983,6 @@ export async function handleVerify(req, res) {
     });
   } catch (error) {
     console.error('vip verify:', error.message);
-    const mapped = stripeVerifyHttpError(error);
-    if (mapped) return res.status(mapped.status).json({ error: mapped.error });
     return res.status(500).json({ error: error.message || 'Verification failed' });
   }
 }

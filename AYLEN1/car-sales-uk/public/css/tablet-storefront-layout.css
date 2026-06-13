@@ -1,5 +1,5 @@
 /**
- * Tablet (769–1024px): compact hero + 2-col catalog, CLS-safe reserves.
+ * Tablet (769–1024px): 2-col catalog, CLS-safe above-fold (no hero height lock).
  */
 @media (min-width: 769px) and (max-width: 1024px) {
   .hero-title-full {
@@ -10,37 +10,40 @@
     display: block !important;
   }
 
-  #hero.hero-marketplace.hero-phase1,
-  .hero-marketplace.hero-phase1 {
-    height: 140px !important;
-    min-height: 140px !important;
-    max-height: 140px !important;
-    overflow: hidden !important;
+  #storefrontAboveProducts {
+    min-height: var(
+      --storefront-above-reserved-h-desktop,
+      var(--storefront-above-reserved-h, 468px)
+    ) !important;
     contain: layout style;
+    box-sizing: border-box;
   }
 
-  .hero-phase1 .hero-content h2,
-  .hero-phase1 .hero-tagline,
-  .hero-phase1 .hero-actions-hub {
+  #engagementBar.live-activity-bar .live-activity-item--online,
+  #engagementBar.live-activity-bar .live-activity-item:last-child {
     display: none !important;
   }
 
-  #storefrontAboveProducts {
-    min-height: var(--storefront-above-reserved-h, 360px) !important;
+  #engagementBar.live-activity-bar {
+    min-height: 52px !important;
+    max-height: 52px !important;
     contain: layout style;
   }
 
   #ebayPromoWrap.ebay-promo-wrap {
     display: block !important;
-    min-height: 92px !important;
+    min-height: 56px !important;
     visibility: hidden;
     pointer-events: none;
+    contain: layout style;
+    box-sizing: border-box;
   }
 
   #ebayPromoWrap.ebay-promo-wrap.is-visible,
   #ebayPromoWrap.ebay-promo-wrap[data-ssr-ebay="1"] {
     visibility: visible !important;
     pointer-events: auto;
+    min-height: 56px !important;
   }
 
   #products #productsGrid.products-grid {

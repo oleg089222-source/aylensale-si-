@@ -87,7 +87,7 @@
   /* Above-products block grows with content */
   #storefrontAboveProducts,
   body.hero-contact-via-hub #storefrontAboveProducts {
-    min-height: var(--storefront-above-reserved-h, 228px) !important;
+    min-height: var(--storefront-above-reserved-h, 400px) !important;
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;

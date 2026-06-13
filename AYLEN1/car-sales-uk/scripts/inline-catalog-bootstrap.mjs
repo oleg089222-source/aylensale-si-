@@ -79,26 +79,6 @@ const MOBILE_CARD_ROW_PX = 392;
 const MOBILE_GRID_GAP_PX = 8;
 const MOBILE_GRID_PAD_BOTTOM_PX = 56;
 const MOBILE_SECTION_OVERHEAD_PX = 248;
-const DESKTOP_CARD_ROW_PX = 320;
-const DESKTOP_GRID_GAP_PX = 12;
-const DESKTOP_GRID_PAD_BOTTOM_PX = 12;
-const DESKTOP_SECTION_OVERHEAD_PX = 320;
-
-function desktopGridColumnsForWidth(width) {
-  if (width <= 1024) return 2;
-  if (width <= 1399) return 3;
-  return 4;
-}
-
-function desktopGridReservePx(cardCount, width) {
-  const cols = desktopGridColumnsForWidth(width || 1280);
-  const rows = Math.ceil(Math.max(0, Number(cardCount) || 0) / cols) || 4;
-  return rows * DESKTOP_CARD_ROW_PX + Math.max(0, rows - 1) * DESKTOP_GRID_GAP_PX + DESKTOP_GRID_PAD_BOTTOM_PX;
-}
-
-function desktopSectionReservePx(cardCount, width) {
-  return desktopGridReservePx(cardCount, width) + DESKTOP_SECTION_OVERHEAD_PX;
-}
 
 function mobileGridReservePx(cardCount) {
   const n = Math.max(0, Number(cardCount) || 0);
@@ -479,25 +459,14 @@ if (items.length) {
   html = html.replace('<div class="product-skeleton" aria-hidden="true"></div>', ssrHtml);
   html = html.replace(/<div class="product-skeleton" aria-hidden="true"><\/div>\s*/g, '');
 
-  const catalogReserveCount = Math.min(items.length, 24);
-  const gridReserve = mobileGridReservePx(catalogReserveCount);
-  const sectionReserve = mobileSectionReservePx(catalogReserveCount);
-  const desktopGridReserve = desktopGridReservePx(catalogReserveCount, 1280);
-  const desktopSectionReserve = desktopSectionReservePx(catalogReserveCount, 1280);
+  const gridReserve = mobileGridReservePx(ssrCount);
+  const sectionReserve = mobileSectionReservePx(ssrCount);
   const hasEbay = !!(ebaySettings && ebaySettings.enabled && validEbayUrl(ebaySettings.url));
   const aboveReserve = mobileAboveProductsReservePx();
   const aboveReserveDesktop = desktopAboveProductsReservePx(hasEbay);
   html = html.replace(/1648px/g, gridReserve + 'px');
   html = html.replace(/1896px/g, sectionReserve + 'px');
   html = html.replace(/228px/g, aboveReserve + 'px');
-  html = html.replace(
-    /--products-grid-reserved-h-desktop:\s*\d+px/g,
-    '--products-grid-reserved-h-desktop:' + desktopGridReserve + 'px'
-  );
-  html = html.replace(
-    /--products-section-reserved-h-desktop:\s*\d+px/g,
-    '--products-section-reserved-h-desktop:' + desktopSectionReserve + 'px'
-  );
   html = html.replace(
     /--products-grid-reserved-h:\s*\d+px/g,
     '--products-grid-reserved-h:' + gridReserve + 'px'

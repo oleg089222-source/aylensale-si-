@@ -21,13 +21,44 @@
 }
 
 #adminLoginModal .modal-content h2,
-#adminLoginModal .modal-content label {
-  color: var(--ds-text-primary) !important;
+#adminLoginModal .aylen-admin-login-title {
+  color: var(--ds-brand) !important;
+  text-align: center !important;
   font-size: var(--ds-text-h2-size) !important;
   font-weight: var(--ds-text-h2-weight) !important;
+  margin: 0 0 var(--ds-space-2) !important;
 }
 
-#adminLoginModal .modal-content label {
+#adminLoginModal .aylen-admin-login-subtitle {
+  color: var(--ds-text-muted) !important;
+  font-size: var(--ds-text-caption-size) !important;
+  margin: 0 0 var(--ds-space-3) !important;
+  text-align: center !important;
+}
+
+#adminLoginModal .aylen-admin-login-subtitle b {
+  color: var(--ds-text-secondary) !important;
+  font-weight: 600 !important;
+}
+
+#adminLoginModal .aylen-admin-login-remember {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--ds-space-2) !important;
+  color: var(--ds-text-secondary) !important;
+  font-size: var(--ds-text-caption-size) !important;
+  margin: var(--ds-space-1) 0 var(--ds-space-3) !important;
+  cursor: pointer !important;
+}
+
+#adminLoginModal .aylen-admin-login-remember input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+  accent-color: var(--ds-brand) !important;
+}
+
+#adminLoginModal .modal-content label:not(.aylen-admin-login-remember) {
   display: block;
   font-size: var(--ds-text-label-size) !important;
   font-weight: var(--ds-text-label-weight) !important;
@@ -36,7 +67,8 @@
 }
 
 #adminLoginModal #adminUser,
-#adminLoginModal #adminPass {
+#adminLoginModal #adminPass,
+#adminLoginModal .aylen-admin-login-input {
   width: 100% !important;
   min-height: var(--ds-control-height) !important;
   padding: 0 var(--ds-space-4) !important;
@@ -57,7 +89,8 @@
   box-shadow: 0 0 0 var(--ds-focus-ring-width) rgba(232, 69, 106, 0.22) !important;
 }
 
-#adminLoginSubmit {
+#adminLoginSubmit,
+#adminLoginModal .aylen-admin-login-submit {
   width: 100% !important;
   min-height: var(--ds-control-height) !important;
   margin: var(--ds-space-4) 0 var(--ds-space-2) !important;
@@ -72,11 +105,13 @@
   box-shadow: none !important;
 }
 
-#adminLoginSubmit:hover {
+#adminLoginSubmit:hover,
+#adminLoginModal .aylen-admin-login-submit:hover {
   background: var(--ds-brand-hover) !important;
 }
 
-#adminLoginCancel {
+#adminLoginCancel,
+#adminLoginModal .aylen-admin-login-cancel {
   width: 100% !important;
   min-height: var(--ds-control-height-sm) !important;
   margin: 0 !important;
@@ -90,21 +125,103 @@
   cursor: pointer !important;
 }
 
-#adminLoginCancel:hover {
+#adminLoginCancel:hover,
+#adminLoginModal .aylen-admin-login-cancel:hover {
   color: var(--ds-text-primary) !important;
   background: rgba(255, 255, 255, 0.04) !important;
 }
 
 #adminToolbar.admin-toolbar,
 .admin-toolbar {
+  display: flex !important;
+  gap: var(--ds-space-2) !important;
+  align-items: center !important;
+  padding: 0 var(--ds-space-3) !important;
+  border-left: 1px solid var(--ds-border-subtle) !important;
   background: var(--ds-bg-elevated) !important;
   border-bottom: 1px solid var(--ds-border-subtle) !important;
   box-shadow: var(--ds-shadow-sm) !important;
 }
 
+.admin-toolbar-label {
+  color: var(--ds-brand) !important;
+  font-size: var(--ds-text-overline-size) !important;
+  font-weight: 700 !important;
+  letter-spacing: var(--ds-text-overline-tracking);
+}
+
 #adminToolbar .admin-toolbar-btn,
 .admin-toolbar button {
+  min-height: var(--ds-control-height-sm) !important;
+  padding: 0 var(--ds-space-3) !important;
   border-radius: var(--ds-radius-md) !important;
   font-size: var(--ds-text-label-size) !important;
   font-weight: 600 !important;
+  cursor: pointer !important;
+  border: 1px solid transparent !important;
+  white-space: nowrap !important;
+}
+
+.admin-toolbar-btn--panel {
+  background: var(--ds-bg-surface) !important;
+  color: var(--ds-text-primary) !important;
+  border-color: var(--ds-brand) !important;
+}
+
+.admin-toolbar-btn--orders {
+  background: var(--ds-bg-elevated) !important;
+  color: var(--ds-info) !important;
+  border-color: var(--ds-info) !important;
+}
+
+.admin-toolbar-btn--codes {
+  background: var(--ds-bg-elevated) !important;
+  color: var(--ds-brand) !important;
+  border-color: var(--ds-brand) !important;
+}
+
+.admin-toolbar-btn--add {
+  background: var(--ds-success) !important;
+  color: #fff !important;
+}
+
+.admin-toolbar-btn--location {
+  background: #00ff88 !important;
+  color: var(--ds-text-inverse) !important;
+}
+
+.admin-toolbar-btn--notify {
+  position: relative !important;
+  background: #16a085 !important;
+  color: #fff !important;
+}
+
+.admin-toolbar-btn--backup {
+  background: var(--ds-info) !important;
+  color: #fff !important;
+}
+
+.admin-toolbar-btn--exit {
+  background: var(--ds-brand) !important;
+  color: #fff !important;
+}
+
+.admin-toolbar-badge {
+  position: absolute !important;
+  top: -7px !important;
+  right: -7px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  padding: 0 5px !important;
+  border-radius: var(--ds-radius-full) !important;
+  background: var(--ds-brand) !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  line-height: 20px !important;
+  text-align: center !important;
+  border: 2px solid var(--ds-bg-elevated) !important;
+}
+
+.admin-toolbar-badge[hidden] {
+  display: none !important;
 }

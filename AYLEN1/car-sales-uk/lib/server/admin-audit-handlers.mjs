@@ -11,6 +11,7 @@ import {
 import { processRestockNotifications } from './restock-notify.mjs';
 import { getFirestoreAdmin } from './firebase-admin-app.mjs';
 import { verifyFirebaseAdminToken } from './firebase-admin-app.mjs';
+import { scrubAuctionBidPii } from './auction-bid-public.mjs';
 
 function parseBody(req) {
   if (typeof req.body === 'string') {
@@ -178,6 +179,29 @@ export async function handleAdminAudit(req, res) {
       if (!snap.exists) return res.status(200).json({ ok: true, deleted: false, reason: 'not_found' });
       await ref.delete();
       return res.status(200).json({ ok: true, deleted: true, productId: docId });
+    }
+
+    if (action === 'scrub-auction-bid-pii') {
+      const dryRun = body.dryRun !== false && body.dryRun !== 'false';
+      const result = await scrubAuctionBidPii(getFirestoreAdmin(), {
+        dryRun: dryRun,
+        limit: body.limit
+      });
+      return res.status(200).json({ ok: true, ...result });
+    }
+
+    if (action === 'cleanup-qa-activity') {
+      const db = getFirestoreAdmin();
+      const needle = String(body.needle || 'QA Audit Test').toLowerCase();
+      const snap = await db.collection('activityFeed').orderBy('createdAtMs', 'desc').limit(100).get();
+      let deleted = 0;
+      for (const doc of snap.docs) {
+        const msg = String((doc.data() || {}).message || '').toLowerCase();
+        if (msg.indexOf(needle) === -1) continue;
+        await doc.ref.delete();
+        deleted++;
+      }
+      return res.status(200).json({ ok: true, deleted, needle: body.needle || 'QA Audit Test' });
     }
 
     return res.status(400).json({ error: 'Unknown audit action' });

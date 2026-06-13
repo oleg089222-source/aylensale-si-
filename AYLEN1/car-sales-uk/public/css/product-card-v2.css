@@ -137,6 +137,28 @@
   background: #475569;
 }
 
+#products .product-card-badge--grade-a {
+  background: #15803d;
+  color: #ecfdf5;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+#products .product-card-badge--grade-b {
+  background: #1d4ed8;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+#products .product-card-badge--grade-c {
+  background: #b45309;
+  color: #fff7ed;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+#products .product-card-badge--grade-mixed {
+  background: #6d28d9;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
 #products .product-card-title-block {
   flex: 0 0 auto !important;
   min-height: 2.8em !important;

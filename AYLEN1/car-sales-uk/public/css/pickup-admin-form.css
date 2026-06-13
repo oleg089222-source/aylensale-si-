@@ -201,6 +201,17 @@
   margin-top: 2px;
 }
 
+.pickup-admin-modal .pickup-suggestions__empty,
+.pickup-admin-modal .pickup-suggestions li.pickup-suggestions__empty {
+  color: #64748b;
+  cursor: default;
+}
+
+.pickup-admin-modal .pickup-suggestions__empty:hover,
+.pickup-admin-modal .pickup-suggestions li.pickup-suggestions__empty:hover {
+  background: transparent;
+}
+
 .pickup-admin-modal .pickup-optional-toggle {
   grid-column: 1 / -1;
   background: none;

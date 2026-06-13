@@ -22,6 +22,7 @@
     category: '',
     sort: 'newest',
     quickFilter: '',
+    preferredCategories: [],
     visibleLimit: catalogPageSize()
   };
 
@@ -77,6 +78,10 @@
     }
     if (state.category) {
       list = list.filter(function(p) { return String(p.category || '') === state.category; });
+    } else if (state.preferredCategories && state.preferredCategories.length) {
+      var prefSet = {};
+      state.preferredCategories.forEach(function(c) { prefSet[c] = true; });
+      list = list.filter(function(p) { return prefSet[String(p.category || '')]; });
     }
     if (state.quickFilter === 'in-stock') {
       list = list.filter(function(p) { return (parseInt(p.stock, 10) || 0) > 0; });
@@ -343,6 +348,7 @@
     getSlice: getSlice,
     loadMore: loadMore,
     resetVisibleLimit: resetVisibleLimit,
+    applyFilter: applyFilter,
     ensureToolbar: ensureToolbar,
     renderFooter: renderFooter,
     refreshCategories: refreshCategories
